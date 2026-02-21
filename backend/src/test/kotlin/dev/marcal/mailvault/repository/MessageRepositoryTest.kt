@@ -71,6 +71,30 @@ class MessageRepositoryTest {
     }
 
     @Test
+    fun `list supports offset pagination`() {
+        val secondPage = repository.list(query = null, page = 1, size = 1)
+        assertEquals(3, secondPage.total)
+        assertEquals(1, secondPage.items.size)
+        assertEquals("a", secondPage.items.first().id)
+    }
+
+    @Test
+    fun `blank query is treated as no filter`() {
+        val blank = repository.list(query = "   ", page = 0, size = 50)
+        assertEquals(3, blank.total)
+    }
+
+    @Test
+    fun `fallback ordering by mtime applies when date is null`() {
+        insert("d", "/tmp/d.eml", 5000, 40, null, "No date newer", "Dave <dave@x.com>", "<d@x>")
+
+        val page = repository.list(query = "No date", page = 0, size = 50)
+        assertEquals(2, page.total)
+        assertEquals("d", page.items[0].id)
+        assertEquals("c", page.items[1].id)
+    }
+
+    @Test
     fun `findById returns full detail and null for unknown id`() {
         val found = repository.findById("a")
         val missing = repository.findById("missing")
