@@ -21,6 +21,9 @@ repositories {
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.boot:spring-boot-starter-jdbc")
+	implementation("org.flywaydb:flyway-core")
+	implementation("org.xerial:sqlite-jdbc:3.50.3.0")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("tools.jackson.module:jackson-module-kotlin")
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
