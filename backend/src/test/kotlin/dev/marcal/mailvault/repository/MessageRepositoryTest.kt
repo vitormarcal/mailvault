@@ -1,0 +1,109 @@
+package dev.marcal.mailvault.repository
+
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.datasource.DriverManagerDataSource
+import java.nio.file.Path
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+
+class MessageRepositoryTest {
+    @TempDir
+    lateinit var tempDir: Path
+
+    private lateinit var jdbcTemplate: JdbcTemplate
+    private lateinit var repository: MessageRepository
+
+    @BeforeEach
+    fun setUp() {
+        val dbPath = tempDir.resolve("messages-test.db").toAbsolutePath().normalize()
+        val dataSource = DriverManagerDataSource().apply {
+            setDriverClassName("org.sqlite.JDBC")
+            url = "jdbc:sqlite:$dbPath"
+        }
+
+        jdbcTemplate = JdbcTemplate(dataSource)
+        repository = MessageRepository(jdbcTemplate)
+
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS messages (
+                id TEXT PRIMARY KEY,
+                file_path TEXT NOT NULL UNIQUE,
+                file_mtime_epoch INTEGER NOT NULL,
+                file_size INTEGER NOT NULL,
+                date_raw TEXT,
+                subject TEXT,
+                from_raw TEXT,
+                message_id TEXT
+            )
+            """.trimIndent(),
+        )
+        jdbcTemplate.update("DELETE FROM messages")
+
+        insert("a", "/tmp/a.eml", 1000, 10, "2024-01-01T10:00:00Z", "Hello", "Alice <alice@x.com>", "<a@x>")
+        insert("b", "/tmp/b.eml", 3000, 20, "2024-02-01T10:00:00Z", "Report", "Bob <bob@x.com>", "<b@x>")
+        insert("c", "/tmp/c.eml", 4000, 30, null, "No date", "Charlie <charlie@x.com>", "<c@x>")
+    }
+
+    @Test
+    fun `list paginates and orders by date_raw desc then file_mtime_epoch desc`() {
+        val page = repository.list(query = null, page = 0, size = 2)
+
+        assertEquals(3, page.total)
+        assertEquals(2, page.items.size)
+        assertEquals("b", page.items[0].id)
+        assertEquals("a", page.items[1].id)
+    }
+
+    @Test
+    fun `list filters by subject and from_raw`() {
+        val bySubject = repository.list(query = "report", page = 0, size = 50)
+        val byFrom = repository.list(query = "charlie", page = 0, size = 50)
+
+        assertEquals(1, bySubject.total)
+        assertEquals("b", bySubject.items.first().id)
+        assertEquals(1, byFrom.total)
+        assertEquals("c", byFrom.items.first().id)
+    }
+
+    @Test
+    fun `findById returns full detail and null for unknown id`() {
+        val found = repository.findById("a")
+        val missing = repository.findById("missing")
+
+        assertNotNull(found)
+        assertEquals("/tmp/a.eml", found.filePath)
+        assertEquals("Hello", found.subject)
+        assertNull(missing)
+    }
+
+    private fun insert(
+        id: String,
+        filePath: String,
+        fileMtimeEpoch: Long,
+        fileSize: Long,
+        dateRaw: String?,
+        subject: String?,
+        fromRaw: String?,
+        messageId: String?,
+    ) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, subject, from_raw, message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            id,
+            filePath,
+            fileMtimeEpoch,
+            fileSize,
+            dateRaw,
+            subject,
+            fromRaw,
+            messageId,
+        )
+    }
+}
