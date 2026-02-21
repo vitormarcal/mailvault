@@ -5,5 +5,17 @@ services:
       dockerfile: backend/Dockerfile
     ports:
       - "8080:8080"
+    volumes:
+      - mailvault-data:/app/data
     environment:
       - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_APPLICATION_NAME=Mail Vault
+      - SPRING_DATASOURCE_URL=jdbc:sqlite:/app/data/mailvault.db
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.sqlite.JDBC
+      - SPRING_FLYWAY_ENABLED=true
+      - SPRING_FLYWAY_URL=jdbc:sqlite:/app/data/mailvault.db
+      - SPRING_FLYWAY_DRIVER_CLASS_NAME=org.sqlite.JDBC
+      - SPRING_FLYWAY_LOCATIONS=classpath:db/migration
+
+volumes:
+  mailvault-data:

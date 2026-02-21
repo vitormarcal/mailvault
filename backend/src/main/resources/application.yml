@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: ${SPRING_APPLICATION_NAME:Mail Vault}
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:sqlite:./data/mailvault.db}
+    driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.sqlite.JDBC}
+  flyway:
+    enabled: ${SPRING_FLYWAY_ENABLED:true}
+    url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:sqlite:./data/mailvault.db}}
+    driver-class-name: ${SPRING_FLYWAY_DRIVER_CLASS_NAME:${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.sqlite.JDBC}}
+    locations: ${SPRING_FLYWAY_LOCATIONS:classpath:db/migration}
