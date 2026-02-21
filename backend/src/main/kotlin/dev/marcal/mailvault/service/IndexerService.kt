@@ -18,6 +18,7 @@ data class IndexResult(
 @Service
 class IndexerService(
     private val jdbcTemplate: JdbcTemplate,
+    private val emlHeaderParser: EmlHeaderParser,
 ) {
     fun index(rootDir: String): IndexResult {
         val rootPath = Path.of(rootDir).toAbsolutePath().normalize()
@@ -45,7 +46,7 @@ class IndexerService(
                         return@forEach
                     }
 
-                    val headers = parseHeaders(filePath)
+                    val headers = emlHeaderParser.parse(filePath)
                     val id = sha256Hex("${headers.messageId ?: ""}|$normalizedPath")
 
                     upsertMessage(
@@ -125,42 +126,6 @@ class IndexerService(
         )
     }
 
-    private fun parseHeaders(filePath: Path): HeaderValues {
-        val headers = linkedMapOf<String, StringBuilder>()
-        var currentHeader: String? = null
-
-        Files.newBufferedReader(filePath, StandardCharsets.ISO_8859_1).use { reader ->
-            for (line in reader.lineSequence()) {
-                if (line.isEmpty()) {
-                    break
-                }
-
-                if ((line.startsWith(" ") || line.startsWith("\t")) && currentHeader != null) {
-                    headers[currentHeader]?.append(" ")?.append(line.trim())
-                    continue
-                }
-
-                val separatorIndex = line.indexOf(':')
-                if (separatorIndex <= 0) {
-                    currentHeader = null
-                    continue
-                }
-
-                val headerName = line.substring(0, separatorIndex).trim().lowercase()
-                val headerValue = line.substring(separatorIndex + 1).trim()
-                headers[headerName] = StringBuilder(headerValue)
-                currentHeader = headerName
-            }
-        }
-
-        return HeaderValues(
-            date = headers["date"]?.toString(),
-            subject = headers["subject"]?.toString(),
-            from = headers["from"]?.toString(),
-            messageId = headers["message-id"]?.toString(),
-        )
-    }
-
     private fun sha256Hex(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(value.toByteArray(StandardCharsets.UTF_8))
@@ -172,10 +137,4 @@ class IndexerService(
         val fileSize: Long,
     )
 
-    private data class HeaderValues(
-        val date: String?,
-        val subject: String?,
-        val from: String?,
-        val messageId: String?,
-    )
 }
