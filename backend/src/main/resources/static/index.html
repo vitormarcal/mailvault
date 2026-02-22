@@ -501,6 +501,7 @@
         <div class="ops-actions">
           <button id="indexBtn" type="button" class="btn-primary">Indexar (incremental)</button>
           <button id="reindexBtn" type="button" class="btn-ghost">Reindexar (completo)</button>
+          <button id="freezePendingBtn" type="button" class="btn-ghost">Congelar pendentes</button>
           <button id="maintenanceBtn" type="button" class="btn-ghost">Manutencao (limpeza/vacuum)</button>
         </div>
         <span id="indexStatus" class="ops-status"></span>
@@ -538,6 +539,7 @@
     const summary = document.getElementById('summary');
     const indexBtn = document.getElementById('indexBtn');
     const reindexBtn = document.getElementById('reindexBtn');
+    const freezePendingBtn = document.getElementById('freezePendingBtn');
     const maintenanceBtn = document.getElementById('maintenanceBtn');
     const indexStatus = document.getElementById('indexStatus');
     const pageInfo = document.getElementById('pageInfo');
@@ -561,6 +563,7 @@
       hasHtml: null,
       hasFrozenImages: null,
       itemsCount: 0,
+      items: [],
       loading: false,
     };
 
@@ -787,6 +790,7 @@
         const response = await fetch(`/api/messages?${params.toString()}`);
         if (!response.ok) {
           state.loading = false;
+          state.items = [];
           state.total = 0;
           state.itemsCount = 0;
           renderMeta();
@@ -796,6 +800,7 @@
 
         const data = await response.json();
         const items = data.items || [];
+        state.items = items;
         state.total = Number(data.total || 0);
         state.itemsCount = items.length;
         state.loading = false;
@@ -803,6 +808,7 @@
         renderItems(items, null);
       } catch (_) {
         state.loading = false;
+        state.items = [];
         state.total = 0;
         state.itemsCount = 0;
         renderMeta();
@@ -926,6 +932,7 @@
     function setIndexRunning(running) {
       indexBtn.disabled = running;
       reindexBtn.disabled = running;
+      freezePendingBtn.disabled = running;
       maintenanceBtn.disabled = running;
     }
 
@@ -979,6 +986,59 @@
         loadStats();
       } catch (_) {
         setOpsStatus('error', 'Falha de rede ao executar manutencao.');
+      } finally {
+        setIndexRunning(false);
+      }
+    }
+
+    async function runFreezePending() {
+      const candidates = (state.items || []).filter((item) =>
+        item.hasHtml && Number(item.frozenAssetsCount || 0) <= 0);
+
+      if (!candidates.length) {
+        setOpsStatus('info', 'Nenhuma mensagem pendente de freeze nesta pagina.');
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Congelar imagens em ${candidates.length} mensagem(ns) pendente(s) da pagina atual?`,
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      setIndexRunning(true);
+      let processed = 0;
+      let downloaded = 0;
+      let failed = 0;
+      let skipped = 0;
+      let requestErrors = 0;
+
+      try {
+        for (const item of candidates) {
+          setOpsStatus('info', `Congelando pendentes... ${processed + 1}/${candidates.length}`);
+          try {
+            const response = await fetch(`/api/messages/${encodeURIComponent(item.id)}/freeze-assets`, { method: 'POST' });
+            if (!response.ok) {
+              requestErrors += 1;
+            } else {
+              const data = await response.json();
+              downloaded += Number(data.downloaded || 0);
+              failed += Number(data.failed || 0);
+              skipped += Number(data.skipped || 0);
+            }
+          } catch (_) {
+            requestErrors += 1;
+          }
+          processed += 1;
+        }
+
+        setOpsStatus(
+          requestErrors > 0 ? 'error' : 'ok',
+          `Freeze pendentes concluido: mensagens=${processed}, baixadas=${downloaded}, falhas=${failed}, ignoradas=${skipped}, errosReq=${requestErrors}`,
+        );
+        await loadMessages();
+        await loadStats();
       } finally {
         setIndexRunning(false);
       }
@@ -1052,6 +1112,10 @@
         return;
       }
       runMaintenance();
+    });
+
+    freezePendingBtn.addEventListener('click', () => {
+      runFreezePending();
     });
 
     prevBtn.addEventListener('click', () => {
