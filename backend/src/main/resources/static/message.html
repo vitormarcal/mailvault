@@ -5,58 +5,406 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MailVault - Mensagem</title>
   <style>
-    body { font-family: Georgia, "Times New Roman", serif; margin: 24px auto; max-width: 960px; padding: 0 16px; color: #1f2937; }
-    .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
-    button, a.btn { padding: 10px 14px; border: 1px solid #111827; background: #111827; color: #fff; border-radius: 6px; cursor: pointer; text-decoration: none; }
-    a.btn.secondary { background: #fff; color: #111827; }
-    dl { display: grid; grid-template-columns: 80px 1fr; gap: 8px 12px; }
-    dt { font-weight: bold; }
-    pre { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; white-space: pre-wrap; word-break: break-word; }
-    #htmlContainer { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; }
-    #attachments li { margin-bottom: 6px; }
-    #status { color: #4b5563; min-height: 20px; }
+    :root {
+      --bg: #f4f0e8;
+      --bg-2: #efe7d8;
+      --panel: #fffcf7;
+      --line: #d8cab3;
+      --ink: #1f1b16;
+      --muted: #5f584b;
+      --accent: #1f5e94;
+      --accent-strong: #154770;
+      --brand: #2f7a5c;
+      --warn: #7c4b1e;
+      --danger: #7b2a2a;
+      --ok: #276f4d;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --shadow: 0 16px 28px rgba(26, 20, 12, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 96% 3%, rgba(41, 104, 160, 0.14), transparent 36%),
+        radial-gradient(circle at 0% 100%, rgba(47, 122, 92, 0.13), transparent 35%),
+        linear-gradient(140deg, var(--bg), var(--bg-2));
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(1180px, 94vw);
+      margin: 24px auto 42px;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    button, a.btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      padding: 10px 14px;
+      font: inherit;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease, background-color .12s ease;
+    }
+
+    .btn-primary {
+      background: var(--brand);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(47, 122, 92, 0.25);
+    }
+
+    .btn-primary:hover { background: #235e47; transform: translateY(-1px); }
+
+    .btn-accent {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(31, 94, 148, 0.24);
+    }
+
+    .btn-accent:hover { background: var(--accent-strong); transform: translateY(-1px); }
+
+    .btn-ghost {
+      background: #fff;
+      color: var(--ink);
+      border-color: #c8b89d;
+    }
+
+    .btn-ghost:hover { background: #f7f0e1; }
+
+    button:disabled {
+      opacity: .65;
+      cursor: wait;
+      transform: none;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+    }
+
+    .header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fffdf8, #fbf3e4);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 2.2vw, 2rem);
+      line-height: 1.25;
+      letter-spacing: .2px;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 10px 12px;
+      padding: 14px 18px;
+      color: var(--muted);
+      font-size: .95rem;
+    }
+
+    .meta dt { font-weight: 700; color: #40382d; }
+    .meta dd { margin: 0; word-break: break-word; }
+
+    .viewer {
+      padding: 10px 14px 16px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin: 0 0 10px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      border-radius: 999px;
+      border: 1px solid #cbb89b;
+      background: #fff;
+      color: #433a2f;
+      padding: 7px 12px;
+      font-size: .9rem;
+      cursor: pointer;
+    }
+
+    .tab.active {
+      background: #1f5e94;
+      color: #fff;
+      border-color: #1f5e94;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #fff;
+      min-height: 190px;
+      overflow: auto;
+    }
+
+    #htmlContainer {
+      padding: 14px;
+      max-height: 65vh;
+    }
+
+    #textPlain {
+      margin: 0;
+      padding: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #2d271f;
+      max-height: 65vh;
+      overflow: auto;
+      font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+      font-size: .92rem;
+      line-height: 1.5;
+    }
+
+    .placeholder {
+      padding: 20px;
+      color: var(--muted);
+    }
+
+    .status {
+      margin-top: 12px;
+      min-height: 24px;
+      border-radius: 10px;
+      padding: 9px 10px;
+      border: 1px solid transparent;
+      font-size: .93rem;
+      display: none;
+    }
+
+    .status.show { display: block; }
+    .status.info { background: #ebf3fb; color: #1e4c75; border-color: #b8d2ea; }
+    .status.ok { background: #e9f6ef; color: #1f613f; border-color: #b7ddc6; }
+    .status.error { background: #fdeeee; color: #772828; border-color: #edc6c6; }
+
+    .side {
+      padding: 14px;
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .side-block {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .side-title {
+      margin: 0;
+      padding: 10px 12px;
+      font-size: .95rem;
+      border-bottom: 1px solid var(--line);
+      background: #faf3e6;
+    }
+
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 8px 10px;
+    }
+
+    .list li {
+      padding: 9px 0;
+      border-bottom: 1px dashed #ddcfb9;
+      color: var(--muted);
+      font-size: .93rem;
+      word-break: break-word;
+    }
+
+    .list li:last-child { border-bottom: none; }
+
+    .list a {
+      color: #134b84;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .list a:hover { text-decoration: underline; }
+
+    .badge {
+      display: inline-flex;
+      margin-left: 6px;
+      border-radius: 999px;
+      padding: 1px 8px;
+      font-size: .75rem;
+      background: #f2e4cc;
+      color: #6f5029;
+      border: 1px solid #e1cdab;
+    }
+
+    .tip {
+      margin: 0;
+      padding: 12px;
+      color: #5f584b;
+      font-size: .9rem;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 940px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      #htmlContainer,
+      #textPlain {
+        max-height: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <a href="/" class="btn secondary">Voltar</a>
-    <button id="reindexBtn" type="button">Reindexar</button>
-    <button id="freezeBtn" type="button">Congelar imagens</button>
-  </div>
+  <main class="wrap">
+    <div class="topbar">
+      <a href="/" class="btn btn-ghost">Voltar para caixa</a>
+      <button id="reindexBtn" type="button" class="btn-primary">Reindexar</button>
+      <button id="freezeBtn" type="button" class="btn-accent">Congelar imagens</button>
+    </div>
 
-  <h1 id="subject">Carregando...</h1>
-  <dl>
-    <dt>From</dt><dd id="fromRaw">-</dd>
-    <dt>Date</dt><dd id="dateRaw">-</dd>
-  </dl>
+    <section class="layout">
+      <article class="card">
+        <header class="header">
+          <h1 id="subject">Carregando mensagem...</h1>
+        </header>
 
-  <h2 id="htmlTitle" hidden>HTML sanitizado</h2>
-  <div id="htmlContainer" hidden></div>
+        <dl class="meta">
+          <dt>From</dt><dd id="fromRaw">-</dd>
+          <dt>Date</dt><dd id="dateRaw">-</dd>
+          <dt>ID</dt><dd id="messageId">-</dd>
+        </dl>
 
-  <h2 id="plainTitle">text/plain</h2>
-  <pre id="textPlain"></pre>
+        <section class="viewer">
+          <div class="tabs">
+            <button id="tabHtml" class="tab" type="button">HTML seguro</button>
+            <button id="tabPlain" class="tab" type="button">Texto puro</button>
+          </div>
 
-  <h2>Anexos</h2>
-  <ul id="attachments"></ul>
+          <div class="panel" id="panelHtml" hidden>
+            <div id="htmlContainer"></div>
+          </div>
 
-  <p id="status"></p>
+          <div class="panel" id="panelPlain" hidden>
+            <pre id="textPlain"></pre>
+          </div>
+
+          <div id="emptyBody" class="panel" hidden>
+            <p class="placeholder">Esta mensagem nao possui corpo em text/plain ou html disponivel.</p>
+          </div>
+
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </section>
+      </article>
+
+      <aside class="card side">
+        <section class="side-block">
+          <h2 class="side-title">Anexos</h2>
+          <ul id="attachments" class="list">
+            <li>Carregando anexos...</li>
+          </ul>
+        </section>
+
+        <section class="side-block">
+          <h2 class="side-title">Notas de seguranca</h2>
+          <p class="tip">Links externos passam por <code>/go</code>. Imagens remotas nao carregam automaticamente.</p>
+          <p class="tip">Use "Congelar imagens" para baixar recursos remotos localmente com as regras de seguranca.</p>
+        </section>
+      </aside>
+    </section>
+  </main>
 
   <script>
     const subjectEl = document.getElementById('subject');
     const fromEl = document.getElementById('fromRaw');
     const dateEl = document.getElementById('dateRaw');
-    const textEl = document.getElementById('textPlain');
-    const plainTitleEl = document.getElementById('plainTitle');
-    const htmlTitleEl = document.getElementById('htmlTitle');
+    const messageIdEl = document.getElementById('messageId');
+
     const htmlContainerEl = document.getElementById('htmlContainer');
+    const textEl = document.getElementById('textPlain');
+    const panelHtmlEl = document.getElementById('panelHtml');
+    const panelPlainEl = document.getElementById('panelPlain');
+    const emptyBodyEl = document.getElementById('emptyBody');
+
+    const tabHtmlEl = document.getElementById('tabHtml');
+    const tabPlainEl = document.getElementById('tabPlain');
+
     const attachmentsEl = document.getElementById('attachments');
     const statusEl = document.getElementById('status');
     const reindexBtn = document.getElementById('reindexBtn');
     const freezeBtn = document.getElementById('freezeBtn');
 
+    let currentState = {
+      messageId: '',
+      hasHtml: false,
+      hasPlain: false,
+      activeTab: 'plain',
+    };
+
     function currentId() {
       const parts = window.location.pathname.split('/').filter(Boolean);
       return decodeURIComponent(parts[parts.length - 1] || '');
+    }
+
+    function escapeHtml(value) {
+      return (value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
+    function setStatus(kind, message) {
+      statusEl.className = `status show ${kind}`;
+      statusEl.textContent = message;
+    }
+
+    function clearStatus() {
+      statusEl.className = 'status';
+      statusEl.textContent = '';
+    }
+
+    function setLoadingButtons(isLoading) {
+      reindexBtn.disabled = isLoading;
+      freezeBtn.disabled = isLoading;
+    }
+
+    function applyTab(tab) {
+      currentState.activeTab = tab;
+      tabHtmlEl.classList.toggle('active', tab === 'html');
+      tabPlainEl.classList.toggle('active', tab === 'plain');
+
+      const showHtml = tab === 'html' && currentState.hasHtml;
+      const showPlain = tab === 'plain' && currentState.hasPlain;
+
+      panelHtmlEl.hidden = !showHtml;
+      panelPlainEl.hidden = !showPlain;
+      emptyBodyEl.hidden = showHtml || showPlain;
     }
 
     async function loadRenderedHtml(id) {
@@ -69,30 +417,50 @@
     }
 
     async function loadAttachments(id) {
+      attachmentsEl.innerHTML = '<li>Carregando anexos...</li>';
       const response = await fetch(`/api/messages/${encodeURIComponent(id)}/attachments`);
       if (!response.ok) {
         attachmentsEl.innerHTML = '<li>Falha ao carregar anexos.</li>';
         return;
       }
+
       const items = await response.json();
       if (!items || items.length === 0) {
         attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
         return;
       }
+
       attachmentsEl.innerHTML = items.map((att) => {
-        const name = att.filename || '(sem nome)';
-        const inlineMark = att.isInline ? ' [inline]' : '';
-        return `<li><a href="/api/attachments/${encodeURIComponent(att.id)}/download">${name}</a> (${att.size} bytes)${inlineMark}</li>`;
+        const name = escapeHtml(att.filename || '(sem nome)');
+        const inlineMark = att.isInline ? '<span class="badge">inline</span>' : '';
+        const size = Number(att.size || 0);
+        return `<li>
+          <a href="/api/attachments/${encodeURIComponent(att.id)}/download">${name}</a>${inlineMark}
+          <div>${size.toLocaleString('pt-BR')} bytes</div>
+        </li>`;
       }).join('');
     }
 
     async function loadMessage() {
+      clearStatus();
       const id = currentId();
+      currentState.messageId = id;
+
+      subjectEl.textContent = 'Carregando mensagem...';
+      fromEl.textContent = '-';
+      dateEl.textContent = '-';
+      messageIdEl.textContent = id || '-';
+      panelHtmlEl.hidden = true;
+      panelPlainEl.hidden = true;
+      emptyBodyEl.hidden = false;
+
       const response = await fetch(`/api/messages/${encodeURIComponent(id)}`);
       if (!response.ok) {
         subjectEl.textContent = 'Mensagem nao encontrada';
         textEl.textContent = '';
+        htmlContainerEl.innerHTML = '';
         attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
+        setStatus('error', 'Nao foi possivel carregar os dados da mensagem.');
         return;
       }
 
@@ -100,48 +468,68 @@
       subjectEl.textContent = data.subject || '(sem assunto)';
       fromEl.textContent = data.fromRaw || '(sem remetente)';
       dateEl.textContent = data.dateRaw || '(sem data)';
+      messageIdEl.textContent = data.messageId || id;
       textEl.textContent = data.textPlain || '';
 
       const renderedHtml = await loadRenderedHtml(id);
-      if (renderedHtml && renderedHtml.trim().length > 0) {
-        htmlContainerEl.innerHTML = renderedHtml;
-        htmlContainerEl.hidden = false;
-        htmlTitleEl.hidden = false;
-        plainTitleEl.hidden = true;
-        textEl.hidden = true;
+      htmlContainerEl.innerHTML = renderedHtml || '';
+
+      currentState.hasHtml = Boolean(renderedHtml && renderedHtml.trim().length > 0);
+      currentState.hasPlain = Boolean(data.textPlain && data.textPlain.trim().length > 0);
+
+      if (currentState.hasHtml) {
+        applyTab('html');
+      } else if (currentState.hasPlain) {
+        applyTab('plain');
       } else {
-        htmlContainerEl.hidden = true;
-        htmlTitleEl.hidden = true;
-        plainTitleEl.hidden = false;
-        textEl.hidden = false;
+        applyTab('plain');
       }
 
       await loadAttachments(id);
     }
 
+    tabHtmlEl.addEventListener('click', () => applyTab('html'));
+    tabPlainEl.addEventListener('click', () => applyTab('plain'));
+
     reindexBtn.addEventListener('click', async () => {
-      statusEl.textContent = 'Reindexando...';
-      const response = await fetch('/api/index', { method: 'POST' });
-      if (!response.ok) {
-        statusEl.textContent = 'Falha ao reindexar.';
-        return;
+      setLoadingButtons(true);
+      setStatus('info', 'Reindexando base de emails...');
+
+      try {
+        const response = await fetch('/api/index', { method: 'POST' });
+        if (!response.ok) {
+          setStatus('error', 'Falha ao reindexar.');
+          return;
+        }
+        const data = await response.json();
+        setStatus('ok', `Reindexacao concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`);
+        await loadMessage();
+      } catch (_) {
+        setStatus('error', 'Falha de rede ao reindexar.');
+      } finally {
+        setLoadingButtons(false);
       }
-      const data = await response.json();
-      statusEl.textContent = `Reindexacao concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`;
-      await loadMessage();
     });
 
     freezeBtn.addEventListener('click', async () => {
       const id = currentId();
-      statusEl.textContent = 'Congelando imagens remotas...';
-      const response = await fetch(`/api/messages/${encodeURIComponent(id)}/freeze-assets`, { method: 'POST' });
-      if (!response.ok) {
-        statusEl.textContent = 'Falha ao congelar imagens.';
-        return;
+      setLoadingButtons(true);
+      setStatus('info', 'Congelando imagens remotas desta mensagem...');
+
+      try {
+        const response = await fetch(`/api/messages/${encodeURIComponent(id)}/freeze-assets`, { method: 'POST' });
+        if (!response.ok) {
+          setStatus('error', 'Falha ao congelar imagens.');
+          return;
+        }
+        const data = await response.json();
+        setStatus('ok', `Freeze concluido: downloaded=${data.downloaded}, failed=${data.failed}, skipped=${data.skipped}`);
+        await loadMessage();
+      } catch (_) {
+        setStatus('error', 'Falha de rede ao congelar imagens.');
+      } finally {
+        setLoadingButtons(false);
       }
-      const data = await response.json();
-      statusEl.textContent = `Freeze concluido: downloaded=${data.downloaded}, failed=${data.failed}, skipped=${data.skipped}`;
-      await loadMessage();
     });
 
     loadMessage();

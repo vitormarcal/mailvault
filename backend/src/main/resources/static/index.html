@@ -5,80 +5,459 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MailVault - Caixa Historica</title>
   <style>
-    body { font-family: Georgia, "Times New Roman", serif; margin: 24px auto; max-width: 960px; padding: 0 16px; color: #1f2937; }
-    h1 { margin-bottom: 8px; }
-    p { color: #4b5563; }
-    form { display: flex; gap: 8px; margin: 16px 0; }
-    input[type="text"] { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; }
-    button { padding: 10px 14px; border: 1px solid #111827; background: #111827; color: #fff; border-radius: 6px; cursor: pointer; }
-    button.secondary { background: #fff; color: #111827; }
-    ul { list-style: none; padding: 0; margin: 16px 0; }
-    li { border-top: 1px solid #e5e7eb; padding: 12px 0; }
-    .meta { color: #6b7280; font-size: 14px; margin-bottom: 4px; }
-    a { color: #0f3d8a; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .empty { color: #6b7280; }
+    :root {
+      --bg: #f7f4ef;
+      --bg-2: #ede5d8;
+      --panel: #fffdfa;
+      --line: #d9cfbf;
+      --ink: #1d1a15;
+      --muted: #5e5649;
+      --accent: #176d5b;
+      --accent-strong: #0e4f41;
+      --danger: #7a2f2f;
+      --shadow: 0 16px 30px rgba(37, 31, 20, 0.08);
+      --radius-lg: 18px;
+      --radius-md: 12px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(23, 109, 91, 0.13), transparent 40%),
+        radial-gradient(circle at 100% 15%, rgba(182, 132, 58, 0.12), transparent 42%),
+        linear-gradient(140deg, var(--bg), var(--bg-2));
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(1080px, 92vw);
+      margin: 28px auto 42px;
+    }
+
+    .hero {
+      background: linear-gradient(145deg, #1e5b4e, #143d34);
+      color: #f8f5ef;
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(244, 203, 142, 0.28), rgba(244, 203, 142, 0));
+      right: -80px;
+      top: -110px;
+      pointer-events: none;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      letter-spacing: 0.4px;
+      font-size: clamp(1.7rem, 2.6vw, 2.2rem);
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(248, 245, 239, 0.9);
+      font-size: 1.02rem;
+    }
+
+    .panel {
+      margin-top: 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .search {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fffcf6, #fbf6eb);
+    }
+
+    .search input {
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid #ccbda8;
+      padding: 11px 12px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .search input:focus {
+      outline: 2px solid rgba(23, 109, 91, 0.2);
+      border-color: var(--accent);
+    }
+
+    button, .btn {
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(23, 109, 91, 0.22);
+    }
+
+    .btn-primary:hover { background: var(--accent-strong); transform: translateY(-1px); }
+
+    .btn-ghost {
+      background: #fff;
+      color: var(--ink);
+      border-color: #c8bca9;
+    }
+
+    .btn-ghost:hover { background: #f4eee2; }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 16px;
+      background: #faf6ee;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: .96rem;
+    }
+
+    .kbd {
+      font-family: "Consolas", "Liberation Mono", monospace;
+      background: #f1e8d8;
+      border: 1px solid #d5c7ad;
+      border-radius: 8px;
+      padding: 1px 6px;
+      color: #6d5a39;
+      font-size: .78rem;
+    }
+
+    .list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .item {
+      border-bottom: 1px solid var(--line);
+      padding: 14px 16px;
+      transition: background-color .12s ease;
+    }
+
+    .item:last-child { border-bottom: none; }
+    .item:hover { background: #fff6e8; }
+
+    .item a {
+      color: #133f74;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .item a:hover { text-decoration: underline; }
+
+    .item-meta {
+      color: var(--muted);
+      margin-bottom: 5px;
+      font-size: .93rem;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .dot::before {
+      content: "•";
+      margin-right: 8px;
+      color: #978162;
+    }
+
+    .empty, .error, .loading {
+      padding: 22px 16px;
+      color: var(--muted);
+    }
+
+    .error { color: var(--danger); }
+
+    .pager {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px 16px;
+      background: #fffcf6;
+      border-top: 1px solid var(--line);
+    }
+
+    .pager-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    @media (max-width: 760px) {
+      .wrap { width: min(1080px, 95vw); }
+      .search {
+        grid-template-columns: 1fr;
+      }
+      .meta,
+      .pager {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>Caixa Historica</h1>
-  <p>Busque por assunto/remetente e abra mensagens indexadas.</p>
+  <main class="wrap">
+    <section class="hero">
+      <h1>MailVault</h1>
+      <p>Caixa historica para consulta rapida de mensagens indexadas.</p>
+    </section>
 
-  <form id="searchForm">
-    <input id="query" type="text" placeholder="Buscar..." />
-    <button type="submit">Buscar</button>
-    <button id="clearBtn" type="button" class="secondary">Limpar</button>
-  </form>
+    <section class="panel">
+      <form id="searchForm" class="search">
+        <input id="query" type="text" placeholder="Buscar por assunto, remetente ou termos do conteudo" autocomplete="off" />
+        <button type="submit" class="btn-primary">Buscar</button>
+        <button id="clearBtn" type="button" class="btn-ghost">Limpar</button>
+      </form>
 
-  <ul id="results"></ul>
-  <p id="emptyState" class="empty" hidden>Nenhuma mensagem encontrada.</p>
+      <div class="meta">
+        <span id="summary">Carregando mensagens...</span>
+        <span>Dica: pressione <span class="kbd">/</span> para focar a busca</span>
+      </div>
+
+      <ul id="results" class="list"></ul>
+
+      <div class="pager">
+        <span id="pageInfo">Pagina 1</span>
+        <div class="pager-actions">
+          <button id="prevBtn" type="button" class="btn-ghost">Anterior</button>
+          <button id="nextBtn" type="button" class="btn-ghost">Proxima</button>
+        </div>
+      </div>
+    </section>
+  </main>
 
   <script>
+    const PAGE_SIZE = 40;
+
     const searchForm = document.getElementById('searchForm');
     const queryInput = document.getElementById('query');
     const clearBtn = document.getElementById('clearBtn');
     const results = document.getElementById('results');
-    const emptyState = document.getElementById('emptyState');
+    const summary = document.getElementById('summary');
+    const pageInfo = document.getElementById('pageInfo');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    let state = {
+      page: 0,
+      total: 0,
+      query: '',
+      itemsCount: 0,
+      loading: false,
+    };
 
     function escapeHtml(value) {
-      return (value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+      return (value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
     }
 
-    async function loadMessages(query) {
-      const params = new URLSearchParams({ page: '0', size: '100' });
-      if (query && query.trim().length > 0) {
-        params.set('query', query.trim());
+    function formatDate(value) {
+      if (!value || !value.trim()) {
+        return '(sem data)';
+      }
+      return value;
+    }
+
+    function currentQueryFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get('query') || '').trim();
+    }
+
+    function currentPageFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const page = Number(params.get('page') || '0');
+      if (!Number.isFinite(page) || page < 0) {
+        return 0;
+      }
+      return Math.floor(page);
+    }
+
+    function syncUrl() {
+      const params = new URLSearchParams();
+      if (state.query) {
+        params.set('query', state.query);
+      }
+      if (state.page > 0) {
+        params.set('page', String(state.page));
+      }
+      const queryString = params.toString();
+      const newUrl = queryString ? `/?${queryString}` : '/';
+      window.history.replaceState(null, '', newUrl);
+    }
+
+    function renderMeta() {
+      const start = state.total === 0 ? 0 : (state.page * PAGE_SIZE) + 1;
+      const end = state.page * PAGE_SIZE + state.itemsCount;
+      if (state.loading) {
+        summary.textContent = 'Carregando mensagens...';
+      } else if (state.total === 0) {
+        summary.textContent = state.query ? 'Nenhum resultado para essa busca.' : 'Nao ha mensagens indexadas ainda.';
+      } else {
+        summary.textContent = `Exibindo ${start}-${end} de ${state.total} mensagens`;
       }
 
-      const response = await fetch(`/api/messages?${params.toString()}`);
-      if (!response.ok) {
-        results.innerHTML = '<li>Erro ao carregar mensagens.</li>';
-        emptyState.hidden = true;
+      const totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
+      pageInfo.textContent = `Pagina ${Math.min(state.page + 1, totalPages)} de ${totalPages}`;
+      prevBtn.disabled = state.loading || state.page <= 0;
+      nextBtn.disabled = state.loading || (state.page + 1) * PAGE_SIZE >= state.total;
+    }
+
+    function renderItems(items, errorMessage) {
+      if (errorMessage) {
+        results.innerHTML = `<li class="error">${escapeHtml(errorMessage)}</li>`;
         return;
       }
 
-      const data = await response.json();
-      const items = data.items || [];
-      emptyState.hidden = items.length !== 0;
+      if (state.loading) {
+        results.innerHTML = '<li class="loading">Atualizando resultados...</li>';
+        return;
+      }
+
+      if (!items.length) {
+        results.innerHTML = '<li class="empty">Nenhuma mensagem encontrada.</li>';
+        return;
+      }
+
       results.innerHTML = items.map((item) => {
-        const date = item.dateRaw || '(sem data)';
+        const date = formatDate(item.dateRaw);
         const from = item.fromRaw || '(sem remetente)';
         const subject = item.subject || '(sem assunto)';
-        return `\n<li>\n  <div class="meta">${escapeHtml(date)} - ${escapeHtml(from)}</div>\n  <a href="/messages/${encodeURIComponent(item.id)}">${escapeHtml(subject)}</a>\n</li>`;
+        return `
+          <li class="item">
+            <div class="item-meta">
+              <span>${escapeHtml(date)}</span>
+              <span class="dot">${escapeHtml(from)}</span>
+            </div>
+            <a href="/messages/${encodeURIComponent(item.id)}">${escapeHtml(subject)}</a>
+          </li>`;
       }).join('');
     }
 
-    searchForm.addEventListener('submit', async (event) => {
+    async function loadMessages() {
+      state.loading = true;
+      renderMeta();
+      renderItems([], null);
+
+      const params = new URLSearchParams({
+        page: String(state.page),
+        size: String(PAGE_SIZE),
+      });
+      if (state.query) {
+        params.set('query', state.query);
+      }
+
+      try {
+        const response = await fetch(`/api/messages?${params.toString()}`);
+        if (!response.ok) {
+          state.loading = false;
+          state.total = 0;
+          state.itemsCount = 0;
+          renderMeta();
+          renderItems([], 'Erro ao carregar mensagens.');
+          return;
+        }
+
+        const data = await response.json();
+        const items = data.items || [];
+        state.total = Number(data.total || 0);
+        state.itemsCount = items.length;
+        state.loading = false;
+        renderMeta();
+        renderItems(items, null);
+      } catch (_) {
+        state.loading = false;
+        state.total = 0;
+        state.itemsCount = 0;
+        renderMeta();
+        renderItems([], 'Falha de rede ao carregar mensagens.');
+      }
+    }
+
+    function applyAndLoad(next) {
+      state = { ...state, ...next };
+      syncUrl();
+      loadMessages();
+    }
+
+    searchForm.addEventListener('submit', (event) => {
       event.preventDefault();
-      await loadMessages(queryInput.value);
+      applyAndLoad({
+        query: queryInput.value.trim(),
+        page: 0,
+      });
     });
 
-    clearBtn.addEventListener('click', async () => {
+    clearBtn.addEventListener('click', () => {
       queryInput.value = '';
-      await loadMessages('');
+      applyAndLoad({ query: '', page: 0 });
+      queryInput.focus();
     });
 
-    loadMessages('');
+    prevBtn.addEventListener('click', () => {
+      if (state.page > 0) {
+        applyAndLoad({ page: state.page - 1 });
+      }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if ((state.page + 1) * PAGE_SIZE < state.total) {
+        applyAndLoad({ page: state.page + 1 });
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === '/' && document.activeElement !== queryInput) {
+        event.preventDefault();
+        queryInput.focus();
+      }
+    });
+
+    window.addEventListener('popstate', () => {
+      state.query = currentQueryFromUrl();
+      state.page = currentPageFromUrl();
+      queryInput.value = state.query;
+      loadMessages();
+    });
+
+    state.query = currentQueryFromUrl();
+    state.page = currentPageFromUrl();
+    queryInput.value = state.query;
+    loadMessages();
   </script>
 </body>
 </html>
