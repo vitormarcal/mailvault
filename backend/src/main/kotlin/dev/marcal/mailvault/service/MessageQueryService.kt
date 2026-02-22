@@ -50,7 +50,9 @@ class MessageQueryService(
                     id = it.id,
                     dateRaw = it.dateRaw,
                     subject = it.subject,
+                    subjectDisplay = it.subjectDisplay,
                     fromRaw = it.fromRaw,
+                    fromDisplay = it.fromDisplay,
                     fileMtimeEpoch = it.fileMtimeEpoch,
                 )
             },
@@ -66,7 +68,11 @@ class MessageQueryService(
             fileSize = message.fileSize,
             dateRaw = message.dateRaw,
             subject = message.subject,
+            subjectDisplay = message.subjectDisplay,
             fromRaw = message.fromRaw,
+            fromDisplay = message.fromDisplay,
+            fromEmail = message.fromEmail,
+            fromName = message.fromName,
             messageId = message.messageId,
             textPlain = message.textPlain,
         )

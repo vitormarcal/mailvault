@@ -49,7 +49,21 @@ class MessagesControllerIntegrationTest {
         jdbcTemplate.update("DELETE FROM attachments")
         jdbcTemplate.update("DELETE FROM message_bodies")
         jdbcTemplate.update("DELETE FROM messages")
-        insert("id-1", "/tmp/1.eml", 1000, 10, "2024-01-01T10:00:00Z", 1704103200, "Hello there", "Alice <alice@x.com>", "<1@x>")
+        insert(
+            "id-1",
+            "/tmp/1.eml",
+            1000,
+            10,
+            "2024-01-01T10:00:00Z",
+            1704103200,
+            "Hello there",
+            "Alice <alice@x.com>",
+            "<1@x>",
+            "Hello there",
+            "Alice <alice@x.com>",
+            "alice@x.com",
+            "Alice",
+        )
         insert("id-2", "/tmp/2.eml", 3000, 20, "2024-02-01T10:00:00Z", 1706781600, "Monthly report", "Bob <bob@x.com>", "<2@x>")
         insert("id-3", "/tmp/3.eml", 4000, 30, null, null, "No date mail", "Charlie <charlie@x.com>", "<3@x>")
         jdbcTemplate.update(
@@ -194,7 +208,11 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"id\":\"id-1\""))
         assertEquals(true, body.contains("\"filePath\":\"/tmp/1.eml\""))
         assertEquals(true, body.contains("\"subject\":\"Hello there\""))
+        assertEquals(true, body.contains("\"subjectDisplay\":\"Hello there\""))
         assertEquals(true, body.contains("\"fromRaw\":\"Alice <alice@x.com>\""))
+        assertEquals(true, body.contains("\"fromDisplay\":\"Alice <alice@x.com>\""))
+        assertEquals(true, body.contains("\"fromEmail\":\"alice@x.com\""))
+        assertEquals(true, body.contains("\"fromName\":\"Alice\""))
         assertEquals(true, body.contains("\"textPlain\":\"Body one\""))
     }
 
@@ -487,11 +505,15 @@ class MessagesControllerIntegrationTest {
         subject: String?,
         fromRaw: String?,
         messageId: String?,
+        subjectDisplay: String? = null,
+        fromDisplay: String? = null,
+        fromEmail: String? = null,
+        fromName: String? = null,
     ) {
         jdbcTemplate.update(
             """
-            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, date_epoch, subject, from_raw, message_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, date_epoch, subject, from_raw, message_id, subject_display, from_display, from_email, from_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
             id,
             filePath,
@@ -502,6 +524,10 @@ class MessagesControllerIntegrationTest {
             subject,
             fromRaw,
             messageId,
+            subjectDisplay,
+            fromDisplay,
+            fromEmail,
+            fromName,
         )
     }
 

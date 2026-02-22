@@ -52,6 +52,10 @@ class IndexerServiceTest {
                 date_epoch INTEGER,
                 subject TEXT,
                 from_raw TEXT,
+                subject_display TEXT,
+                from_display TEXT,
+                from_email TEXT,
+                from_name TEXT,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -196,6 +200,22 @@ class IndexerServiceTest {
 
         service.index()
 
+        val subjectDisplay = jdbcTemplate.queryForObject(
+            "SELECT subject_display FROM messages WHERE file_path = ?",
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+        val fromDisplay = jdbcTemplate.queryForObject(
+            "SELECT from_display FROM messages WHERE file_path = ?",
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+        val fromEmail = jdbcTemplate.queryForObject(
+            "SELECT from_email FROM messages WHERE file_path = ?",
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+
         val textPlain = jdbcTemplate.queryForObject(
             """
             SELECT mb.text_plain
@@ -206,6 +226,9 @@ class IndexerServiceTest {
             String::class.java,
             eml.toAbsolutePath().normalize().toString(),
         )
+        assertEquals("Plain", subjectDisplay)
+        assertEquals("A <a@x.com>", fromDisplay)
+        assertEquals("a@x.com", fromEmail)
         assertEquals("Hello body line", textPlain?.trim())
     }
 

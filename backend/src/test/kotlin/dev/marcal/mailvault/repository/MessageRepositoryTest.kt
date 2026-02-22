@@ -39,6 +39,10 @@ class MessageRepositoryTest {
                 date_epoch INTEGER,
                 subject TEXT,
                 from_raw TEXT,
+                subject_display TEXT,
+                from_display TEXT,
+                from_email TEXT,
+                from_name TEXT,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -323,6 +327,14 @@ class MessageRepositoryTest {
     @Test
     fun `findById returns full detail and null for unknown id`() {
         jdbcTemplate.update(
+            "UPDATE messages SET subject_display = ?, from_display = ?, from_email = ?, from_name = ? WHERE id = ?",
+            "Hello decoded",
+            "Alice <alice@x.com>",
+            "alice@x.com",
+            "Alice",
+            "a",
+        )
+        jdbcTemplate.update(
             "INSERT INTO message_bodies(message_id, text_plain) VALUES (?, ?)",
             "a",
             "Body A",
@@ -334,6 +346,10 @@ class MessageRepositoryTest {
         assertNotNull(found)
         assertEquals("/tmp/a.eml", found.filePath)
         assertEquals("Hello", found.subject)
+        assertEquals("Hello decoded", found.subjectDisplay)
+        assertEquals("Alice <alice@x.com>", found.fromDisplay)
+        assertEquals("alice@x.com", found.fromEmail)
+        assertEquals("Alice", found.fromName)
         assertEquals("Body A", found.textPlain)
         assertNull(missing)
     }

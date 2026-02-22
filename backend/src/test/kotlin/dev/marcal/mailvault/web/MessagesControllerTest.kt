@@ -47,6 +47,10 @@ class MessagesControllerTest {
                 date_epoch INTEGER,
                 subject TEXT,
                 from_raw TEXT,
+                subject_display TEXT,
+                from_display TEXT,
+                from_email TEXT,
+                from_name TEXT,
                 message_id TEXT
             )
             """.trimIndent(),

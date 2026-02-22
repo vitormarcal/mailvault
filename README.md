@@ -75,6 +75,7 @@ A aplicacao sobe em `http://localhost:8080`.
 - `V8__message_date_epoch.sql`: adiciona `date_epoch` em `messages` para ordenacao cronologica desc consistente
 - `V9__fts_rebuild_with_body.sql`: recria `messages_fts` com `subject`, `from_raw` e `text_plain`; adiciona triggers para sync em `messages` e `message_bodies`
 - `V10__html_text_fts.sql`: adiciona `html_text` em `message_bodies` e recria `messages_fts` para indexar tambem texto extraido de HTML
+- `V11__message_display_headers.sql`: adiciona `subject_display`, `from_display`, `from_email` e `from_name` em `messages` para exibir headers RFC 2047 decodificados
 
 ## Busca e filtros (`GET /api/messages`)
 

@@ -97,7 +97,7 @@ class MessageRepository(
         val items =
             jdbcTemplate.query(
                 """
-                SELECT m.id, m.date_raw, m.subject, m.from_raw, m.file_mtime_epoch
+                SELECT m.id, m.date_raw, m.subject, m.subject_display, m.from_raw, m.from_display, m.file_mtime_epoch
                 $fromClause
                 $whereClause
                 ORDER BY ${
@@ -114,7 +114,9 @@ class MessageRepository(
                         id = rs.getString("id"),
                         dateRaw = rs.getString("date_raw"),
                         subject = rs.getString("subject"),
+                        subjectDisplay = rs.getString("subject_display"),
                         fromRaw = rs.getString("from_raw"),
+                        fromDisplay = rs.getString("from_display"),
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
                     )
                 },
@@ -128,7 +130,7 @@ class MessageRepository(
         try {
             jdbcTemplate.queryForObject(
                 """
-                SELECT m.id, m.file_path, m.file_mtime_epoch, m.file_size, m.date_raw, m.subject, m.from_raw, m.message_id,
+                SELECT m.id, m.file_path, m.file_mtime_epoch, m.file_size, m.date_raw, m.subject, m.subject_display, m.from_raw, m.from_display, m.from_email, m.from_name, m.message_id,
                        mb.text_plain
                 FROM messages m
                 LEFT JOIN message_bodies mb ON mb.message_id = m.id
@@ -142,7 +144,11 @@ class MessageRepository(
                         fileSize = rs.getLong("file_size"),
                         dateRaw = rs.getString("date_raw"),
                         subject = rs.getString("subject"),
+                        subjectDisplay = rs.getString("subject_display"),
                         fromRaw = rs.getString("from_raw"),
+                        fromDisplay = rs.getString("from_display"),
+                        fromEmail = rs.getString("from_email"),
+                        fromName = rs.getString("from_name"),
                         messageId = rs.getString("message_id"),
                         textPlain = rs.getString("text_plain"),
                     )

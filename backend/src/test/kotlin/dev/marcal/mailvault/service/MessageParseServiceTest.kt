@@ -32,8 +32,12 @@ class MessageParseServiceTest {
         val parsed = parser.parse(file)
 
         assertEquals("Alice <alice@example.com>", parsed.fromRaw)
+        assertEquals("Alice <alice@example.com>", parsed.fromDisplay)
+        assertEquals("alice@example.com", parsed.fromEmail)
+        assertEquals("Alice", parsed.fromName)
         assertEquals("Sat, 21 Feb 2026 20:00:00 -0300", parsed.dateRaw)
         assertEquals("Hello", parsed.subject)
+        assertEquals("Hello", parsed.subjectDisplay)
         assertEquals("<id-1@example.com>", parsed.messageId)
         assertEquals("body line", parsed.textPlain?.trim())
         assertNull(parsed.htmlRaw)
@@ -116,5 +120,27 @@ class MessageParseServiceTest {
 
         assertEquals("Olá mundo", parsed.textPlain?.trim())
         assertEquals(0, parsed.attachments.size)
+    }
+
+    @Test
+    fun `decodes rfc2047 subject and from into display fields`() {
+        val file = tempDir.resolve("encoded.eml")
+        Files.writeString(
+            file,
+            """
+            From: =?UTF-8?Q?Jos=C3=A9_da_Silva?= <jose@example.com>
+            Subject: =?UTF-8?Q?Reuni=C3=A3o_de_status?=
+            Message-ID: <id-4@example.com>
+
+            corpo
+            """.trimIndent(),
+        )
+
+        val parsed = parser.parse(file)
+
+        assertEquals("Reunião de status", parsed.subjectDisplay)
+        assertEquals("José da Silva <jose@example.com>", parsed.fromDisplay)
+        assertEquals("jose@example.com", parsed.fromEmail)
+        assertEquals("José da Silva", parsed.fromName)
     }
 }

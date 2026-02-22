@@ -1,9 +1,11 @@
 package dev.marcal.mailvault.service
 
+import dev.marcal.mailvault.util.MailHeaderDecoder
 import jakarta.mail.BodyPart
 import jakarta.mail.Multipart
 import jakarta.mail.Part
 import jakarta.mail.Session
+import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeUtility
 import org.jsoup.Jsoup
@@ -32,7 +34,11 @@ data class ParsedMessage(
     val dateRaw: String?,
     val dateEpoch: Long?,
     val subject: String?,
+    val subjectDisplay: String?,
     val fromRaw: String?,
+    val fromDisplay: String?,
+    val fromEmail: String?,
+    val fromName: String?,
     val messageId: String?,
     val textPlain: String?,
     val htmlRaw: String?,
@@ -45,6 +51,8 @@ class MessageParseService {
     fun parse(filePath: Path): ParsedMessage {
         val session = Session.getInstance(Properties())
         val mimeMessage = Files.newInputStream(filePath).use { input -> MimeMessage(session, input) }
+        val fromRaw = mimeMessage.getHeader(HEADER_FROM, null)
+        val fromParts = parseFrom(fromRaw)
 
         val accumulator = ParseAccumulator()
         parsePart(mimeMessage, accumulator)
@@ -53,7 +61,11 @@ class MessageParseService {
             dateRaw = mimeMessage.getHeader(HEADER_DATE, null),
             dateEpoch = mimeMessage.sentDate?.time,
             subject = mimeMessage.subject,
-            fromRaw = mimeMessage.getHeader(HEADER_FROM, null),
+            subjectDisplay = MailHeaderDecoder.decodeHeader(mimeMessage.subject),
+            fromRaw = fromRaw,
+            fromDisplay = fromParts.display,
+            fromEmail = fromParts.email,
+            fromName = fromParts.name,
             messageId = mimeMessage.getHeader(HEADER_MESSAGE_ID, null),
             textPlain = accumulator.textPlain?.ifBlank { null },
             htmlRaw = accumulator.htmlRaw?.ifBlank { null },
@@ -195,6 +207,45 @@ class MessageParseService {
         }
         return "$current\n\n$next"
     }
+
+    private fun parseFrom(raw: String?): ParsedFrom {
+        val decodedRaw = MailHeaderDecoder.decodeHeader(raw)?.trim()?.ifBlank { null }
+        val primaryAddress = parseFirstAddress(raw) ?: parseFirstAddress(decodedRaw)
+        val email = primaryAddress?.address?.trim()?.ifBlank { null }
+        val name = MailHeaderDecoder.decodeHeader(primaryAddress?.personal)?.trim()?.ifBlank { null }
+
+        val display =
+            when {
+                name != null && email != null -> "$name <$email>"
+                name != null -> name
+                decodedRaw != null -> decodedRaw
+                email != null -> email
+                else -> null
+            }
+
+        return ParsedFrom(
+            display = display,
+            email = email,
+            name = name ?: if (email == null) decodedRaw else null,
+        )
+    }
+
+    private fun parseFirstAddress(header: String?): InternetAddress? {
+        if (header.isNullOrBlank()) {
+            return null
+        }
+        return try {
+            InternetAddress.parseHeader(header, false).firstOrNull()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private data class ParsedFrom(
+        val display: String?,
+        val email: String?,
+        val name: String?,
+    )
 
     private data class ParseAccumulator(
         var textPlain: String? = null,

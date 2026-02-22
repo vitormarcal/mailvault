@@ -81,7 +81,11 @@ class IndexerService(
                                 dateRaw = parsed.dateRaw,
                                 dateEpoch = parsed.dateEpoch,
                                 subject = parsed.subject,
+                                subjectDisplay = parsed.subjectDisplay,
                                 fromRaw = parsed.fromRaw,
+                                fromDisplay = parsed.fromDisplay,
+                                fromEmail = parsed.fromEmail,
+                                fromName = parsed.fromName,
                                 messageId = parsed.messageId,
                             ),
                         )

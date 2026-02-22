@@ -4,7 +4,9 @@ data class MessageSummary(
     val id: String,
     val dateRaw: String?,
     val subject: String?,
+    val subjectDisplay: String?,
     val fromRaw: String?,
+    val fromDisplay: String?,
     val fileMtimeEpoch: Long,
 )
 
@@ -15,7 +17,11 @@ data class MessageDetail(
     val fileSize: Long,
     val dateRaw: String?,
     val subject: String?,
+    val subjectDisplay: String?,
     val fromRaw: String?,
+    val fromDisplay: String?,
+    val fromEmail: String?,
+    val fromName: String?,
     val messageId: String?,
     val textPlain: String?,
 )
@@ -40,7 +46,11 @@ data class MessageUpsert(
     val dateRaw: String?,
     val dateEpoch: Long?,
     val subject: String?,
+    val subjectDisplay: String?,
     val fromRaw: String?,
+    val fromDisplay: String?,
+    val fromEmail: String?,
+    val fromName: String?,
     val messageId: String?,
 )
 

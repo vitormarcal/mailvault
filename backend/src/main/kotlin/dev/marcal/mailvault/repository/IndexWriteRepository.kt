@@ -62,8 +62,8 @@ class IndexWriteRepository(
         jdbcTemplate.update(
             """
             INSERT INTO messages (
-                id, file_path, file_mtime_epoch, file_size, date_raw, date_epoch, subject, from_raw, message_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, file_path, file_mtime_epoch, file_size, date_raw, date_epoch, subject, subject_display, from_raw, from_display, from_email, from_name, message_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(file_path) DO UPDATE SET
                 id = excluded.id,
                 file_mtime_epoch = excluded.file_mtime_epoch,
@@ -71,7 +71,11 @@ class IndexWriteRepository(
                 date_raw = excluded.date_raw,
                 date_epoch = excluded.date_epoch,
                 subject = excluded.subject,
+                subject_display = excluded.subject_display,
                 from_raw = excluded.from_raw,
+                from_display = excluded.from_display,
+                from_email = excluded.from_email,
+                from_name = excluded.from_name,
                 message_id = excluded.message_id
             """.trimIndent(),
             message.id,
@@ -81,7 +85,11 @@ class IndexWriteRepository(
             message.dateRaw,
             message.dateEpoch,
             message.subject,
+            message.subjectDisplay,
             message.fromRaw,
+            message.fromDisplay,
+            message.fromEmail,
+            message.fromName,
             message.messageId,
         )
     }

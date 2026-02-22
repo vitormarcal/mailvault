@@ -605,8 +605,8 @@
 
       results.innerHTML = items.map((item) => {
         const date = formatDate(item.dateRaw);
-        const from = item.fromRaw || '(sem remetente)';
-        const subject = item.subject || '(sem assunto)';
+        const from = item.fromDisplay || item.fromRaw || '(sem remetente)';
+        const subject = item.subjectDisplay || item.subject || '(sem assunto)';
         return `
           <li class="item">
             <div class="item-meta">

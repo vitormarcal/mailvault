@@ -123,8 +123,8 @@ async function loadMessage() {
   }
 
   const data = await response.json();
-  subjectEl.textContent = data.subject || '(sem assunto)';
-  fromEl.textContent = data.fromRaw || '(sem remetente)';
+  subjectEl.textContent = data.subjectDisplay || data.subject || '(sem assunto)';
+  fromEl.textContent = data.fromDisplay || data.fromRaw || '(sem remetente)';
   dateEl.textContent = data.dateRaw || '(sem data)';
   messageIdEl.textContent = data.messageId || id;
   textEl.textContent = data.textPlain || '';
