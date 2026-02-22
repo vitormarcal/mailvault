@@ -123,15 +123,21 @@
 
     .search {
       display: grid;
-      grid-template-columns: 1fr auto auto;
-      gap: 10px;
-      align-items: center;
+      gap: 12px;
       padding: 16px;
       border-bottom: 1px solid var(--line);
       background: linear-gradient(180deg, #fffcf6, #fbf6eb);
     }
 
-    .search input {
+    .search-top {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search input,
+    .search select {
       width: 100%;
       border-radius: var(--radius-md);
       border: 1px solid #ccbda8;
@@ -141,9 +147,65 @@
       background: #fff;
     }
 
-    .search input:focus {
+    .search input:focus,
+    .search select:focus {
       outline: 2px solid rgba(23, 109, 91, 0.2);
       border-color: var(--accent);
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .filter-field {
+      display: grid;
+      gap: 4px;
+    }
+
+    .filter-field label {
+      font-size: .82rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .filter-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-height: 28px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #efe4d0;
+      border: 1px solid #d7c5a8;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: .82rem;
+      color: #5f4f36;
+    }
+
+    .chip button {
+      border: none;
+      background: transparent;
+      color: #5f4f36;
+      padding: 0;
+      line-height: 1;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     button, .btn {
@@ -278,7 +340,10 @@
 
     @media (max-width: 760px) {
       .wrap { width: min(1080px, 95vw); }
-      .search {
+      .search-top {
+        grid-template-columns: 1fr;
+      }
+      .filters-grid {
         grid-template-columns: 1fr;
       }
       .meta,
@@ -316,9 +381,44 @@
 
     <section class="panel">
       <form id="searchForm" class="search">
-        <input id="query" type="text" placeholder="Buscar por assunto, remetente ou termos do conteudo" autocomplete="off" />
-        <button type="submit" class="btn-primary">Buscar</button>
-        <button id="clearBtn" type="button" class="btn-ghost">Limpar</button>
+        <div class="search-top">
+          <input id="query" type="text" placeholder="Buscar por assunto, remetente ou termos do conteudo" autocomplete="off" />
+          <button type="submit" class="btn-primary">Buscar</button>
+          <button id="clearBtn" type="button" class="btn-ghost">Limpar tudo</button>
+        </div>
+        <div class="filters-grid">
+          <div class="filter-field">
+            <label for="yearFilter">Ano</label>
+            <input id="yearFilter" type="number" min="1970" max="2100" placeholder="Todos" />
+          </div>
+          <div class="filter-field">
+            <label for="hasAttachmentsFilter">Anexos</label>
+            <select id="hasAttachmentsFilter">
+              <option value="">Todos</option>
+              <option value="true">Com anexos</option>
+              <option value="false">Sem anexos</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="hasHtmlFilter">HTML</label>
+            <select id="hasHtmlFilter">
+              <option value="">Todos</option>
+              <option value="true">Com HTML</option>
+              <option value="false">Sem HTML</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="hasFrozenImagesFilter">Imagens congeladas</label>
+            <select id="hasFrozenImagesFilter">
+              <option value="">Todos</option>
+              <option value="true">Com imagens congeladas</option>
+              <option value="false">Sem imagens congeladas</option>
+            </select>
+          </div>
+        </div>
+        <div class="filter-actions">
+          <div id="activeFilters" class="chips"></div>
+        </div>
       </form>
 
       <div class="ops">
@@ -352,6 +452,11 @@
 
     const searchForm = document.getElementById('searchForm');
     const queryInput = document.getElementById('query');
+    const yearFilter = document.getElementById('yearFilter');
+    const hasAttachmentsFilter = document.getElementById('hasAttachmentsFilter');
+    const hasHtmlFilter = document.getElementById('hasHtmlFilter');
+    const hasFrozenImagesFilter = document.getElementById('hasFrozenImagesFilter');
+    const activeFilters = document.getElementById('activeFilters');
     const clearBtn = document.getElementById('clearBtn');
     const results = document.getElementById('results');
     const summary = document.getElementById('summary');
@@ -375,6 +480,10 @@
       page: 0,
       total: 0,
       query: '',
+      year: null,
+      hasAttachments: null,
+      hasHtml: null,
+      hasFrozenImages: null,
       itemsCount: 0,
       loading: false,
     };
@@ -399,6 +508,34 @@
       return (params.get('query') || '').trim();
     }
 
+    function currentYearFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const value = params.get('year');
+      if (!value) {
+        return null;
+      }
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        return null;
+      }
+      return Math.floor(parsed);
+    }
+
+    function parseBooleanParam(value) {
+      if (value === 'true') {
+        return true;
+      }
+      if (value === 'false') {
+        return false;
+      }
+      return null;
+    }
+
+    function currentBooleanFilterFromUrl(key) {
+      const params = new URLSearchParams(window.location.search);
+      return parseBooleanParam(params.get(key));
+    }
+
     function currentPageFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const page = Number(params.get('page') || '0');
@@ -412,6 +549,18 @@
       const params = new URLSearchParams();
       if (state.query) {
         params.set('query', state.query);
+      }
+      if (state.year !== null) {
+        params.set('year', String(state.year));
+      }
+      if (state.hasAttachments !== null) {
+        params.set('hasAttachments', String(state.hasAttachments));
+      }
+      if (state.hasHtml !== null) {
+        params.set('hasHtml', String(state.hasHtml));
+      }
+      if (state.hasFrozenImages !== null) {
+        params.set('hasFrozenImages', String(state.hasFrozenImages));
       }
       if (state.page > 0) {
         params.set('page', String(state.page));
@@ -427,7 +576,7 @@
       if (state.loading) {
         summary.textContent = 'Carregando mensagens...';
       } else if (state.total === 0) {
-        summary.textContent = state.query ? 'Nenhum resultado para essa busca.' : 'Nao ha mensagens indexadas ainda.';
+        summary.textContent = hasActiveFilters() ? 'Nenhum resultado para os filtros atuais.' : 'Nao ha mensagens indexadas ainda.';
       } else {
         summary.textContent = `Exibindo ${start}-${end} de ${state.total} mensagens`;
       }
@@ -481,6 +630,18 @@
       if (state.query) {
         params.set('query', state.query);
       }
+      if (state.year !== null) {
+        params.set('year', String(state.year));
+      }
+      if (state.hasAttachments !== null) {
+        params.set('hasAttachments', String(state.hasAttachments));
+      }
+      if (state.hasHtml !== null) {
+        params.set('hasHtml', String(state.hasHtml));
+      }
+      if (state.hasFrozenImages !== null) {
+        params.set('hasFrozenImages', String(state.hasFrozenImages));
+      }
 
       try {
         const response = await fetch(`/api/messages?${params.toString()}`);
@@ -511,8 +672,79 @@
 
     function applyAndLoad(next) {
       state = { ...state, ...next };
+      renderActiveFilters();
       syncUrl();
       loadMessages();
+    }
+
+    function hasActiveFilters() {
+      return Boolean(
+        state.query ||
+        state.year !== null ||
+        state.hasAttachments !== null ||
+        state.hasHtml !== null ||
+        state.hasFrozenImages !== null,
+      );
+    }
+
+    function renderActiveFilters() {
+      const chips = [];
+      if (state.query) {
+        chips.push({ key: 'query', label: `Busca: ${state.query}` });
+      }
+      if (state.year !== null) {
+        chips.push({ key: 'year', label: `Ano: ${state.year}` });
+      }
+      if (state.hasAttachments !== null) {
+        chips.push({ key: 'hasAttachments', label: `Anexos: ${state.hasAttachments ? 'sim' : 'nao'}` });
+      }
+      if (state.hasHtml !== null) {
+        chips.push({ key: 'hasHtml', label: `HTML: ${state.hasHtml ? 'sim' : 'nao'}` });
+      }
+      if (state.hasFrozenImages !== null) {
+        chips.push({ key: 'hasFrozenImages', label: `Imagens congeladas: ${state.hasFrozenImages ? 'sim' : 'nao'}` });
+      }
+
+      if (!chips.length) {
+        activeFilters.innerHTML = '';
+        return;
+      }
+
+      activeFilters.innerHTML = chips.map((chip) => `
+        <span class="chip">
+          ${escapeHtml(chip.label)}
+          <button type="button" data-filter-key="${chip.key}" aria-label="Remover filtro">x</button>
+        </span>
+      `).join('');
+    }
+
+    function clearFilterByKey(key) {
+      const patch = { page: 0 };
+      if (key === 'query') {
+        patch.query = '';
+      }
+      if (key === 'year') {
+        patch.year = null;
+      }
+      if (key === 'hasAttachments') {
+        patch.hasAttachments = null;
+      }
+      if (key === 'hasHtml') {
+        patch.hasHtml = null;
+      }
+      if (key === 'hasFrozenImages') {
+        patch.hasFrozenImages = null;
+      }
+      syncFormFromState({ ...state, ...patch });
+      applyAndLoad(patch);
+    }
+
+    function syncFormFromState(nextState = state) {
+      queryInput.value = nextState.query || '';
+      yearFilter.value = nextState.year === null ? '' : String(nextState.year);
+      hasAttachmentsFilter.value = nextState.hasAttachments === null ? '' : String(nextState.hasAttachments);
+      hasHtmlFilter.value = nextState.hasHtml === null ? '' : String(nextState.hasHtml);
+      hasFrozenImagesFilter.value = nextState.hasFrozenImages === null ? '' : String(nextState.hasFrozenImages);
     }
 
     function formatNumber(value) {
@@ -607,16 +839,48 @@
 
     searchForm.addEventListener('submit', (event) => {
       event.preventDefault();
+      const parsedYearRaw = yearFilter.value.trim();
+      const parsedYear = parsedYearRaw ? Number(parsedYearRaw) : null;
       applyAndLoad({
         query: queryInput.value.trim(),
+        year: Number.isFinite(parsedYear) && parsedYear >= 0 ? Math.floor(parsedYear) : null,
+        hasAttachments: parseBooleanParam(hasAttachmentsFilter.value),
+        hasHtml: parseBooleanParam(hasHtmlFilter.value),
+        hasFrozenImages: parseBooleanParam(hasFrozenImagesFilter.value),
         page: 0,
       });
     });
 
     clearBtn.addEventListener('click', () => {
-      queryInput.value = '';
-      applyAndLoad({ query: '', page: 0 });
+      syncFormFromState({
+        ...state,
+        query: '',
+        year: null,
+        hasAttachments: null,
+        hasHtml: null,
+        hasFrozenImages: null,
+      });
+      applyAndLoad({
+        query: '',
+        year: null,
+        hasAttachments: null,
+        hasHtml: null,
+        hasFrozenImages: null,
+        page: 0,
+      });
       queryInput.focus();
+    });
+
+    activeFilters.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      const key = target.getAttribute('data-filter-key');
+      if (!key) {
+        return;
+      }
+      clearFilterByKey(key);
     });
 
     indexBtn.addEventListener('click', () => {
@@ -652,14 +916,24 @@
 
     window.addEventListener('popstate', () => {
       state.query = currentQueryFromUrl();
+      state.year = currentYearFromUrl();
+      state.hasAttachments = currentBooleanFilterFromUrl('hasAttachments');
+      state.hasHtml = currentBooleanFilterFromUrl('hasHtml');
+      state.hasFrozenImages = currentBooleanFilterFromUrl('hasFrozenImages');
       state.page = currentPageFromUrl();
-      queryInput.value = state.query;
+      syncFormFromState();
+      renderActiveFilters();
       loadMessages();
     });
 
     state.query = currentQueryFromUrl();
+    state.year = currentYearFromUrl();
+    state.hasAttachments = currentBooleanFilterFromUrl('hasAttachments');
+    state.hasHtml = currentBooleanFilterFromUrl('hasHtml');
+    state.hasFrozenImages = currentBooleanFilterFromUrl('hasFrozenImages');
     state.page = currentPageFromUrl();
-    queryInput.value = state.query;
+    syncFormFromState();
+    renderActiveFilters();
     loadMessages();
     loadStats();
   </script>

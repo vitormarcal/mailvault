@@ -86,6 +86,7 @@ A aplicacao sobe em `http://localhost:8080`.
 - Ordenacao:
   - com `query`: relevancia `bm25(messages_fts)` e depois data desc
   - sem `query`: data desc
+- A home (`/`) expoe todos esses filtros na UI (ano + anexos/html/imagens congeladas), com estado na URL e chips de filtros ativos.
 
 ## Observabilidade minima (`GET /api/stats`)
 
