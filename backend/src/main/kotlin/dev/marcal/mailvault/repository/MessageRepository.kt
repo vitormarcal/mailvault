@@ -197,7 +197,10 @@ class MessageRepository(
             jdbcTemplate.queryForObject(
                 """
                 SELECT m.id, m.file_path, m.file_mtime_epoch, m.file_size, m.date_raw, m.date_epoch, m.subject, m.subject_display, m.from_raw, m.from_display, m.from_email, m.from_name, m.message_id,
-                       mb.text_plain
+                       mb.text_plain,
+                       (SELECT COUNT(*) FROM attachments a WHERE a.message_id = m.id) AS attachments_count,
+                       (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'DOWNLOADED') AS frozen_assets_count,
+                       (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'FAILED') AS assets_failed_count
                 FROM messages m
                 LEFT JOIN message_bodies mb ON mb.message_id = m.id
                 WHERE m.id = ?
@@ -216,6 +219,9 @@ class MessageRepository(
                         fromDisplay = rs.getString("from_display"),
                         fromEmail = rs.getString("from_email"),
                         fromName = rs.getString("from_name"),
+                        attachmentsCount = rs.getInt("attachments_count"),
+                        frozenAssetsCount = rs.getInt("frozen_assets_count"),
+                        assetsFailedCount = rs.getInt("assets_failed_count"),
                         messageId = rs.getString("message_id"),
                         textPlain = rs.getString("text_plain"),
                     )

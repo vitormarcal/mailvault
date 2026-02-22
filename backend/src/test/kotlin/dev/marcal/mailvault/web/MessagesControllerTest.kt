@@ -83,6 +83,20 @@ class MessagesControllerTest {
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS attachments (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                filename TEXT,
+                content_type TEXT,
+                size INTEGER,
+                inline_cid TEXT NULL,
+                storage_path TEXT NOT NULL,
+                sha256 TEXT NOT NULL
+            )
+            """.trimIndent(),
+        )
         val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
         val assetRepository = AssetRepository(jdbcTemplate)
         val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())

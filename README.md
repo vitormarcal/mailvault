@@ -31,6 +31,13 @@ A aplicacao sobe em `http://localhost:8080`.
 - Freeze de imagens remotas: `POST /api/messages/{id}/freeze-assets`
 - Servir assets congelados: `GET /assets/{messageId}/{filename}`
 
+No `GET /api/messages/{id}`, alem dos metadados basicos, tambem retornam:
+- `attachmentsCount`
+- `frozenAssetsCount`
+- `assetsFailedCount`
+- `messageSizeBytes`
+- `filePath` (texto puro para copiar)
+
 ## Renderizacao HTML segura
 
 - HTML bruto de emails (`html_raw`) e reescrito para:

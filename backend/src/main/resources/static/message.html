@@ -269,6 +269,31 @@
       line-height: 1.45;
     }
 
+    .status-list {
+      display: grid;
+      gap: 8px;
+      padding: 10px 12px 12px;
+      font-size: .9rem;
+      color: #51483b;
+    }
+
+    .path-box {
+      margin-top: 4px;
+      background: #f8f2e6;
+      border: 1px solid #ddcfb7;
+      border-radius: 8px;
+      padding: 8px;
+      word-break: break-all;
+      font-family: "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+      font-size: .8rem;
+      color: #41362b;
+    }
+
+    .copy-btn {
+      margin-top: 8px;
+      width: 100%;
+    }
+
     @media (max-width: 940px) {
       .layout {
         grid-template-columns: 1fr;
@@ -326,6 +351,20 @@
       </article>
 
       <aside class="card side">
+        <section class="side-block">
+          <h2 class="side-title">Status do email</h2>
+          <div class="status-list">
+            <div id="statusImages">Imagens: congeladas -, falhas -</div>
+            <div id="statusAttachments">Anexos: -</div>
+            <div id="statusSize">Tamanho: -</div>
+            <div>
+              Arquivo:
+              <div id="statusFilePath" class="path-box">-</div>
+              <button id="copyPathBtn" type="button" class="btn-ghost copy-btn">Copiar</button>
+            </div>
+          </div>
+        </section>
+
         <section class="side-block">
           <h2 class="side-title">Anexos</h2>
           <ul id="attachments" class="list">

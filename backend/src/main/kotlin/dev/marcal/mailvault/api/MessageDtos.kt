@@ -34,6 +34,7 @@ data class MessageDetailResponse(
     val filePath: String,
     val fileMtimeEpoch: Long,
     val fileSize: Long,
+    val messageSizeBytes: Long,
     val dateRaw: String?,
     val dateEpoch: Long?,
     val subject: String?,
@@ -42,6 +43,9 @@ data class MessageDetailResponse(
     val fromDisplay: String?,
     val fromEmail: String?,
     val fromName: String?,
+    val attachmentsCount: Int,
+    val frozenAssetsCount: Int,
+    val assetsFailedCount: Int,
     val messageId: String?,
     val textPlain: String?,
 )

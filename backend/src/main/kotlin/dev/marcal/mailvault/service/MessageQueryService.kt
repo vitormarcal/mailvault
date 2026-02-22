@@ -74,6 +74,7 @@ class MessageQueryService(
             filePath = message.filePath,
             fileMtimeEpoch = message.fileMtimeEpoch,
             fileSize = message.fileSize,
+            messageSizeBytes = message.fileSize,
             dateRaw = message.dateRaw,
             dateEpoch = message.dateEpoch,
             subject = message.subject,
@@ -82,6 +83,9 @@ class MessageQueryService(
             fromDisplay = message.fromDisplay,
             fromEmail = message.fromEmail,
             fromName = message.fromName,
+            attachmentsCount = message.attachmentsCount,
+            frozenAssetsCount = message.frozenAssetsCount,
+            assetsFailedCount = message.assetsFailedCount,
             messageId = message.messageId,
             textPlain = message.textPlain,
         )

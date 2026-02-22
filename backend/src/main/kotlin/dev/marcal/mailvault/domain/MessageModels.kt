@@ -29,6 +29,9 @@ data class MessageDetail(
     val fromDisplay: String?,
     val fromEmail: String?,
     val fromName: String?,
+    val attachmentsCount: Int,
+    val frozenAssetsCount: Int,
+    val assetsFailedCount: Int,
     val messageId: String?,
     val textPlain: String?,
 )

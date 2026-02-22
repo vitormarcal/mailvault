@@ -261,6 +261,10 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"fromDisplay\":\"Alice <alice@x.com>\""))
         assertEquals(true, body.contains("\"fromEmail\":\"alice@x.com\""))
         assertEquals(true, body.contains("\"fromName\":\"Alice\""))
+        assertEquals(true, body.contains("\"attachmentsCount\":3"))
+        assertEquals(true, body.contains("\"frozenAssetsCount\":2"))
+        assertEquals(true, body.contains("\"assetsFailedCount\":0"))
+        assertEquals(true, body.contains("\"messageSizeBytes\":10"))
         assertEquals(true, body.contains("\"textPlain\":\"Body one\""))
     }
 

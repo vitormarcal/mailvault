@@ -350,6 +350,9 @@ class MessageRepositoryTest {
         assertEquals("Alice <alice@x.com>", found.fromDisplay)
         assertEquals("alice@x.com", found.fromEmail)
         assertEquals("Alice", found.fromName)
+        assertEquals(0, found.attachmentsCount)
+        assertEquals(0, found.frozenAssetsCount)
+        assertEquals(0, found.assetsFailedCount)
         assertEquals("Body A", found.textPlain)
         assertNull(missing)
     }

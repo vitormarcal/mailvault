@@ -15,6 +15,11 @@ const tabPlainEl = document.getElementById('tabPlain');
 
 const attachmentsEl = document.getElementById('attachments');
 const statusEl = document.getElementById('status');
+const statusImagesEl = document.getElementById('statusImages');
+const statusAttachmentsEl = document.getElementById('statusAttachments');
+const statusSizeEl = document.getElementById('statusSize');
+const statusFilePathEl = document.getElementById('statusFilePath');
+const copyPathBtn = document.getElementById('copyPathBtn');
 const backToListBtn = document.getElementById('backToListBtn');
 const prevMsgBtn = document.getElementById('prevMsgBtn');
 const nextMsgBtn = document.getElementById('nextMsgBtn');
@@ -54,6 +59,24 @@ function setLoadingButtons(isLoading) {
 function setFreezeLoading(isLoading) {
   freezeBtn.disabled = isLoading;
   freezeBtn.textContent = isLoading ? 'Baixando...' : freezeBtnDefaultText;
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value < 0) {
+    return '-';
+  }
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  const units = ['KB', 'MB', 'GB'];
+  let current = value / 1024;
+  let idx = 0;
+  while (current >= 1024 && idx < units.length - 1) {
+    current /= 1024;
+    idx += 1;
+  }
+  return `${current.toFixed(1)} ${units[idx]} (${value.toLocaleString('pt-BR')} B)`;
 }
 
 function resolveListQuery() {
@@ -218,6 +241,10 @@ async function loadMessage() {
     textEl.textContent = '';
     htmlContainerEl.innerHTML = '';
     attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
+    statusImagesEl.textContent = 'Imagens: congeladas -, falhas -';
+    statusAttachmentsEl.textContent = 'Anexos: -';
+    statusSizeEl.textContent = 'Tamanho: -';
+    statusFilePathEl.textContent = '-';
     setStatus('error', 'Nao foi possivel carregar os dados da mensagem.');
     updateNeighborButtons();
     return;
@@ -230,6 +257,10 @@ async function loadMessage() {
   dateRawEl.textContent = data.dateRaw || '(sem data raw)';
   messageIdEl.textContent = data.messageId || id;
   textEl.textContent = data.textPlain || '';
+  statusImagesEl.textContent = `Imagens: congeladas ${Number(data.frozenAssetsCount || 0)}, falhas ${Number(data.assetsFailedCount || 0)}`;
+  statusAttachmentsEl.textContent = `Anexos: ${Number(data.attachmentsCount || 0)}`;
+  statusSizeEl.textContent = `Tamanho: ${formatBytes(data.messageSizeBytes ?? data.fileSize)}`;
+  statusFilePathEl.textContent = data.filePath || '-';
 
   const renderedHtml = await loadRenderedHtml(id);
   htmlContainerEl.innerHTML = renderedHtml || '';
@@ -328,6 +359,20 @@ document.addEventListener('keydown', (event) => {
   } else if (event.key === 'g') {
     event.preventDefault();
     window.location.href = listUrl();
+  }
+});
+
+copyPathBtn.addEventListener('click', async () => {
+  const path = statusFilePathEl.textContent || '';
+  if (!path || path === '-') {
+    setStatus('error', 'Sem caminho de arquivo para copiar.');
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(path);
+    setStatus('ok', 'Caminho copiado.');
+  } catch (_) {
+    setStatus('error', 'Falha ao copiar caminho.');
   }
 });
 
