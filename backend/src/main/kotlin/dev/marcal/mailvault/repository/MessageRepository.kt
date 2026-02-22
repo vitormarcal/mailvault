@@ -11,77 +11,102 @@ import org.springframework.stereotype.Repository
 class MessageRepository(
     private val jdbcTemplate: JdbcTemplate,
 ) {
-    fun list(query: String?, page: Int, size: Int): MessagesPage {
+    fun list(
+        query: String?,
+        page: Int,
+        size: Int,
+        year: Int?,
+        hasAttachments: Boolean?,
+        hasHtml: Boolean?,
+        hasFrozenImages: Boolean?,
+    ): MessagesPage {
         val sanitizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
         val offset = page * size
+        val whereParts = mutableListOf<String>()
+        val whereParams = mutableListOf<Any>()
+
+        if (sanitizedQuery != null) {
+            whereParts.add("messages_fts MATCH ?")
+            whereParams.add(sanitizedQuery)
+        }
+        if (year != null) {
+            whereParts.add("strftime('%Y', datetime(m.date_epoch, 'unixepoch')) = ?")
+            whereParams.add(year.toString())
+        }
+        if (hasAttachments != null) {
+            whereParts.add(
+                if (hasAttachments) {
+                    "EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id)"
+                } else {
+                    "NOT EXISTS (SELECT 1 FROM attachments a WHERE a.message_id = m.id)"
+                },
+            )
+        }
+        if (hasHtml != null) {
+            whereParts.add(
+                if (hasHtml) {
+                    "EXISTS (SELECT 1 FROM message_bodies mb WHERE mb.message_id = m.id AND mb.html_raw IS NOT NULL AND TRIM(mb.html_raw) <> '')"
+                } else {
+                    "NOT EXISTS (SELECT 1 FROM message_bodies mb WHERE mb.message_id = m.id AND mb.html_raw IS NOT NULL AND TRIM(mb.html_raw) <> '')"
+                },
+            )
+        }
+        if (hasFrozenImages != null) {
+            whereParts.add(
+                if (hasFrozenImages) {
+                    "EXISTS (SELECT 1 FROM assets s WHERE s.message_id = m.id AND s.status = 'DOWNLOADED')"
+                } else {
+                    "NOT EXISTS (SELECT 1 FROM assets s WHERE s.message_id = m.id AND s.status = 'DOWNLOADED')"
+                },
+            )
+        }
+
+        val fromClause =
+            if (sanitizedQuery == null) {
+                "FROM messages m"
+            } else {
+                "FROM messages m JOIN messages_fts ON messages_fts.id = m.id"
+            }
+        val whereClause =
+            if (whereParts.isEmpty()) {
+                ""
+            } else {
+                " WHERE ${whereParts.joinToString(" AND ")}"
+            }
 
         val total =
-            if (sanitizedQuery == null) {
-                jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages", Long::class.java) ?: 0L
-            } else {
-                jdbcTemplate.queryForObject(
-                    """
-                    SELECT COUNT(*)
-                    FROM messages
-                    WHERE id IN (
-                        SELECT id
-                        FROM messages_fts
-                        WHERE messages_fts MATCH ?
-                    )
-                    """.trimIndent(),
-                    Long::class.java,
-                    sanitizedQuery,
-                ) ?: 0L
-            }
+            jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) $fromClause$whereClause",
+                Long::class.java,
+                *whereParams.toTypedArray(),
+            ) ?: 0L
 
         val items =
-            if (sanitizedQuery == null) {
-                jdbcTemplate.query(
-                    """
-                    SELECT id, date_raw, subject, from_raw, file_mtime_epoch
-                    FROM messages
-                    ORDER BY COALESCE(date_epoch, file_mtime_epoch) DESC, file_mtime_epoch DESC, id DESC
-                    LIMIT ? OFFSET ?
-                    """.trimIndent(),
-                    { rs, _ ->
-                        MessageSummary(
-                            id = rs.getString("id"),
-                            dateRaw = rs.getString("date_raw"),
-                            subject = rs.getString("subject"),
-                            fromRaw = rs.getString("from_raw"),
-                            fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
-                        )
-                    },
-                    size,
-                    offset,
-                )
-            } else {
-                jdbcTemplate.query(
-                    """
-                    SELECT id, date_raw, subject, from_raw, file_mtime_epoch
-                    FROM messages
-                    WHERE id IN (
-                        SELECT id
-                        FROM messages_fts
-                        WHERE messages_fts MATCH ?
+            jdbcTemplate.query(
+                """
+                SELECT m.id, m.date_raw, m.subject, m.from_raw, m.file_mtime_epoch
+                $fromClause
+                $whereClause
+                ORDER BY ${
+                    if (sanitizedQuery == null) {
+                        "COALESCE(m.date_epoch, m.file_mtime_epoch) DESC, m.file_mtime_epoch DESC, m.id DESC"
+                    } else {
+                        "bm25(messages_fts) ASC, COALESCE(m.date_epoch, m.file_mtime_epoch) DESC, m.file_mtime_epoch DESC, m.id DESC"
+                    }
+                }
+                LIMIT ? OFFSET ?
+                """.trimIndent(),
+                { rs, _ ->
+                    MessageSummary(
+                        id = rs.getString("id"),
+                        dateRaw = rs.getString("date_raw"),
+                        subject = rs.getString("subject"),
+                        fromRaw = rs.getString("from_raw"),
+                        fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
                     )
-                    ORDER BY COALESCE(date_epoch, file_mtime_epoch) DESC, file_mtime_epoch DESC, id DESC
-                    LIMIT ? OFFSET ?
-                    """.trimIndent(),
-                    { rs, _ ->
-                        MessageSummary(
-                            id = rs.getString("id"),
-                            dateRaw = rs.getString("date_raw"),
-                            subject = rs.getString("subject"),
-                            fromRaw = rs.getString("from_raw"),
-                            fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
-                        )
-                    },
-                    sanitizedQuery,
-                    size,
-                    offset,
-                )
-            }
+                },
+                *(whereParams + listOf(size, offset)).toTypedArray(),
+            )
 
         return MessagesPage(total = total, items = items)
     }

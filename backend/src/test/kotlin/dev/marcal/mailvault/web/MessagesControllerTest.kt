@@ -97,13 +97,35 @@ class MessagesControllerTest {
 
     @Test
     fun `returns bad request when page is negative`() {
-        val ex = assertFailsWith<ValidationException> { controller.list(query = null, page = -1, size = 10) }
+        val ex =
+            assertFailsWith<ValidationException> {
+                controller.list(
+                    query = null,
+                    year = null,
+                    hasAttachments = null,
+                    hasHtml = null,
+                    hasFrozenImages = null,
+                    page = -1,
+                    size = 10,
+                )
+            }
         assertEquals("page must be >= 0", ex.message)
     }
 
     @Test
     fun `returns bad request when size is not positive`() {
-        val ex = assertFailsWith<ValidationException> { controller.list(query = null, page = 0, size = 0) }
+        val ex =
+            assertFailsWith<ValidationException> {
+                controller.list(
+                    query = null,
+                    year = null,
+                    hasAttachments = null,
+                    hasHtml = null,
+                    hasFrozenImages = null,
+                    page = 0,
+                    size = 0,
+                )
+            }
         assertEquals("size must be > 0", ex.message)
     }
 

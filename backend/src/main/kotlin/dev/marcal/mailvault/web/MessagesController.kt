@@ -30,9 +30,22 @@ class MessagesController(
     @GetMapping
     fun list(
         @RequestParam query: String?,
+        @RequestParam(required = false) year: Int?,
+        @RequestParam(required = false) hasAttachments: Boolean?,
+        @RequestParam(required = false) hasHtml: Boolean?,
+        @RequestParam(required = false) hasFrozenImages: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "50") size: Int,
-    ): MessagesListResponse = messageQueryService.list(query = query, page = page, size = size)
+    ): MessagesListResponse =
+        messageQueryService.list(
+            query = query,
+            page = page,
+            size = size,
+            year = year,
+            hasAttachments = hasAttachments,
+            hasHtml = hasHtml,
+            hasFrozenImages = hasFrozenImages,
+        )
 
     @GetMapping("/{id}")
     fun detail(@PathVariable id: String): MessageDetailResponse = messageQueryService.detail(id)

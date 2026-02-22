@@ -16,6 +16,7 @@ A aplicacao sobe em `http://localhost:8080`.
 ## Usar a UI
 
 - Caixa historica (lista e busca): `GET /`
+- API de listagem/busca: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
 - Detalhe da mensagem: `GET /messages/{id}`
 - Reindexacao manual no detalhe: botao **Reindexar** (chama `POST /api/index`)
 - Render HTML sanitizado: `GET /api/messages/{id}/render`
@@ -56,3 +57,15 @@ A aplicacao sobe em `http://localhost:8080`.
 - `V6__attachments.sql`: cria tabela `attachments` para metadados e path de storage
 - `V7__assets.sql`: cria tabela `assets` para freeze de imagens remotas e cache local
 - `V8__message_date_epoch.sql`: adiciona `date_epoch` em `messages` para ordenacao cronologica desc consistente
+- `V9__fts_rebuild_with_body.sql`: recria `messages_fts` com `subject`, `from_raw` e `text_plain`; adiciona triggers para sync em `messages` e `message_bodies`
+
+## Busca e filtros (`GET /api/messages`)
+
+- `query`: usa FTS (`messages_fts`) em `subject`, `from_raw` e `text_plain`
+- `year`: filtra por ano derivado de `date_epoch`
+- `hasAttachments`: `true/false` para existencia em `attachments`
+- `hasHtml`: `true/false` para `message_bodies.html_raw` nao vazio
+- `hasFrozenImages`: `true/false` para existencia de `assets` com `status = DOWNLOADED`
+- Ordenacao:
+  - com `query`: relevancia `bm25(messages_fts)` e depois data desc
+  - sem `query`: data desc

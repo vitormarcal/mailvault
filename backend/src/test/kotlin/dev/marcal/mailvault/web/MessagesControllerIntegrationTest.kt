@@ -47,9 +47,9 @@ class MessagesControllerIntegrationTest {
         jdbcTemplate.update("DELETE FROM attachments")
         jdbcTemplate.update("DELETE FROM message_bodies")
         jdbcTemplate.update("DELETE FROM messages")
-        insert("id-1", "/tmp/1.eml", 1000, 10, "2024-01-01T10:00:00Z", "Hello there", "Alice <alice@x.com>", "<1@x>")
-        insert("id-2", "/tmp/2.eml", 3000, 20, "2024-02-01T10:00:00Z", "Monthly report", "Bob <bob@x.com>", "<2@x>")
-        insert("id-3", "/tmp/3.eml", 4000, 30, null, "No date mail", "Charlie <charlie@x.com>", "<3@x>")
+        insert("id-1", "/tmp/1.eml", 1000, 10, "2024-01-01T10:00:00Z", 1704103200, "Hello there", "Alice <alice@x.com>", "<1@x>")
+        insert("id-2", "/tmp/2.eml", 3000, 20, "2024-02-01T10:00:00Z", 1706781600, "Monthly report", "Bob <bob@x.com>", "<2@x>")
+        insert("id-3", "/tmp/3.eml", 4000, 30, null, null, "No date mail", "Charlie <charlie@x.com>", "<3@x>")
         jdbcTemplate.update(
             "INSERT INTO message_bodies(message_id, text_plain, html_raw, html_sanitized) VALUES (?, ?, ?, ?)",
             "id-1",
@@ -118,9 +118,9 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"page\":0"))
         assertEquals(true, body.contains("\"size\":2"))
         assertEquals(true, body.contains("\"total\":3"))
-        assertEquals(true, body.contains("\"id\":\"id-3\""))
         assertEquals(true, body.contains("\"id\":\"id-2\""))
-        assertEquals(false, body.contains("\"id\":\"id-1\""))
+        assertEquals(true, body.contains("\"id\":\"id-1\""))
+        assertEquals(false, body.contains("\"id\":\"id-3\""))
     }
 
     @Test
@@ -131,6 +131,26 @@ class MessagesControllerIntegrationTest {
         val body = response.body()
         assertEquals(true, body.contains("\"total\":1"))
         assertEquals(true, body.contains("\"id\":\"id-3\""))
+    }
+
+    @Test
+    fun `GET messages query also matches text plain`() {
+        val response = get("/api/messages?query=%22Body%20one%22&page=0&size=50")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"total\":1"))
+        assertEquals(true, body.contains("\"id\":\"id-1\""))
+    }
+
+    @Test
+    fun `GET messages supports combined filters with query`() {
+        val response = get("/api/messages?query=Body&year=2024&hasAttachments=true&hasHtml=true&hasFrozenImages=true&page=0&size=50")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"total\":1"))
+        assertEquals(true, body.contains("\"id\":\"id-1\""))
     }
 
     @Test
@@ -310,20 +330,22 @@ class MessagesControllerIntegrationTest {
         fileMtimeEpoch: Long,
         fileSize: Long,
         dateRaw: String?,
+        dateEpoch: Long?,
         subject: String?,
         fromRaw: String?,
         messageId: String?,
     ) {
         jdbcTemplate.update(
             """
-            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, subject, from_raw, message_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, date_epoch, subject, from_raw, message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
             id,
             filePath,
             fileMtimeEpoch,
             fileSize,
             dateRaw,
+            dateEpoch,
             subject,
             fromRaw,
             messageId,

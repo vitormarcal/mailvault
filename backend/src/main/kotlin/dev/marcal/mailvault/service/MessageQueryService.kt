@@ -12,15 +12,35 @@ import org.springframework.stereotype.Service
 class MessageQueryService(
     private val messageRepository: MessageRepository,
 ) {
-    fun list(query: String?, page: Int, size: Int): MessagesListResponse {
+    fun list(
+        query: String?,
+        page: Int,
+        size: Int,
+        year: Int?,
+        hasAttachments: Boolean?,
+        hasHtml: Boolean?,
+        hasFrozenImages: Boolean?,
+    ): MessagesListResponse {
         if (page < 0) {
             throw ValidationException("page must be >= 0")
         }
         if (size <= 0) {
             throw ValidationException("size must be > 0")
         }
+        if (year != null && year < 0) {
+            throw ValidationException("year must be >= 0")
+        }
 
-        val result = messageRepository.list(query, page, size)
+        val result =
+            messageRepository.list(
+                query = query,
+                page = page,
+                size = size,
+                year = year,
+                hasAttachments = hasAttachments,
+                hasHtml = hasHtml,
+                hasFrozenImages = hasFrozenImages,
+            )
         return MessagesListResponse(
             page = page,
             size = size,
