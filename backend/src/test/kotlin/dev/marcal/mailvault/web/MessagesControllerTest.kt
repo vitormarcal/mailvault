@@ -2,7 +2,10 @@ package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.repository.MessageRepository
 import dev.marcal.mailvault.repository.AttachmentRepository
+import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.config.MailVaultProperties
+import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentService
 import dev.marcal.mailvault.service.HtmlRenderService
 import dev.marcal.mailvault.service.HtmlSanitizerService
@@ -51,15 +54,43 @@ class MessagesControllerTest {
             """
             CREATE TABLE IF NOT EXISTS message_bodies (
                 message_id TEXT PRIMARY KEY,
-                text_plain TEXT
+                text_plain TEXT,
+                html_raw TEXT,
+                html_sanitized TEXT
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS assets (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                original_url TEXT NOT NULL,
+                storage_path TEXT,
+                content_type TEXT,
+                size INTEGER,
+                sha256 TEXT,
+                status TEXT NOT NULL,
+                downloaded_at TEXT,
+                error TEXT,
+                UNIQUE(message_id, original_url)
+            )
+            """.trimIndent(),
+        )
+        val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
+        val assetRepository = AssetRepository(jdbcTemplate)
+        val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
         controller =
             MessagesController(
                 MessageQueryService(MessageRepository(jdbcTemplate)),
-                HtmlRenderService(MessageHtmlRepository(jdbcTemplate), HtmlSanitizerService()),
+                htmlRenderService,
                 AttachmentService(AttachmentRepository(jdbcTemplate)),
+                AssetFreezeService(
+                    messageHtmlRepository,
+                    assetRepository,
+                    MailVaultProperties(),
+                    htmlRenderService,
+                ),
             )
     }
 

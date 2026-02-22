@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.service
 
 import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.repository.AssetRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -50,8 +51,25 @@ class HtmlRenderServiceTest {
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS assets (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                original_url TEXT NOT NULL,
+                storage_path TEXT,
+                content_type TEXT,
+                size INTEGER,
+                sha256 TEXT,
+                status TEXT NOT NULL,
+                downloaded_at TEXT,
+                error TEXT,
+                UNIQUE(message_id, original_url)
+            )
+            """.trimIndent(),
+        )
 
-        service = HtmlRenderService(MessageHtmlRepository(jdbcTemplate), HtmlSanitizerService())
+        service = HtmlRenderService(MessageHtmlRepository(jdbcTemplate), AssetRepository(jdbcTemplate), HtmlSanitizerService())
     }
 
     @Test
@@ -95,5 +113,47 @@ class HtmlRenderServiceTest {
             "m1",
         )
         assertEquals(rendered, cached)
+    }
+
+    @Test
+    fun `uses downloaded frozen asset when available`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, subject, from_raw, message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "m2", "/tmp/2.eml", 1L, 1L, null, "s", "f", "<m2@x>",
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies(message_id, text_plain, html_raw, html_sanitized)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m2",
+            null,
+            """<img src="https://example.com/logo.png#frag" alt="logo" />""",
+            null,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO assets(id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "a1",
+            "m2",
+            "https://example.com/logo.png",
+            "/tmp/assets/m2/abc.png",
+            "image/png",
+            10L,
+            "abc",
+            "DOWNLOADED",
+            "2026-02-22T10:00:00Z",
+            null,
+        )
+
+        val rendered = service.render("m2")
+
+        assertTrue(rendered.contains("/assets/m2/abc.png"))
+        assertEquals(false, rendered.contains("/static/remote-image-blocked.svg"))
     }
 }

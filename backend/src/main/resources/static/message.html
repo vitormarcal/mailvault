@@ -21,6 +21,7 @@
   <div class="toolbar">
     <a href="/" class="btn secondary">Voltar</a>
     <button id="reindexBtn" type="button">Reindexar</button>
+    <button id="freezeBtn" type="button">Congelar imagens</button>
   </div>
 
   <h1 id="subject">Carregando...</h1>
@@ -51,6 +52,7 @@
     const attachmentsEl = document.getElementById('attachments');
     const statusEl = document.getElementById('status');
     const reindexBtn = document.getElementById('reindexBtn');
+    const freezeBtn = document.getElementById('freezeBtn');
 
     function currentId() {
       const parts = window.location.pathname.split('/').filter(Boolean);
@@ -126,6 +128,19 @@
       }
       const data = await response.json();
       statusEl.textContent = `Reindexacao concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`;
+      await loadMessage();
+    });
+
+    freezeBtn.addEventListener('click', async () => {
+      const id = currentId();
+      statusEl.textContent = 'Congelando imagens remotas...';
+      const response = await fetch(`/api/messages/${encodeURIComponent(id)}/freeze-assets`, { method: 'POST' });
+      if (!response.ok) {
+        statusEl.textContent = 'Falha ao congelar imagens.';
+        return;
+      }
+      const data = await response.json();
+      statusEl.textContent = `Freeze concluido: downloaded=${data.downloaded}, failed=${data.failed}, skipped=${data.skipped}`;
       await loadMessage();
     });
 

@@ -13,5 +13,8 @@ spring:
 mailvault:
   rootEmailsDir: ${MAILVAULT_INDEX_ROOT_DIR:./data/emails}
   storageDir: ${MAILVAULT_STORAGE_DIR:./data/storage}
-  maxAssetsPerMessage: ${MAILVAULT_MAX_ASSETS_PER_MESSAGE:64}
+  maxAssetsPerMessage: ${MAILVAULT_MAX_ASSETS_PER_MESSAGE:50}
   maxAssetBytes: ${MAILVAULT_MAX_ASSET_BYTES:10485760}
+  totalMaxBytesPerMessage: ${MAILVAULT_TOTAL_MAX_BYTES_PER_MESSAGE:52428800}
+  assetConnectTimeoutSeconds: ${MAILVAULT_ASSET_CONNECT_TIMEOUT_SECONDS:5}
+  assetReadTimeoutSeconds: ${MAILVAULT_ASSET_READ_TIMEOUT_SECONDS:10}

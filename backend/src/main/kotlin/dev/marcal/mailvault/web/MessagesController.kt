@@ -4,6 +4,8 @@ import dev.marcal.mailvault.api.MessageDetailResponse
 import dev.marcal.mailvault.api.MessagesListResponse
 import dev.marcal.mailvault.api.HtmlRenderResponse
 import dev.marcal.mailvault.api.AttachmentResponse
+import dev.marcal.mailvault.api.AssetFreezeResponse
+import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentService
 import dev.marcal.mailvault.service.HtmlRenderService
 import dev.marcal.mailvault.service.MessageQueryService
@@ -12,6 +14,7 @@ import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -22,6 +25,7 @@ class MessagesController(
     private val messageQueryService: MessageQueryService,
     private val htmlRenderService: HtmlRenderService,
     private val attachmentService: AttachmentService,
+    private val assetFreezeService: AssetFreezeService,
 ) {
     @GetMapping
     fun list(
@@ -38,6 +42,9 @@ class MessagesController(
 
     @GetMapping("/{id}/attachments")
     fun attachments(@PathVariable id: String): List<AttachmentResponse> = attachmentService.listByMessage(id)
+
+    @PostMapping("/{id}/freeze-assets")
+    fun freezeAssets(@PathVariable id: String): AssetFreezeResponse = assetFreezeService.freeze(id)
 
     @GetMapping("/{id}/cid/{cid}")
     fun cid(

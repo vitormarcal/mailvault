@@ -42,4 +42,8 @@ class MessageHtmlRepository(
             messageId,
         )
     }
+
+    fun clearHtmlSanitized(messageId: String) {
+        updateHtmlSanitized(messageId, null)
+    }
 }

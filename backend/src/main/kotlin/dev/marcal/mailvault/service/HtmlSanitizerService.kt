@@ -28,7 +28,7 @@ class HtmlSanitizerService {
 
     private companion object {
         val SAFE_LINK_PATTERN: Pattern = Pattern.compile("(?i)^(https?://|/go\\?url=).+")
-        val SAFE_IMAGE_PATTERN: Pattern = Pattern.compile("(?i)^(/api/messages/.+/cid/.+|/static/remote-image-blocked\\.svg)$")
+        val SAFE_IMAGE_PATTERN: Pattern = Pattern.compile("(?i)^(/api/messages/.+/cid/.+|/assets/.+/.+|/static/remote-image-blocked\\.svg)$")
         val SAFE_REMOTE_PATTERN: Pattern = Pattern.compile("(?i)^https?://.+")
     }
 }

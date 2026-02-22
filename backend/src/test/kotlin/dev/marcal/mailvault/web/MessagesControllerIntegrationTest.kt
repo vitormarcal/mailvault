@@ -31,6 +31,7 @@ class MessagesControllerIntegrationTest {
     @BeforeEach
     fun setupData() {
         Files.createDirectories(storageDir.resolve("attachments").resolve("id-1"))
+        Files.createDirectories(storageDir.resolve("assets").resolve("id-1"))
 
         val inlinePath = storageDir.resolve("attachments").resolve("id-1").resolve("cid-bytes")
         Files.writeString(inlinePath, "INLINE_IMAGE", StandardCharsets.UTF_8)
@@ -38,6 +39,11 @@ class MessagesControllerIntegrationTest {
         val attachPath = storageDir.resolve("attachments").resolve("id-1").resolve("file-bytes")
         Files.writeString(attachPath, "ATTACHMENT_PAYLOAD", StandardCharsets.UTF_8)
 
+        val frozenAssetSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        val frozenAssetPath = storageDir.resolve("assets").resolve("id-1").resolve("$frozenAssetSha.png")
+        Files.writeString(frozenAssetPath, "FROZEN_IMAGE", StandardCharsets.UTF_8)
+
+        jdbcTemplate.update("DELETE FROM assets")
         jdbcTemplate.update("DELETE FROM attachments")
         jdbcTemplate.update("DELETE FROM message_bodies")
         jdbcTemplate.update("DELETE FROM messages")
@@ -84,6 +90,22 @@ class MessagesControllerIntegrationTest {
             null,
             attachPath.toAbsolutePath().normalize().toString(),
             "sha-file",
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO assets(id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "asset-1",
+            "id-1",
+            "https://example.com/x.png",
+            frozenAssetPath.toAbsolutePath().normalize().toString(),
+            "image/png",
+            Files.size(frozenAssetPath),
+            frozenAssetSha,
+            "DOWNLOADED",
+            "2026-02-22T10:00:00Z",
+            null,
         )
     }
 
@@ -176,6 +198,16 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET messages id render uses frozen asset url when available`() {
+        val response = get("/api/messages/id-1/render")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("/assets/id-1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png"))
+        assertEquals(false, body.contains("/static/remote-image-blocked.svg"))
+    }
+
+    @Test
     fun `GET message attachments lists metadata`() {
         val response = get("/api/messages/id-1/attachments")
 
@@ -208,6 +240,33 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET assets serves frozen image bytes with cache and nosniff headers`() {
+        val response = getBytes("/assets/id-1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png")
+
+        assertEquals(200, response.statusCode())
+        assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").orElse(""))
+        assertEquals(true, response.headers().firstValue("Cache-Control").orElse("").contains("max-age"))
+        assertEquals("FROZEN_IMAGE", String(response.body(), StandardCharsets.UTF_8))
+    }
+
+    @Test
+    fun `POST freeze-assets skips localhost URL by ssrf guard`() {
+        jdbcTemplate.update(
+            "UPDATE message_bodies SET html_raw = ?, html_sanitized = NULL WHERE message_id = ?",
+            """<img src="http://localhost/private.png" />""",
+            "id-1",
+        )
+
+        val response = post("/api/messages/id-1/freeze-assets")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"downloaded\":0"))
+        assertEquals(true, body.contains("\"failed\":0"))
+        assertEquals(true, body.contains("\"skipped\":1"))
+    }
+
+    @Test
     fun `GET go redirects for safe schemes and blocks unsafe ones`() {
         val safe = get("/go?url=https://example.com")
         assertEquals(302, safe.statusCode())
@@ -222,6 +281,15 @@ class MessagesControllerIntegrationTest {
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
                 .GET()
+                .build()
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    }
+
+    private fun post(path: String): HttpResponse<String> {
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:$port$path"))
+                .POST(HttpRequest.BodyPublishers.noBody())
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     }

@@ -6,6 +6,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class MailVaultProperties(
     val rootEmailsDir: String = "./data/emails",
     val storageDir: String = "./data/storage",
-    val maxAssetsPerMessage: Int = 64,
+    val maxAssetsPerMessage: Int = 50,
     val maxAssetBytes: Long = 10L * 1024L * 1024L,
+    val totalMaxBytesPerMessage: Long = 50L * 1024L * 1024L,
+    val assetConnectTimeoutSeconds: Long = 5,
+    val assetReadTimeoutSeconds: Long = 10,
 )
