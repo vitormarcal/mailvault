@@ -1,12 +1,14 @@
-package dev.marcal.mailvault.controller
+package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.repository.MessageRepository
+import dev.marcal.mailvault.service.MessageQueryService
+import dev.marcal.mailvault.util.ResourceNotFoundException
+import dev.marcal.mailvault.util.ValidationException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
-import org.springframework.web.server.ResponseStatusException
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -48,24 +50,24 @@ class MessagesControllerTest {
             )
             """.trimIndent(),
         )
-        controller = MessagesController(MessageRepository(jdbcTemplate))
+        controller = MessagesController(MessageQueryService(MessageRepository(jdbcTemplate)))
     }
 
     @Test
     fun `returns bad request when page is negative`() {
-        val ex = assertFailsWith<ResponseStatusException> { controller.list(query = null, page = -1, size = 10) }
-        assertEquals(400, ex.statusCode.value())
+        val ex = assertFailsWith<ValidationException> { controller.list(query = null, page = -1, size = 10) }
+        assertEquals("page must be >= 0", ex.message)
     }
 
     @Test
     fun `returns bad request when size is not positive`() {
-        val ex = assertFailsWith<ResponseStatusException> { controller.list(query = null, page = 0, size = 0) }
-        assertEquals(400, ex.statusCode.value())
+        val ex = assertFailsWith<ValidationException> { controller.list(query = null, page = 0, size = 0) }
+        assertEquals("size must be > 0", ex.message)
     }
 
     @Test
     fun `returns not found when id does not exist`() {
-        val ex = assertFailsWith<ResponseStatusException> { controller.detail("missing") }
-        assertEquals(404, ex.statusCode.value())
+        val ex = assertFailsWith<ResourceNotFoundException> { controller.detail("missing") }
+        assertEquals("message not found", ex.message)
     }
 }

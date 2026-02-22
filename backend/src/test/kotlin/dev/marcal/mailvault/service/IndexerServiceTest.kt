@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
+import dev.marcal.mailvault.repository.IndexWriteRepository
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
@@ -72,12 +73,26 @@ class IndexerServiceTest {
         Files.createDirectories(rootDir)
         Files.createDirectories(storageDir)
 
-        service = IndexerService(jdbcTemplate, MessageParseService(), rootDir.toString(), storageDir.toString())
+        service =
+            IndexerService(
+                IndexWriteRepository(jdbcTemplate),
+                MessageParseService(),
+                AttachmentStorageService(),
+                rootDir.toString(),
+                storageDir.toString(),
+            )
     }
 
     @Test
     fun `throws when configured root dir is invalid`() {
-        service = IndexerService(jdbcTemplate, MessageParseService(), tempDir.resolve("missing").toString(), storageDir.toString())
+        service =
+            IndexerService(
+                IndexWriteRepository(jdbcTemplate),
+                MessageParseService(),
+                AttachmentStorageService(),
+                tempDir.resolve("missing").toString(),
+                storageDir.toString(),
+            )
 
         assertFailsWith<IllegalArgumentException> {
             service.index()

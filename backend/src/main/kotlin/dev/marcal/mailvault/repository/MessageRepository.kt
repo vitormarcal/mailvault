@@ -1,15 +1,11 @@
 package dev.marcal.mailvault.repository
 
-import dev.marcal.mailvault.api.MessageDetailResponse
-import dev.marcal.mailvault.api.MessageSummaryResponse
+import dev.marcal.mailvault.domain.MessageDetail
+import dev.marcal.mailvault.domain.MessageSummary
+import dev.marcal.mailvault.domain.MessagesPage
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
-
-data class MessagesPage(
-    val total: Long,
-    val items: List<MessageSummaryResponse>,
-)
 
 @Repository
 class MessageRepository(
@@ -51,7 +47,7 @@ class MessageRepository(
                     LIMIT ? OFFSET ?
                     """.trimIndent(),
                     { rs, _ ->
-                        MessageSummaryResponse(
+                        MessageSummary(
                             id = rs.getString("id"),
                             dateRaw = rs.getString("date_raw"),
                             subject = rs.getString("subject"),
@@ -79,7 +75,7 @@ class MessageRepository(
                     LIMIT ? OFFSET ?
                     """.trimIndent(),
                     { rs, _ ->
-                        MessageSummaryResponse(
+                        MessageSummary(
                             id = rs.getString("id"),
                             dateRaw = rs.getString("date_raw"),
                             subject = rs.getString("subject"),
@@ -96,7 +92,7 @@ class MessageRepository(
         return MessagesPage(total = total, items = items)
     }
 
-    fun findById(id: String): MessageDetailResponse? =
+    fun findById(id: String): MessageDetail? =
         try {
             jdbcTemplate.queryForObject(
                 """
@@ -107,7 +103,7 @@ class MessageRepository(
                 WHERE m.id = ?
                 """.trimIndent(),
                 { rs, _ ->
-                    MessageDetailResponse(
+                    MessageDetail(
                         id = rs.getString("id"),
                         filePath = rs.getString("file_path"),
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),

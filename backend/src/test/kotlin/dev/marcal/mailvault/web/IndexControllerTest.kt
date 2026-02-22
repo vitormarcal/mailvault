@@ -1,14 +1,15 @@
-package dev.marcal.mailvault.controller
+package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.service.IndexResult
 import dev.marcal.mailvault.service.IndexerService
 import dev.marcal.mailvault.service.MessageParseService
+import dev.marcal.mailvault.service.AttachmentStorageService
+import dev.marcal.mailvault.repository.IndexWriteRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
-import org.springframework.web.server.ResponseStatusException
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
@@ -73,8 +74,9 @@ class IndexControllerTest {
         controller =
             IndexController(
                 IndexerService(
-                    jdbcTemplate,
+                    IndexWriteRepository(jdbcTemplate),
                     MessageParseService(),
+                    AttachmentStorageService(),
                     emailsDir.toString(),
                     tempDir.resolve("storage").toString(),
                 ),
@@ -92,17 +94,15 @@ class IndexControllerTest {
         controller =
             IndexController(
                 IndexerService(
-                    jdbcTemplate,
+                    IndexWriteRepository(jdbcTemplate),
                     MessageParseService(),
+                    AttachmentStorageService(),
                     tempDir.resolve("missing").toString(),
                     tempDir.resolve("storage").toString(),
                 ),
             )
 
-        val ex =
-            assertFailsWith<ResponseStatusException> {
-                controller.index()
-            }
-        assertEquals(400, ex.statusCode.value())
+        val ex = assertFailsWith<IllegalArgumentException> { controller.index() }
+        assertEquals("Invalid rootDir: ${tempDir.resolve("missing")}", ex.message)
     }
 }

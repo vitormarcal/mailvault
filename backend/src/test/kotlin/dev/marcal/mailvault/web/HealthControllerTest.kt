@@ -1,4 +1,4 @@
-package dev.marcal.mailvault.controller
+package dev.marcal.mailvault.web
 
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
