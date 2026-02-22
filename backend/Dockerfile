@@ -1,29 +1,30 @@
-# Etapa 1: build da aplicacao
-FROM eclipse-temurin:24-jdk-alpine AS builder
+# Etapa 1: Build da aplicação
+FROM gradle:9.3.1-jdk25-alpine AS builder
 
 WORKDIR /app/backend
 
-# Copia os arquivos de build primeiro para aproveitar cache
-COPY ./backend/gradlew ./gradlew
+# Copie apenas os arquivos do Gradle (sem wrapper)
 COPY ./backend/gradle ./gradle
 COPY ./backend/settings.gradle.kts ./settings.gradle.kts
 COPY ./backend/build.gradle.kts ./build.gradle.kts
 
-RUN chmod +x ./gradlew
-RUN ./gradlew --no-daemon dependencies || true
+RUN gradle --no-daemon build -x test || true
 
-# Copia o codigo fonte e gera o jar
+# Copie o código
 COPY ./backend/src ./src
-RUN ./gradlew --no-daemon clean bootJar
 
-# Etapa 2: imagem final para runtime
-FROM eclipse-temurin:24-jdk-alpine
+RUN gradle --no-daemon clean build -PskipIntegrationTests=true
+
+# Etapa 2: Imagem final com Corretto (sem toolchain de build)
+FROM amazoncorretto:25-alpine
 
 WORKDIR /app
 
-COPY --from=builder /app/backend/build/libs/*.jar app.jar
+# Copie só o jar final
+COPY --from=builder /app/backend/build/libs/*.jar server.jar
 
+# Configurações da aplicação
 VOLUME /config
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.additional-location=file:/config/"]
+ENTRYPOINT ["java", "-jar", "server.jar", "--spring.config.additional-location=file:/config/"]
