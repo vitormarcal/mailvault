@@ -17,25 +17,24 @@ class MessageRepository(
 ) {
     fun list(query: String?, page: Int, size: Int): MessagesPage {
         val sanitizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
-        val like = "%${sanitizedQuery ?: ""}%"
         val offset = page * size
-
-        val whereClause =
-            if (sanitizedQuery == null) {
-                ""
-            } else {
-                "WHERE subject LIKE ? OR from_raw LIKE ?"
-            }
 
         val total =
             if (sanitizedQuery == null) {
                 jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages", Long::class.java) ?: 0L
             } else {
                 jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM messages $whereClause",
+                    """
+                    SELECT COUNT(*)
+                    FROM messages
+                    WHERE id IN (
+                        SELECT id
+                        FROM messages_fts
+                        WHERE messages_fts MATCH ?
+                    )
+                    """.trimIndent(),
                     Long::class.java,
-                    like,
-                    like,
+                    sanitizedQuery,
                 ) ?: 0L
             }
 
@@ -68,7 +67,11 @@ class MessageRepository(
                     """
                     SELECT id, date_raw, subject, from_raw, file_mtime_epoch
                     FROM messages
-                    $whereClause
+                    WHERE id IN (
+                        SELECT id
+                        FROM messages_fts
+                        WHERE messages_fts MATCH ?
+                    )
                     ORDER BY
                         CASE WHEN date_raw IS NULL OR TRIM(date_raw) = '' THEN 1 ELSE 0 END,
                         date_raw DESC,
@@ -84,8 +87,7 @@ class MessageRepository(
                             fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
                         )
                     },
-                    like,
-                    like,
+                    sanitizedQuery,
                     size,
                     offset,
                 )

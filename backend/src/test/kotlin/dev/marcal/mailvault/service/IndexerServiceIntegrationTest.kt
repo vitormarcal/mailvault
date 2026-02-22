@@ -130,6 +130,52 @@ class IndexerServiceIntegrationTest {
         assertEquals("Updated subject", updatedSubject)
     }
 
+    @Test
+    fun `indexation keeps fts in sync via triggers`() {
+        val emlPath = indexRootDir.resolve("reddit.eml")
+
+        Files.writeString(
+            emlPath,
+            """
+            From: Community Watch <watch@example.com>
+            Date: Sat, 21 Feb 2026 22:00:00 -0300
+            Subject: reddittoken digest
+            Message-ID: <reddit-1@example.com>
+
+            Body
+            """.trimIndent(),
+        )
+
+        indexerService.index()
+        val firstCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM messages_fts WHERE messages_fts MATCH ?",
+            Int::class.java,
+            "reddittoken",
+        )
+        assertEquals(1, firstCount)
+
+        Thread.sleep(5)
+        Files.writeString(
+            emlPath,
+            """
+            From: Community Watch <watch@example.com>
+            Date: Sat, 21 Feb 2026 22:05:00 -0300
+            Subject: forum digest
+            Message-ID: <reddit-1@example.com>
+
+            Body updated
+            """.trimIndent(),
+        )
+
+        indexerService.index()
+        val secondCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM messages_fts WHERE messages_fts MATCH ?",
+            Int::class.java,
+            "reddittoken",
+        )
+        assertEquals(0, secondCount)
+    }
+
     companion object {
         private val dbPath =
             Path.of(

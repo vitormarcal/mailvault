@@ -42,7 +42,44 @@ class MessageRepositoryTest {
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+                id UNINDEXED,
+                subject,
+                from_raw
+            )
+            """.trimIndent(),
+        )
+        jdbcTemplate.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+                INSERT INTO messages_fts(id, subject, from_raw)
+                VALUES (new.id, COALESCE(new.subject, ''), COALESCE(new.from_raw, ''));
+            END
+            """.trimIndent(),
+        )
+        jdbcTemplate.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+                DELETE FROM messages_fts
+                WHERE id = old.id;
+            END
+            """.trimIndent(),
+        )
+        jdbcTemplate.execute(
+            """
+            CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE ON messages BEGIN
+                DELETE FROM messages_fts
+                WHERE id = old.id;
+
+                INSERT INTO messages_fts(id, subject, from_raw)
+                VALUES (new.id, COALESCE(new.subject, ''), COALESCE(new.from_raw, ''));
+            END
+            """.trimIndent(),
+        )
         jdbcTemplate.update("DELETE FROM messages")
+        jdbcTemplate.update("DELETE FROM messages_fts")
 
         insert("a", "/tmp/a.eml", 1000, 10, "2024-01-01T10:00:00Z", "Hello", "Alice <alice@x.com>", "<a@x>")
         insert("b", "/tmp/b.eml", 3000, 20, "2024-02-01T10:00:00Z", "Report", "Bob <bob@x.com>", "<b@x>")
@@ -68,6 +105,18 @@ class MessageRepositoryTest {
         assertEquals("b", bySubject.items.first().id)
         assertEquals(1, byFrom.total)
         assertEquals("c", byFrom.items.first().id)
+    }
+
+    @Test
+    fun `list query reddit matches subject and from using fts`() {
+        insert("r1", "/tmp/r1.eml", 5000, 10, "2024-03-01T10:00:00Z", "Daily reddit digest", "News Bot <bot@x.com>", "<r1@x>")
+        insert("r2", "/tmp/r2.eml", 6000, 10, "2024-03-02T10:00:00Z", "Other topic", "Reddit Alerts <alerts@x.com>", "<r2@x>")
+
+        val result = repository.list(query = "reddit", page = 0, size = 50)
+        val ids = result.items.map { it.id }.toSet()
+
+        assertEquals(2, result.total)
+        assertEquals(setOf("r1", "r2"), ids)
     }
 
     @Test
