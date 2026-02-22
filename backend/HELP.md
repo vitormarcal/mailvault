@@ -1,7 +1,7 @@
 # Read Me First
 The following was discovered as part of building this project:
 
-* The JVM level was changed from '25' to '24' as the Kotlin version does not support Java 25 yet.
+* The JVM toolchain is configured to Java 24 to keep Kotlin and Java targets aligned.
 
 # Getting Started
 
@@ -24,4 +24,3 @@ The following guides illustrate how to use some features concretely:
 These additional references should also help you:
 
 * [Gradle Build Scans – insights for your project's build](https://scans.gradle.com#gradle)
-

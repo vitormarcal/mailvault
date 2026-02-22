@@ -1,22 +1,24 @@
 # Etapa 1: Build da aplicação
-FROM gradle:9.3.1-jdk25-alpine AS builder
+FROM amazoncorretto:24-alpine AS builder
 
 WORKDIR /app/backend
 
-# Copie apenas os arquivos do Gradle (sem wrapper)
+# Copie os arquivos do Gradle + wrapper para cache de dependencias
 COPY ./backend/gradle ./gradle
+COPY ./backend/gradlew ./gradlew
 COPY ./backend/settings.gradle.kts ./settings.gradle.kts
 COPY ./backend/build.gradle.kts ./build.gradle.kts
 
-RUN gradle --no-daemon build -x test || true
+RUN chmod +x ./gradlew
+RUN ./gradlew --no-daemon build -x test || true
 
 # Copie o código
 COPY ./backend/src ./src
 
-RUN gradle --no-daemon clean build -PskipIntegrationTests=true
+RUN ./gradlew --no-daemon clean build -PskipIntegrationTests=true
 
 # Etapa 2: Imagem final com Corretto (sem toolchain de build)
-FROM amazoncorretto:25-alpine
+FROM amazoncorretto:24-alpine
 
 WORKDIR /app
 
