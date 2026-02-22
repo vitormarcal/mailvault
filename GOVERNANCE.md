@@ -1,138 +1,138 @@
-Antes de implementar qualquer feature no MailVault, siga estas regras obrigatórias.
+Before implementing any feature in MailVault, follow these mandatory rules.
 
-Objetivo
-Manter o projeto simples, seguro, consistente e incremental. Não adicionar complexidade desnecessária.
+Goal
+Keep the project simple, secure, consistent, and incremental. Do not add unnecessary complexity.
 
-Arquitetura obrigatória
+Mandatory architecture
 
-1) Estrutura de pacotes (não alterar):
+1) Package structure (do not change):
    dev.marcal.mailvault
     - api        -> DTOs (request/response)
-    - web        -> Controllers REST
-    - service    -> lógica de negócio
-    - repository -> acesso a dados via JdbcTemplate
-    - domain     -> modelos internos
-    - config     -> configurações Spring
-    - util       -> helpers técnicos
+    - web        -> REST Controllers
+    - service    -> business logic
+    - repository -> data access via JdbcTemplate
+    - domain     -> internal models
+    - config     -> Spring configuration
+    - util       -> technical helpers
 
-2) Persistência
-- Usar JdbcTemplate (NÃO usar JPA/Hibernate)
-- SQLite como banco principal
-- Flyway para todas as mudanças de schema
-- Nenhuma tabela criada fora de migration
+2) Persistence
+- Use JdbcTemplate (DO NOT use JPA/Hibernate)
+- SQLite as the primary database
+- Flyway for all schema changes
+- No table created outside migrations
 
-3) Estilo de código
-- Kotlin idiomático
-- Data classes para DTOs e domain
-- Sem classes gigantes (>300 linhas)
-- Um serviço por responsabilidade clara
-- Sem lógica pesada dentro de controllers
-- Controllers apenas orquestram e retornam DTO
+3) Code style
+- Idiomatic Kotlin
+- Data classes for DTOs and domain
+- No giant classes (>300 lines)
+- One service per clear responsibility
+- No heavy logic inside controllers
+- Controllers only orchestrate and return DTOs
 
-4) Erros
-- Criar GlobalExceptionHandler (@ControllerAdvice)
-- Retornar JSON padrão:
+4) Errors
+- Create a GlobalExceptionHandler (@ControllerAdvice)
+- Return standard JSON:
   {
   "error": "CODE",
-  "message": "Descrição clara",
+  "message": "Clear description",
   "timestamp": "ISO-8601"
   }
-- Não retornar stacktrace ao cliente
+- Do not return stacktrace to the client
 
 5) Logging
-- Usar logger padrão do Spring
-- Nunca logar:
-    - conteúdo completo do email
-    - anexos
-    - HTML bruto
-- Pode logar id da mensagem, path e erros resumidos
+- Use the standard Spring logger
+- Never log:
+    - full email content
+    - attachments
+    - raw HTML
+- It is allowed to log message id, path, and summarized errors
 
-6) Segurança obrigatória
-- Nunca renderizar HTML sem sanitização
-- Nunca carregar recursos remotos automaticamente
-- Bloquear qualquer URL com esquema diferente de http/https
-- Preparar código para SSRF guard no futuro
-- Servir arquivos com:
+6) Mandatory security
+- Never render HTML without sanitization
+- Never load remote resources automatically
+- Block any URL with scheme different from http/https
+- Prepare code for an SSRF guard in the future
+- Serve files with:
     - X-Content-Type-Options: nosniff
-    - Content-Disposition apropriado
-- Não usar eval, reflection dinâmica desnecessária ou execução arbitrária
+    - Appropriate Content-Disposition
+- Do not use eval, unnecessary dynamic reflection, or arbitrary execution
 
-7) Configuração
-   Criar MailVaultProperties em config:
+7) Configuration
+   Create MailVaultProperties in config:
 - rootEmailsDir (default: ./data/emails)
 - storageDir (default: ./data/storage)
 - maxAssetsPerMessage
 - maxAssetBytes
-- etc (expansível)
+- etc (extensible)
 
-Carregar via @ConfigurationProperties.
+Load via @ConfigurationProperties.
 
 8) Performance
-- Sempre paginar listagens
-- Nunca carregar todos os emails em memória
-- Streams para leitura de arquivos grandes
-- Limitar downloads por tamanho
+- Always paginate listings
+- Never load all emails into memory
+- Use streams for large file reading
+- Limit downloads by size
 
-9) Testes
-- Criar pelo menos:
-    - 1 teste de contexto (já existe)
-    - 1 teste de repository
-    - 1 teste de serviço principal quando relevante
-- Não é necessário cobertura total, mas testar partes críticas
+9) Tests
+- Create at least:
+    - 1 context test (already exists)
+    - 1 repository test
+    - 1 main service test when relevant
+- Full coverage is not required, but critical parts must be tested
 
 10) README
-    Sempre atualizar README quando:
-- adicionar migration
-- adicionar endpoint
-- adicionar configuração nova
+    Always update README when:
+- adding a migration
+- adding an endpoint
+- adding a new configuration
 
 11) Docker-ready
-- Não usar caminhos absolutos
-- Tudo configurável por properties
-- Banco e storage devem funcionar via volume
+- Do not use absolute paths
+- Everything must be configurable through properties
+- Database and storage must work via volumes
 
-12) Regra de simplicidade
-    Se houver duas soluções:
-- escolha a mais simples que resolva o problema
-- evite frameworks adicionais
-- evite abstrações prematuras
+12) Simplicity rule
+    If there are two solutions:
+- choose the simplest one that solves the problem
+- avoid additional frameworks
+- avoid premature abstractions
 
-13) Regra de incrementalidade
-    Antes de implementar qualquer feature grande:
-- Escreva um plano curto (checklist)
-- Depois implemente
+13) Incremental rule
+    Before implementing any large feature:
+- Write a short plan (checklist)
+- Then implement
 
-14) Proibido
-- Adicionar autenticação
-- Adicionar multi-tenant
-- Adicionar fila assíncrona
-- Adicionar cache distribuído
-- Adicionar features fora do escopo definido nos prompts seguintes
+14) Forbidden
+- Add authentication
+- Add multi-tenant support
+- Add async queue
+- Add distributed cache
+- Add features outside the scope defined in subsequent prompts
 
-15) Critério geral de qualidade
-    O código deve:
-- Compilar
-- Subir com ./gradlew bootRun
-- Não gerar warnings críticos
-- Ter separação clara de responsabilidades
+15) General quality criteria
+    The code must:
+- Compile
+- Start with ./gradlew bootRun
+- Not generate critical warnings
+- Have clear separation of responsibilities
 
-Agora confirme entendimento das regras e aguarde o próximo prompt de feature.
+Now confirm understanding of these rules and wait for the next feature prompt.
 
-Regra adicional obrigatória para qualquer nova feature no MailVault:
+Additional mandatory rule for any new MailVault feature:
 
-Antes de escrever código, você DEVE:
+Before writing code, you MUST:
 
-1) Escrever um plano curto em checklist (máximo 12 itens)
-2) Explicar rapidamente quais arquivos serão criados/alterados
-3) Explicar quais migrations serão necessárias (se houver)
-4) Confirmar critérios de aceite
+1) Write a short checklist plan (maximum 12 items)
+2) Briefly explain which files will be created/changed
+3) Explain which migrations will be needed (if any)
+4) Confirm acceptance criteria
 
-Somente após apresentar o plano, aguarde confirmação antes de implementar.
+Only after presenting the plan, wait for confirmation before implementing.
 
-Objetivo:
-- Evitar implementação precipitada
-- Garantir arquitetura coerente
-- Reduzir retrabalho
-- Manter incrementalidade
+Goal:
+- Avoid rushed implementation
+- Ensure coherent architecture
+- Reduce rework
+- Keep incremental delivery
 
-Nunca pule essa etapa.
+Never skip this step.

@@ -1,8 +1,8 @@
 # MailVault
 
-UI minima para navegar e ler emails indexados via SQLite.
+Minimal UI to browse and read emails indexed in SQLite.
 
-## Executar
+## Run
 
 ```bash
 cd backend
@@ -11,48 +11,48 @@ MAILVAULT_STORAGE_DIR=./data/storage \\
 ./gradlew bootRun
 ```
 
-A aplicacao sobe em `http://localhost:8080`.
+The application starts at `http://localhost:8080`.
 
-## Usar a UI
+## Use the UI
 
-- Caixa historica (lista e busca): `GET /`
-- API de listagem/busca: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
-- Estatisticas de uso: `GET /api/stats`
-- Limpeza de manutencao: `POST /api/maintenance/cleanup`
-- Compactacao do SQLite: `POST /api/maintenance/vacuum`
-- Detalhe da mensagem: `GET /messages/{id}`
-- Navegacao no detalhe: `GET /api/messages/{id}/prev` e `GET /api/messages/{id}/next`
-- Reindexacao manual no detalhe: botao **Reindexar** (chama `POST /api/index`)
-- Render HTML sanitizado: `GET /api/messages/{id}/render`
-- Navegacao externa segura (links): `GET /go?url=...`
+- Historical inbox (list and search): `GET /`
+- List/search API: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
+- Usage statistics: `GET /api/stats`
+- Maintenance cleanup: `POST /api/maintenance/cleanup`
+- SQLite compaction: `POST /api/maintenance/vacuum`
+- Message detail: `GET /messages/{id}`
+- Detail navigation: `GET /api/messages/{id}/prev` and `GET /api/messages/{id}/next`
+- Manual reindex from detail: **Reindex** button (calls `POST /api/index`)
+- Sanitized HTML rendering: `GET /api/messages/{id}/render`
+- Safe external navigation (links): `GET /go?url=...`
 - Inline CID: `GET /api/messages/{id}/cid/{cid}`
-- Lista de anexos: `GET /api/messages/{id}/attachments`
-- Download de anexo: `GET /api/attachments/{attachmentId}/download`
-- Freeze de imagens remotas: `POST /api/messages/{id}/freeze-assets`
-- Servir assets congelados: `GET /assets/{messageId}/{filename}`
+- Attachments list: `GET /api/messages/{id}/attachments`
+- Attachment download: `GET /api/attachments/{attachmentId}/download`
+- Remote image freeze: `POST /api/messages/{id}/freeze-assets`
+- Serve frozen assets: `GET /assets/{messageId}/{filename}`
 
-No `GET /api/messages/{id}`, alem dos metadados basicos, tambem retornam:
+In `GET /api/messages/{id}`, in addition to basic metadata, the response also includes:
 - `attachmentsCount`
 - `frozenAssetsCount`
 - `assetsFailedCount`
 - `messageSizeBytes`
-- `filePath` (texto puro para copiar)
+- `filePath` (plain text for copy)
 
-## Renderizacao HTML segura
+## Safe HTML rendering
 
-- HTML bruto de emails (`html_raw`) e reescrito para:
-  - links `<a href>` -> `/go?url=...`
-  - imagens `cid:` -> `/api/messages/{id}/cid/{cid}`
-  - imagens remotas `http/https` -> `/static/remote-image-blocked.svg` com `data-original-src`
-- O HTML final e sanitizado com OWASP Java HTML Sanitizer e cacheado em `html_sanitized`.
-- Elementos ativos/perigosos (ex.: `script`, `iframe`, `form`, handlers `on*`, `javascript:`) sao bloqueados.
-- Imagens remotas so aparecem apos freeze; antes disso, sao substituidas por placeholder local.
+- Raw email HTML (`html_raw`) is rewritten to:
+  - `<a href>` links -> `/go?url=...`
+  - `cid:` images -> `/api/messages/{id}/cid/{cid}`
+  - remote `http/https` images -> `/static/remote-image-blocked.svg` with `data-original-src`
+- Final HTML is sanitized with OWASP Java HTML Sanitizer and cached in `html_sanitized`.
+- Active/dangerous elements (e.g., `script`, `iframe`, `form`, `on*` handlers, `javascript:`) are blocked.
+- Remote images only appear after freeze; before that, they are replaced by a local placeholder.
 
-## Fluxo rapido
+## Quick flow
 
-1. Configure `MAILVAULT_INDEX_ROOT_DIR` apontando para o diretorio mapeado com arquivos `.eml`.
-2. (Opcional) Configure `MAILVAULT_STORAGE_DIR` para o volume de anexos.
-3. (Opcional) Configure limites:
+1. Configure `MAILVAULT_INDEX_ROOT_DIR` pointing to the mapped directory containing `.eml` files.
+2. (Optional) Configure `MAILVAULT_STORAGE_DIR` for the attachments volume.
+3. (Optional) Configure limits:
    - `MAILVAULT_MAX_ASSETS_PER_MESSAGE` (default `50`)
    - `MAILVAULT_MAX_ASSET_BYTES` (default `10485760`)
    - `MAILVAULT_TOTAL_MAX_BYTES_PER_MESSAGE` (default `52428800`)
@@ -61,44 +61,44 @@ No `GET /api/messages/{id}`, alem dos metadados basicos, tambem retornam:
    - `MAILVAULT_ASSET_ALLOWED_PORTS` (default `80,443`)
    - `MAILVAULT_FREEZE_ON_INDEX` (default `false`)
    - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY` (default `2`)
-4. Abra `http://localhost:8080/` e busque mensagens.
-5. Clique em um item para abrir `http://localhost:8080/messages/{id}` e ler `text/plain`/HTML.
-6. No detalhe, use **Congelar imagens** para baixar imagens remotas com limites e protecao SSRF.
-7. No detalhe, use **Anterior/Proximo** ou atalhos `k`/`j`; use `g` para voltar para a lista preservando filtros.
+4. Open `http://localhost:8080/` and search messages.
+5. Click an item to open `http://localhost:8080/messages/{id}` and read `text/plain`/HTML.
+6. In detail, use **Freeze images** to download remote images with limits and SSRF protection.
+7. In detail, use **Previous/Next** or shortcuts `k`/`j`; use `g` to go back to list while preserving filters.
 
-## Freeze automatico no index
+## Automatic freeze on index
 
-- Com `MAILVAULT_FREEZE_ON_INDEX=true`, mensagens novas/atualizadas podem disparar freeze de imagens remotas automaticamente ao final da indexacao.
-- O processo e best-effort: falhas de rede/SSRF nao derrubam a indexacao.
-- Limites:
-  - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY`: paralelismo de freeze automatico.
-- Para evitar trabalho repetido, mensagens que ja possuem assets `DOWNLOADED` sao ignoradas no auto-freeze.
+- With `MAILVAULT_FREEZE_ON_INDEX=true`, new/updated messages may trigger remote-image freeze automatically at the end of indexing.
+- The process is best-effort: network/SSRF failures do not fail indexing.
+- Limits:
+  - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY`: automatic freeze parallelism.
+- To avoid repeated work, messages that already have `DOWNLOADED` assets are skipped during auto-freeze.
 
-## Migrations recentes
+## Recent migrations
 
-- `V5__html.sql`: adiciona `html_raw` e `html_sanitized` em `message_bodies`
-- `V6__attachments.sql`: cria tabela `attachments` para metadados e path de storage
-- `V7__assets.sql`: cria tabela `assets` para freeze de imagens remotas e cache local
-- `V8__message_date_epoch.sql`: adiciona `date_epoch` em `messages` para ordenacao cronologica desc consistente
-- `V9__fts_rebuild_with_body.sql`: recria `messages_fts` com `subject`, `from_raw` e `text_plain`; adiciona triggers para sync em `messages` e `message_bodies`
-- `V10__html_text_fts.sql`: adiciona `html_text` em `message_bodies` e recria `messages_fts` para indexar tambem texto extraido de HTML
-- `V11__message_display_headers.sql`: adiciona `subject_display`, `from_display`, `from_email` e `from_name` em `messages` para exibir headers RFC 2047 decodificados
+- `V5__html.sql`: adds `html_raw` and `html_sanitized` to `message_bodies`
+- `V6__attachments.sql`: creates `attachments` table for metadata and storage path
+- `V7__assets.sql`: creates `assets` table for remote-image freeze and local cache
+- `V8__message_date_epoch.sql`: adds `date_epoch` in `messages` for consistent descending chronological ordering
+- `V9__fts_rebuild_with_body.sql`: rebuilds `messages_fts` with `subject`, `from_raw`, and `text_plain`; adds sync triggers on `messages` and `message_bodies`
+- `V10__html_text_fts.sql`: adds `html_text` to `message_bodies` and rebuilds `messages_fts` to index extracted HTML text as well
+- `V11__message_display_headers.sql`: adds `subject_display`, `from_display`, `from_email`, and `from_name` to `messages` to show decoded RFC 2047 headers
 
-## Busca e filtros (`GET /api/messages`)
+## Search and filters (`GET /api/messages`)
 
-- `query`: usa FTS (`messages_fts`) em `subject`, `from_raw`, `text_plain` e `html_text`
-- `year`: filtra por ano derivado de `date_epoch`
-- `hasAttachments`: `true/false` para existencia em `attachments`
-- `hasHtml`: `true/false` para `message_bodies.html_raw` nao vazio
-- `hasFrozenImages`: `true/false` para existencia de `assets` com `status = DOWNLOADED`
-- Ordenacao:
-  - com `query`: relevancia `bm25(messages_fts)` e depois data desc
-  - sem `query`: data desc
-- A home (`/`) expoe todos esses filtros na UI (ano + anexos/html/imagens congeladas), com estado na URL e chips de filtros ativos.
+- `query`: uses FTS (`messages_fts`) on `subject`, `from_raw`, `text_plain`, and `html_text`
+- `year`: filters by year derived from `date_epoch`
+- `hasAttachments`: `true/false` for existence in `attachments`
+- `hasHtml`: `true/false` for non-empty `message_bodies.html_raw`
+- `hasFrozenImages`: `true/false` for existence of `assets` with `status = DOWNLOADED`
+- Ordering:
+  - with `query`: relevance `bm25(messages_fts)` then date desc
+  - without `query`: date desc
+- Home (`/`) exposes all these filters in the UI (year + attachments/html/frozen images), with URL state and active filter chips.
 
-## Observabilidade minima (`GET /api/stats`)
+## Minimal observability (`GET /api/stats`)
 
-- Retorna:
+- Returns:
   - `totalMessages`
   - `totalWithHtml`
   - `totalAttachments`
@@ -107,15 +107,15 @@ No `GET /api/messages/{id}`, alem dos metadados basicos, tambem retornam:
   - `storageBytesAttachments`
   - `storageBytesAssets`
   - `lastIndexAt`
-- O index registra em `app_meta` ao finalizar:
+- On index completion, indexer records in `app_meta`:
   - `lastIndexAt`
   - `lastIndexDurationMs`
 
-## Manutencao
+## Maintenance
 
 - `POST /api/maintenance/cleanup`:
-  - remove arquivos orfaos em `storage/attachments` e `storage/assets` (sem referencia no DB)
-  - remove linhas de `messages` cujo arquivo `.eml` nao existe mais (cascade limpa metadados relacionados)
+  - removes orphan files in `storage/attachments` and `storage/assets` (no DB reference)
+  - removes `messages` rows whose `.eml` file no longer exists (cascade clears related metadata)
 - `POST /api/maintenance/vacuum`:
-  - executa `VACUUM` no SQLite para recuperar espaco
-  - pode ser uma operacao custosa e bloquear momentaneamente acesso ao banco
+  - runs SQLite `VACUUM` to reclaim space
+  - may be expensive and temporarily block DB access
