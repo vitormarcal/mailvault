@@ -7,6 +7,7 @@ services:
       - "8080:8080"
     volumes:
       - mailvault-data:/app/data
+      - ../data/emails:/data/emails:ro
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - SPRING_APPLICATION_NAME=Mail Vault
