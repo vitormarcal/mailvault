@@ -224,6 +224,14 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET favicon returns not found without internal server error`() {
+        val response = get("/favicon.ico")
+        assertEquals(404, response.statusCode())
+        assertEquals(true, response.body().contains("\"error\":\"NOT_FOUND\""))
+        assertEquals(false, response.body().contains("\"error\":\"INTERNAL_ERROR\""))
+    }
+
+    @Test
     fun `POST maintenance cleanup removes orphan files and missing message rows`() {
         val orphanAttachment = storageDir.resolve("attachments").resolve("id-1").resolve("orphan.tmp")
         val orphanAsset = storageDir.resolve("assets").resolve("id-1").resolve("orphan.tmp")
