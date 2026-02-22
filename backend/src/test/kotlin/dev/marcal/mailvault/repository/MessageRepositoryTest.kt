@@ -325,6 +325,13 @@ class MessageRepositoryTest {
     }
 
     @Test
+    fun `list query supports email terms with at symbol`() {
+        val result = list(query = "alice@x.com", page = 0, size = 50)
+        assertEquals(1, result.total)
+        assertEquals("a", result.items.first().id)
+    }
+
+    @Test
     fun `findById returns full detail and null for unknown id`() {
         jdbcTemplate.update(
             "UPDATE messages SET subject_display = ?, from_display = ?, from_email = ?, from_name = ? WHERE id = ?",

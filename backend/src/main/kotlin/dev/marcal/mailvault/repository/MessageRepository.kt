@@ -20,7 +20,11 @@ class MessageRepository(
         hasHtml: Boolean?,
         hasFrozenImages: Boolean?,
     ): MessagesPage {
-        val sanitizedQuery = query?.trim()?.takeIf { it.isNotEmpty() }
+        val sanitizedQuery =
+            query
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { toSafeFtsExpression(it) }
         val offset = page * size
         val whereParts = mutableListOf<String>()
         val whereParams = mutableListOf<Any>()
@@ -295,4 +299,18 @@ class MessageRepository(
         } catch (_: EmptyResultDataAccessException) {
             null
         }
+
+    private fun toSafeFtsExpression(query: String): String {
+        val terms = SAFE_TERM_REGEX.findAll(query).map { it.value.trim() }.filter { it.isNotEmpty() }.toList()
+        if (terms.isEmpty()) {
+            return quoteFtsTerm(query)
+        }
+        return terms.joinToString(" AND ") { quoteFtsTerm(it) }
+    }
+
+    private fun quoteFtsTerm(term: String): String = "\"${term.replace("\"", "\"\"")}\""
+
+    private companion object {
+        val SAFE_TERM_REGEX = Regex("""[\p{L}\p{N}@._%+\-]+""")
+    }
 }

@@ -195,6 +195,16 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET messages query accepts email address with at symbol`() {
+        val response = get("/api/messages?query=alice%40x.com&page=0&size=50")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"total\":1"))
+        assertEquals(true, body.contains("\"id\":\"id-1\""))
+    }
+
+    @Test
     fun `GET messages supports combined filters with query`() {
         val response = get("/api/messages?query=Body&year=2024&hasAttachments=true&hasHtml=true&hasFrozenImages=true&page=0&size=50")
 
