@@ -16,14 +16,22 @@ class IndexWriteRepository(
         try {
             jdbcTemplate.queryForObject(
                 """
-                SELECT file_mtime_epoch, file_size
-                FROM messages
+                SELECT
+                    m.file_mtime_epoch,
+                    m.file_size,
+                    CASE
+                        WHEN COALESCE(TRIM(mb.text_plain), '') <> '' OR COALESCE(TRIM(mb.html_raw), '') <> '' THEN 1
+                        ELSE 0
+                    END AS has_body_content
+                FROM messages m
+                LEFT JOIN message_bodies mb ON mb.message_id = m.id
                 WHERE file_path = ?
                 """.trimIndent(),
                 { rs, _ ->
                     ExistingMessage(
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
                         fileSize = rs.getLong("file_size"),
+                        hasBodyContent = rs.getInt("has_body_content") == 1,
                     )
                 },
                 filePath,

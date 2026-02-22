@@ -28,6 +28,7 @@ data class MessagesPage(
 data class ExistingMessage(
     val fileMtimeEpoch: Long,
     val fileSize: Long,
+    val hasBodyContent: Boolean,
 )
 
 data class MessageUpsert(

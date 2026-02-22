@@ -9,6 +9,7 @@ import dev.marcal.mailvault.repository.IndexWriteRepository
 import dev.marcal.mailvault.config.MailVaultProperties
 import java.nio.file.Files
 import java.nio.file.Path
+import java.security.MessageDigest
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
@@ -267,5 +268,65 @@ class IndexerServiceTest {
         )
         assertNotNull(storagePath)
         assertEquals(true, Files.exists(Path.of(storagePath)))
+    }
+
+    @Test
+    fun `reprocesses unchanged file when existing body is empty`() {
+        val eml = rootDir.resolve("legacy-empty-body.eml")
+        Files.writeString(
+            eml,
+            """
+            From: Legacy <legacy@x.com>
+            Subject: Legacy
+            Message-ID: <legacy@x>
+
+            Corpo legado
+            """.trimIndent(),
+        )
+
+        val normalizedPath = eml.toAbsolutePath().normalize().toString()
+        val mtime = Files.getLastModifiedTime(eml).toMillis()
+        val size = Files.size(eml)
+        val messageId = sha256Hex("<legacy@x>|$normalizedPath")
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, subject, from_raw, message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            messageId,
+            normalizedPath,
+            mtime,
+            size,
+            null,
+            "Legacy",
+            "Legacy <legacy@x.com>",
+            "<legacy@x>",
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies(message_id, text_plain, html_raw, html_sanitized)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            messageId,
+            null,
+            null,
+            null,
+        )
+
+        val result = service.index()
+        assertEquals(IndexResult(inserted = 0, updated = 1, skipped = 0), result)
+
+        val textPlain = jdbcTemplate.queryForObject(
+            "SELECT text_plain FROM message_bodies WHERE message_id = ?",
+            String::class.java,
+            messageId,
+        )
+        assertEquals("Corpo legado", textPlain?.trim())
+    }
+
+    private fun sha256Hex(value: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        return digest.digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 }

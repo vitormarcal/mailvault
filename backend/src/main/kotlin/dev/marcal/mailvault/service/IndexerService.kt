@@ -49,7 +49,7 @@ class IndexerService(
                     val size = Files.size(filePath)
 
                     val existing = indexWriteRepository.findByFilePath(normalizedPath)
-                    if (existing != null && existing.fileMtimeEpoch == mtime && existing.fileSize == size) {
+                    if (existing != null && existing.fileMtimeEpoch == mtime && existing.fileSize == size && existing.hasBodyContent) {
                         skipped++
                         return@forEach
                     }
