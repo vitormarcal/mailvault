@@ -1,11 +1,5 @@
 package dev.marcal.mailvault.api
 
-data class MessagesListRequest(
-    val query: String?,
-    val page: Int = 0,
-    val size: Int = 50,
-)
-
 data class MessageSummaryResponse(
     val id: String,
     val dateRaw: String?,
