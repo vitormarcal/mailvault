@@ -37,6 +37,7 @@ class MessageParseServiceTest {
         assertEquals("<id-1@example.com>", parsed.messageId)
         assertEquals("body line", parsed.textPlain?.trim())
         assertNull(parsed.htmlRaw)
+        assertNull(parsed.htmlText)
         assertEquals(0, parsed.attachments.size)
     }
 
@@ -79,6 +80,7 @@ class MessageParseServiceTest {
 
         assertEquals("plain part", parsed.textPlain?.trim())
         assertEquals(true, parsed.htmlRaw?.contains("html part") == true)
+        assertEquals(true, parsed.htmlText?.contains("html part") == true)
         assertEquals(1, parsed.attachments.size)
         val attachment = parsed.attachments.first()
         assertEquals("pixel.png", attachment.filename)

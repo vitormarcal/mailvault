@@ -49,6 +49,7 @@ class MessageRepositoryTest {
                 message_id TEXT PRIMARY KEY,
                 text_plain TEXT,
                 html_raw TEXT,
+                html_text TEXT,
                 html_sanitized TEXT
             )
             """.trimIndent(),
@@ -89,19 +90,21 @@ class MessageRepositoryTest {
                 id UNINDEXED,
                 subject,
                 from_raw,
-                text_plain
+                text_plain,
+                html_text
             )
             """.trimIndent(),
         )
         jdbcTemplate.execute(
             """
             CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
-                INSERT INTO messages_fts(id, subject, from_raw, text_plain)
+                INSERT INTO messages_fts(id, subject, from_raw, text_plain, html_text)
                 VALUES (
                     new.id,
                     COALESCE(new.subject, ''),
                     COALESCE(new.from_raw, ''),
-                    COALESCE((SELECT text_plain FROM message_bodies WHERE message_id = new.id), '')
+                    COALESCE((SELECT text_plain FROM message_bodies WHERE message_id = new.id), ''),
+                    COALESCE((SELECT html_text FROM message_bodies WHERE message_id = new.id), '')
                 );
             END
             """.trimIndent(),
@@ -120,12 +123,13 @@ class MessageRepositoryTest {
                 DELETE FROM messages_fts
                 WHERE id = old.id;
 
-                INSERT INTO messages_fts(id, subject, from_raw, text_plain)
+                INSERT INTO messages_fts(id, subject, from_raw, text_plain, html_text)
                 VALUES (
                     new.id,
                     COALESCE(new.subject, ''),
                     COALESCE(new.from_raw, ''),
-                    COALESCE((SELECT text_plain FROM message_bodies WHERE message_id = new.id), '')
+                    COALESCE((SELECT text_plain FROM message_bodies WHERE message_id = new.id), ''),
+                    COALESCE((SELECT html_text FROM message_bodies WHERE message_id = new.id), '')
                 );
             END
             """.trimIndent(),
@@ -136,8 +140,8 @@ class MessageRepositoryTest {
                 DELETE FROM messages_fts
                 WHERE id = new.message_id;
 
-                INSERT INTO messages_fts(id, subject, from_raw, text_plain)
-                SELECT m.id, COALESCE(m.subject, ''), COALESCE(m.from_raw, ''), COALESCE(new.text_plain, '')
+                INSERT INTO messages_fts(id, subject, from_raw, text_plain, html_text)
+                SELECT m.id, COALESCE(m.subject, ''), COALESCE(m.from_raw, ''), COALESCE(new.text_plain, ''), COALESCE(new.html_text, '')
                 FROM messages m
                 WHERE m.id = new.message_id;
             END
@@ -149,8 +153,8 @@ class MessageRepositoryTest {
                 DELETE FROM messages_fts
                 WHERE id = new.message_id;
 
-                INSERT INTO messages_fts(id, subject, from_raw, text_plain)
-                SELECT m.id, COALESCE(m.subject, ''), COALESCE(m.from_raw, ''), COALESCE(new.text_plain, '')
+                INSERT INTO messages_fts(id, subject, from_raw, text_plain, html_text)
+                SELECT m.id, COALESCE(m.subject, ''), COALESCE(m.from_raw, ''), COALESCE(new.text_plain, ''), COALESCE(new.html_text, '')
                 FROM messages m
                 WHERE m.id = new.message_id;
             END
@@ -162,8 +166,8 @@ class MessageRepositoryTest {
                 DELETE FROM messages_fts
                 WHERE id = old.message_id;
 
-                INSERT INTO messages_fts(id, subject, from_raw, text_plain)
-                SELECT m.id, COALESCE(m.subject, ''), COALESCE(m.from_raw, ''), ''
+                INSERT INTO messages_fts(id, subject, from_raw, text_plain, html_text)
+                SELECT m.id, COALESCE(m.subject, ''), COALESCE(m.from_raw, ''), '', ''
                 FROM messages m
                 WHERE m.id = old.message_id;
             END
@@ -249,7 +253,7 @@ class MessageRepositoryTest {
     @Test
     fun `list supports combined filters with query`() {
         jdbcTemplate.update("UPDATE messages SET date_epoch = ? WHERE id = ?", 1706781600L, "b")
-        jdbcTemplate.update("INSERT INTO message_bodies(message_id, text_plain, html_raw) VALUES (?, ?, ?)", "b", "budget plan", "<p>budget plan</p>")
+        jdbcTemplate.update("INSERT INTO message_bodies(message_id, text_plain, html_raw, html_text) VALUES (?, ?, ?, ?)", "b", "budget plan", "<p>budget plan</p>", "budget plan")
         jdbcTemplate.update(
             """
             INSERT INTO attachments(id, message_id, filename, content_type, size, inline_cid, storage_path, sha256)
@@ -294,6 +298,15 @@ class MessageRepositoryTest {
 
         assertEquals(1, filtered.total)
         assertEquals("b", filtered.items.first().id)
+    }
+
+    @Test
+    fun `list query finds content from html_text`() {
+        jdbcTemplate.update("INSERT INTO message_bodies(message_id, html_raw, html_text) VALUES (?, ?, ?)", "c", "<p>Only html phrase</p>", "Only html phrase")
+
+        val result = list(query = "\"Only html phrase\"", page = 0, size = 50)
+        assertEquals(1, result.total)
+        assertEquals("c", result.items.first().id)
     }
 
     @Test

@@ -48,6 +48,7 @@ data class MessageBodyUpsert(
     val messageId: String,
     val textPlain: String?,
     val htmlRaw: String?,
+    val htmlText: String?,
     val htmlSanitized: String?,
 )
 

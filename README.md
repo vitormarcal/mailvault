@@ -58,10 +58,11 @@ A aplicacao sobe em `http://localhost:8080`.
 - `V7__assets.sql`: cria tabela `assets` para freeze de imagens remotas e cache local
 - `V8__message_date_epoch.sql`: adiciona `date_epoch` em `messages` para ordenacao cronologica desc consistente
 - `V9__fts_rebuild_with_body.sql`: recria `messages_fts` com `subject`, `from_raw` e `text_plain`; adiciona triggers para sync em `messages` e `message_bodies`
+- `V10__html_text_fts.sql`: adiciona `html_text` em `message_bodies` e recria `messages_fts` para indexar tambem texto extraido de HTML
 
 ## Busca e filtros (`GET /api/messages`)
 
-- `query`: usa FTS (`messages_fts`) em `subject`, `from_raw` e `text_plain`
+- `query`: usa FTS (`messages_fts`) em `subject`, `from_raw`, `text_plain` e `html_text`
 - `year`: filtra por ano derivado de `date_epoch`
 - `hasAttachments`: `true/false` para existencia em `attachments`
 - `hasHtml`: `true/false` para `message_bodies.html_raw` nao vazio

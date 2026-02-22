@@ -6,6 +6,7 @@ import jakarta.mail.Part
 import jakarta.mail.Session
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeUtility
+import org.jsoup.Jsoup
 import org.springframework.stereotype.Service
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -35,6 +36,7 @@ data class ParsedMessage(
     val messageId: String?,
     val textPlain: String?,
     val htmlRaw: String?,
+    val htmlText: String?,
     val attachments: List<ParsedAttachment>,
 )
 
@@ -55,8 +57,17 @@ class MessageParseService {
             messageId = mimeMessage.getHeader(HEADER_MESSAGE_ID, null),
             textPlain = accumulator.textPlain?.ifBlank { null },
             htmlRaw = accumulator.htmlRaw?.ifBlank { null },
+            htmlText = extractHtmlText(accumulator.htmlRaw),
             attachments = accumulator.attachments,
         )
+    }
+
+    private fun extractHtmlText(html: String?): String? {
+        if (html.isNullOrBlank()) {
+            return null
+        }
+        val extracted = Jsoup.parse(html).text().trim()
+        return extracted.ifBlank { null }
     }
 
     private fun parsePart(part: Part, accumulator: ParseAccumulator) {

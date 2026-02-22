@@ -55,6 +55,7 @@ class IndexControllerTest {
                 message_id TEXT PRIMARY KEY,
                 text_plain TEXT,
                 html_raw TEXT,
+                html_text TEXT,
                 html_sanitized TEXT
             )
             """.trimIndent(),

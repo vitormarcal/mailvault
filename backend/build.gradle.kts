@@ -25,6 +25,7 @@ dependencies {
 	implementation("org.flywaydb:flyway-core")
 	implementation("org.eclipse.angus:angus-mail:2.0.4")
 	implementation("com.sun.activation:jakarta.activation:2.0.1")
+	implementation("org.jsoup:jsoup:1.18.3")
 	implementation("com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20240325.1")
 	implementation("org.xerial:sqlite-jdbc:3.50.3.0")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")

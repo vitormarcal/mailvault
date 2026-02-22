@@ -52,6 +52,7 @@ class IndexerServiceTest {
                 message_id TEXT PRIMARY KEY,
                 text_plain TEXT,
                 html_raw TEXT,
+                html_text TEXT,
                 html_sanitized TEXT
             )
             """.trimIndent(),
@@ -253,6 +254,18 @@ class IndexerServiceTest {
             eml.toAbsolutePath().normalize().toString(),
         )
         assertEquals(true, htmlRaw?.contains("Hello HTML") == true)
+
+        val htmlText = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.html_text
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+        assertEquals("Hello HTML", htmlText?.trim())
 
         val attachmentCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM attachments", Int::class.java)
         assertEquals(2, attachmentCount)

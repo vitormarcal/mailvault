@@ -76,16 +76,18 @@ class IndexWriteRepository(
     fun upsertMessageBody(body: MessageBodyUpsert) {
         jdbcTemplate.update(
             """
-            INSERT INTO message_bodies (message_id, text_plain, html_raw, html_sanitized)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO message_bodies (message_id, text_plain, html_raw, html_text, html_sanitized)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(message_id) DO UPDATE SET
                 text_plain = excluded.text_plain,
                 html_raw = excluded.html_raw,
+                html_text = excluded.html_text,
                 html_sanitized = excluded.html_sanitized
             """.trimIndent(),
             body.messageId,
             body.textPlain,
             body.htmlRaw,
+            body.htmlText,
             body.htmlSanitized,
         )
     }

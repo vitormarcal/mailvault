@@ -83,6 +83,7 @@ class IndexerService(
                                 messageId = messageId,
                                 textPlain = parsed.textPlain,
                                 htmlRaw = parsed.htmlRaw,
+                                htmlText = parsed.htmlText,
                                 htmlSanitized = null,
                             ),
                         )
