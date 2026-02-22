@@ -89,6 +89,11 @@ class MessageParseService {
     }
 
     private fun parseBodyPart(part: BodyPart, accumulator: ParseAccumulator) {
+        if (part.isMimeType("multipart/*") || part.isMimeType("message/rfc822")) {
+            parsePart(part, accumulator)
+            return
+        }
+
         if (isAttachmentLike(part)) {
             val bytes = readPartAsBytes(part)
             val contentId = normalizeContentId(firstHeader(part, HEADER_CONTENT_ID))
@@ -109,10 +114,12 @@ class MessageParseService {
 
     private fun isAttachmentLike(part: BodyPart): Boolean {
         val disposition = part.disposition?.lowercase()
-        val hasDisposition = disposition == Part.ATTACHMENT.lowercase() || disposition == Part.INLINE.lowercase()
+        val hasAttachmentDisposition = disposition == Part.ATTACHMENT.lowercase()
+        val hasInlineDisposition = disposition == Part.INLINE.lowercase()
         val hasFilename = !part.fileName.isNullOrBlank()
         val hasContentId = firstHeader(part, HEADER_CONTENT_ID) != null
-        return hasDisposition || hasFilename || hasContentId
+        val isTextLike = part.isMimeType("text/plain") || part.isMimeType("text/html")
+        return hasAttachmentDisposition || hasFilename || hasContentId || (hasInlineDisposition && !isTextLike)
     }
 
     private fun readPartAsText(part: Part): String {
