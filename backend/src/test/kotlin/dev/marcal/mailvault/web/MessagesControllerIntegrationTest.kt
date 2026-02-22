@@ -403,10 +403,33 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET ui language returns default en when preference is missing`() {
+        jdbcTemplate.update("DELETE FROM app_meta WHERE key = 'ui.language'")
+
+        val response = get("/api/ui/language")
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("\"language\":\"en\""))
+    }
+
+    @Test
+    fun `PUT ui language persists selected value`() {
+        val response = putJson("/api/ui/language", """{"language":"pt-BR"}""")
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("\"language\":\"pt-BR\""))
+
+        val stored =
+            jdbcTemplate.queryForObject(
+                "SELECT value FROM app_meta WHERE key = 'ui.language'",
+                String::class.java,
+            )
+        assertEquals("pt-BR", stored)
+    }
+
+    @Test
     fun `GET messages id route serves minimal message UI`() {
         val response = get("/messages/id-1")
         assertEquals(200, response.statusCode())
-        assertEquals(true, response.body().contains("Reindexar"))
+        assertEquals(true, response.body().contains("id=\"reindexBtn\""))
         assertEquals(true, response.body().contains("text/plain"))
         val csp = response.headers().firstValue("Content-Security-Policy").orElse("")
         assertEquals(true, csp.contains("default-src 'none'"))
@@ -559,6 +582,16 @@ class MessagesControllerIntegrationTest {
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
                 .POST(HttpRequest.BodyPublishers.noBody())
+                .build()
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    }
+
+    private fun putJson(path: String, json: String): HttpResponse<String> {
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:$port$path"))
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     }

@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MailVault - Caixa Historica</title>
+  <title>MailVault - Historical Inbox</title>
   <style>
     :root {
       --bg: #f7f4ef;
@@ -131,9 +131,13 @@
 
     .search-top {
       display: grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto auto auto;
       gap: 10px;
       align-items: center;
+    }
+
+    .language-select {
+      min-width: 175px;
     }
 
     .search input,
@@ -438,57 +442,61 @@
   <main class="wrap">
     <section class="hero">
       <h1>MailVault</h1>
-      <p>Caixa historica para consulta rapida de mensagens indexadas.</p>
+      <p id="heroSubtitle">Historical inbox for fast lookup of indexed messages.</p>
     </section>
 
     <section class="stats-panel">
-      <h2 class="stats-title">Status</h2>
+      <h2 class="stats-title" id="statsTitle">Status</h2>
       <div class="stats-grid">
-        <div class="stats-card"><div class="stats-label">Mensagens</div><div id="statTotalMessages" class="stats-value">-</div></div>
-        <div class="stats-card"><div class="stats-label">Com HTML</div><div id="statTotalWithHtml" class="stats-value">-</div></div>
-        <div class="stats-card"><div class="stats-label">Anexos</div><div id="statTotalAttachments" class="stats-value">-</div></div>
-        <div class="stats-card"><div class="stats-label">Assets baixados</div><div id="statAssetsDownloaded" class="stats-value">-</div></div>
-        <div class="stats-card"><div class="stats-label">Assets falhos</div><div id="statAssetsFailed" class="stats-value">-</div></div>
-        <div class="stats-card"><div class="stats-label">Bytes anexos</div><div id="statBytesAttachments" class="stats-value">-</div></div>
-        <div class="stats-card"><div class="stats-label">Bytes assets</div><div id="statBytesAssets" class="stats-value">-</div></div>
-        <div class="stats-card"><div class="stats-label">Ultimo index</div><div id="statLastIndexAt" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelTotalMessages">Messages</div><div id="statTotalMessages" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelTotalWithHtml">With HTML</div><div id="statTotalWithHtml" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelTotalAttachments">Attachments</div><div id="statTotalAttachments" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelAssetsDownloaded">Downloaded assets</div><div id="statAssetsDownloaded" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelAssetsFailed">Failed assets</div><div id="statAssetsFailed" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelBytesAttachments">Attachment bytes</div><div id="statBytesAttachments" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelBytesAssets">Asset bytes</div><div id="statBytesAssets" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label" id="labelLastIndex">Last index</div><div id="statLastIndexAt" class="stats-value">-</div></div>
       </div>
     </section>
 
     <section class="panel">
       <form id="searchForm" class="search">
         <div class="search-top">
-          <input id="query" type="text" placeholder="Buscar por assunto, remetente ou termos do conteudo" autocomplete="off" />
-          <button type="submit" class="btn-primary">Buscar</button>
-          <button id="clearBtn" type="button" class="btn-ghost">Limpar tudo</button>
+          <input id="query" type="text" placeholder="Search by subject, sender or content terms" autocomplete="off" />
+          <button id="searchBtn" type="submit" class="btn-primary">Search</button>
+          <button id="clearBtn" type="button" class="btn-ghost">Clear all</button>
+          <select id="languageSelect" class="language-select">
+            <option value="en">English</option>
+            <option value="pt-BR">Português (Brasil)</option>
+          </select>
         </div>
         <div class="filters-grid">
           <div class="filter-field">
-            <label for="yearFilter">Ano</label>
-            <input id="yearFilter" type="number" min="1970" max="2100" placeholder="Todos" />
+            <label id="yearFilterLabel" for="yearFilter">Year</label>
+            <input id="yearFilter" type="number" min="1970" max="2100" placeholder="All" />
           </div>
           <div class="filter-field">
-            <label for="hasAttachmentsFilter">Anexos</label>
+            <label id="hasAttachmentsFilterLabel" for="hasAttachmentsFilter">Attachments</label>
             <select id="hasAttachmentsFilter">
-              <option value="">Todos</option>
-              <option value="true">Com anexos</option>
-              <option value="false">Sem anexos</option>
+              <option value="">All</option>
+              <option value="true">With attachments</option>
+              <option value="false">Without attachments</option>
             </select>
           </div>
           <div class="filter-field">
-            <label for="hasHtmlFilter">HTML</label>
+            <label id="hasHtmlFilterLabel" for="hasHtmlFilter">HTML</label>
             <select id="hasHtmlFilter">
-              <option value="">Todos</option>
-              <option value="true">Com HTML</option>
-              <option value="false">Sem HTML</option>
+              <option value="">All</option>
+              <option value="true">With HTML</option>
+              <option value="false">Without HTML</option>
             </select>
           </div>
           <div class="filter-field">
-            <label for="hasFrozenImagesFilter">Imagens congeladas</label>
+            <label id="hasFrozenImagesFilterLabel" for="hasFrozenImagesFilter">Frozen images</label>
             <select id="hasFrozenImagesFilter">
-              <option value="">Todos</option>
-              <option value="true">Com imagens congeladas</option>
-              <option value="false">Sem imagens congeladas</option>
+              <option value="">All</option>
+              <option value="true">With frozen images</option>
+              <option value="false">Without frozen images</option>
             </select>
           </div>
         </div>
@@ -499,26 +507,26 @@
 
       <div class="ops">
         <div class="ops-actions">
-          <button id="indexBtn" type="button" class="btn-primary">Indexar (incremental)</button>
-          <button id="reindexBtn" type="button" class="btn-ghost">Reindexar (completo)</button>
-          <button id="freezePendingBtn" type="button" class="btn-ghost">Congelar pendentes</button>
-          <button id="maintenanceBtn" type="button" class="btn-ghost">Manutencao (limpeza/vacuum)</button>
+          <button id="indexBtn" type="button" class="btn-primary">Index (incremental)</button>
+          <button id="reindexBtn" type="button" class="btn-ghost">Reindex (full)</button>
+          <button id="freezePendingBtn" type="button" class="btn-ghost">Freeze pending</button>
+          <button id="maintenanceBtn" type="button" class="btn-ghost">Maintenance (cleanup/vacuum)</button>
         </div>
         <span id="indexStatus" class="ops-status"></span>
       </div>
 
       <div class="meta">
-        <span id="summary">Carregando mensagens...</span>
-        <span>Dica: pressione <span class="kbd">/</span> para focar a busca</span>
+        <span id="summary">Loading messages...</span>
+        <span id="searchHint">Tip: press <span class="kbd">/</span> to focus search</span>
       </div>
 
       <ul id="results" class="list"></ul>
 
       <div class="pager">
-        <span id="pageInfo">Pagina 1</span>
+        <span id="pageInfo">Page 1</span>
         <div class="pager-actions">
-          <button id="prevBtn" type="button" class="btn-ghost">Anterior</button>
-          <button id="nextBtn" type="button" class="btn-ghost">Proxima</button>
+          <button id="prevBtn" type="button" class="btn-ghost">Previous</button>
+          <button id="nextBtn" type="button" class="btn-ghost">Next</button>
         </div>
       </div>
     </section>
@@ -535,6 +543,8 @@
     const hasFrozenImagesFilter = document.getElementById('hasFrozenImagesFilter');
     const activeFilters = document.getElementById('activeFilters');
     const clearBtn = document.getElementById('clearBtn');
+    const searchBtn = document.getElementById('searchBtn');
+    const languageSelect = document.getElementById('languageSelect');
     const results = document.getElementById('results');
     const summary = document.getElementById('summary');
     const indexBtn = document.getElementById('indexBtn');
@@ -553,6 +563,9 @@
     const statBytesAttachments = document.getElementById('statBytesAttachments');
     const statBytesAssets = document.getElementById('statBytesAssets');
     const statLastIndexAt = document.getElementById('statLastIndexAt');
+    const heroSubtitle = document.getElementById('heroSubtitle');
+    const statsTitle = document.getElementById('statsTitle');
+    const searchHint = document.getElementById('searchHint');
 
     let state = {
       page: 0,
@@ -565,7 +578,177 @@
       itemsCount: 0,
       items: [],
       loading: false,
+      language: 'en',
     };
+
+    const I18N = {
+      en: {
+        pageTitle: 'MailVault - Historical Inbox',
+        heroSubtitle: 'Historical inbox for fast lookup of indexed messages.',
+        statsTitle: 'Status',
+        labelTotalMessages: 'Messages',
+        labelTotalWithHtml: 'With HTML',
+        labelTotalAttachments: 'Attachments',
+        labelAssetsDownloaded: 'Downloaded assets',
+        labelAssetsFailed: 'Failed assets',
+        labelBytesAttachments: 'Attachment bytes',
+        labelBytesAssets: 'Asset bytes',
+        labelLastIndex: 'Last index',
+        searchPlaceholder: 'Search by subject, sender or content terms',
+        searchBtn: 'Search',
+        clearBtn: 'Clear all',
+        yearFilterLabel: 'Year',
+        yearFilterPlaceholder: 'All',
+        hasAttachmentsFilterLabel: 'Attachments',
+        hasAttachmentsAny: 'All',
+        hasAttachmentsTrue: 'With attachments',
+        hasAttachmentsFalse: 'Without attachments',
+        hasHtmlFilterLabel: 'HTML',
+        hasHtmlAny: 'All',
+        hasHtmlTrue: 'With HTML',
+        hasHtmlFalse: 'Without HTML',
+        hasFrozenImagesFilterLabel: 'Frozen images',
+        hasFrozenImagesAny: 'All',
+        hasFrozenImagesTrue: 'With frozen images',
+        hasFrozenImagesFalse: 'Without frozen images',
+        indexBtn: 'Index (incremental)',
+        reindexBtn: 'Reindex (full)',
+        freezePendingBtn: 'Freeze pending',
+        maintenanceBtn: 'Maintenance (cleanup/vacuum)',
+        prevBtn: 'Previous',
+        nextBtn: 'Next',
+        searchHint: 'Tip: press <span class="kbd">/</span> to focus search',
+        summaryLoading: 'Loading messages...',
+        summaryNoResults: 'No results for current filters.',
+        summaryNoMessages: 'No indexed messages yet.',
+        summaryShowing: 'Showing {start}-{end} of {total} messages',
+        pageInfo: 'Page {current} of {total}',
+        listLoading: 'Refreshing results...',
+        listEmpty: 'No messages found.',
+        listError: 'Failed to load messages.',
+        listNetworkError: 'Network failure while loading messages.',
+        noDate: '(no date)',
+        noSender: '(no sender)',
+        noSubject: '(no subject)',
+        noPreview: '(no preview)',
+        badgeHtml: 'HTML',
+        badgeAttachments: 'Attachments: {count}',
+        badgeFrozen: 'Frozen',
+        badgeFailure: 'Failed: {count}',
+        chipSearch: 'Search: {value}',
+        chipYear: 'Year: {value}',
+        chipYes: 'yes',
+        chipNo: 'no',
+        chipAttachments: 'Attachments: {value}',
+        chipHtml: 'HTML: {value}',
+        chipFrozenImages: 'Frozen images: {value}',
+        removeFilterAria: 'Remove filter',
+        opInProgress: '{action} in progress...',
+        opFailed: 'Failed to {action}.',
+        opNetworkFailed: 'Network failure while trying to {action}.',
+        opDone: '{action} finished: inserted={inserted}, updated={updated}, skipped={skipped}',
+        actionIndexing: 'index',
+        actionReindexing: 'reindex',
+        actionMaintenance: 'run maintenance',
+        maintenanceRunning: 'Maintenance in progress...',
+        maintenanceCleanupFailed: 'Failed to run cleanup.',
+        maintenanceVacuumFailed: 'Cleanup finished, but VACUUM failed.',
+        maintenanceDone: 'Maintenance finished: removedFiles={removedFiles}, removedMessages={removedMessages}, vacuumMs={vacuumMs}',
+        maintenanceNetworkFailed: 'Network failure while running maintenance.',
+        freezePendingNone: 'No pending freeze messages on this page.',
+        freezePendingConfirm: 'Freeze remote images for {count} pending message(s) on current page?',
+        freezePendingProgress: 'Freezing pending... {current}/{total}',
+        freezePendingDone: 'Pending freeze finished: messages={messages}, downloaded={downloaded}, failed={failed}, skipped={skipped}, requestErrors={requestErrors}',
+        reindexConfirm: 'Full reindex will re-read all .eml files and update metadata/bodies. It may take time. Continue?',
+        maintenanceConfirm: 'Maintenance removes orphan files and runs SQLite VACUUM. It may consume IO/time. Continue?',
+      },
+      'pt-BR': {
+        pageTitle: 'MailVault - Caixa Historica',
+        heroSubtitle: 'Caixa historica para consulta rapida de mensagens indexadas.',
+        statsTitle: 'Status',
+        labelTotalMessages: 'Mensagens',
+        labelTotalWithHtml: 'Com HTML',
+        labelTotalAttachments: 'Anexos',
+        labelAssetsDownloaded: 'Assets baixados',
+        labelAssetsFailed: 'Assets falhos',
+        labelBytesAttachments: 'Bytes anexos',
+        labelBytesAssets: 'Bytes assets',
+        labelLastIndex: 'Ultimo index',
+        searchPlaceholder: 'Buscar por assunto, remetente ou termos do conteudo',
+        searchBtn: 'Buscar',
+        clearBtn: 'Limpar tudo',
+        yearFilterLabel: 'Ano',
+        yearFilterPlaceholder: 'Todos',
+        hasAttachmentsFilterLabel: 'Anexos',
+        hasAttachmentsAny: 'Todos',
+        hasAttachmentsTrue: 'Com anexos',
+        hasAttachmentsFalse: 'Sem anexos',
+        hasHtmlFilterLabel: 'HTML',
+        hasHtmlAny: 'Todos',
+        hasHtmlTrue: 'Com HTML',
+        hasHtmlFalse: 'Sem HTML',
+        hasFrozenImagesFilterLabel: 'Imagens congeladas',
+        hasFrozenImagesAny: 'Todos',
+        hasFrozenImagesTrue: 'Com imagens congeladas',
+        hasFrozenImagesFalse: 'Sem imagens congeladas',
+        indexBtn: 'Indexar (incremental)',
+        reindexBtn: 'Reindexar (completo)',
+        freezePendingBtn: 'Congelar pendentes',
+        maintenanceBtn: 'Manutencao (limpeza/vacuum)',
+        prevBtn: 'Anterior',
+        nextBtn: 'Proxima',
+        searchHint: 'Dica: pressione <span class="kbd">/</span> para focar a busca',
+        summaryLoading: 'Carregando mensagens...',
+        summaryNoResults: 'Nenhum resultado para os filtros atuais.',
+        summaryNoMessages: 'Nao ha mensagens indexadas ainda.',
+        summaryShowing: 'Exibindo {start}-{end} de {total} mensagens',
+        pageInfo: 'Pagina {current} de {total}',
+        listLoading: 'Atualizando resultados...',
+        listEmpty: 'Nenhuma mensagem encontrada.',
+        listError: 'Erro ao carregar mensagens.',
+        listNetworkError: 'Falha de rede ao carregar mensagens.',
+        noDate: '(sem data)',
+        noSender: '(sem remetente)',
+        noSubject: '(sem assunto)',
+        noPreview: '(sem preview)',
+        badgeHtml: 'HTML',
+        badgeAttachments: 'Anexos: {count}',
+        badgeFrozen: 'Congelado',
+        badgeFailure: 'Falha: {count}',
+        chipSearch: 'Busca: {value}',
+        chipYear: 'Ano: {value}',
+        chipYes: 'sim',
+        chipNo: 'nao',
+        chipAttachments: 'Anexos: {value}',
+        chipHtml: 'HTML: {value}',
+        chipFrozenImages: 'Imagens congeladas: {value}',
+        removeFilterAria: 'Remover filtro',
+        opInProgress: '{action} em andamento...',
+        opFailed: 'Falha ao {action}.',
+        opNetworkFailed: 'Falha de rede ao {action}.',
+        opDone: '{action} concluida: inserted={inserted}, updated={updated}, skipped={skipped}',
+        actionIndexing: 'indexar',
+        actionReindexing: 'reindexar',
+        actionMaintenance: 'executar manutencao',
+        maintenanceRunning: 'Manutencao em andamento...',
+        maintenanceCleanupFailed: 'Falha ao executar limpeza.',
+        maintenanceVacuumFailed: 'Limpeza concluida, mas VACUUM falhou.',
+        maintenanceDone: 'Manutencao concluida: arquivosRemovidos={removedFiles}, mensagensRemovidas={removedMessages}, vacuumMs={vacuumMs}',
+        maintenanceNetworkFailed: 'Falha de rede ao executar manutencao.',
+        freezePendingNone: 'Nenhuma mensagem pendente de freeze nesta pagina.',
+        freezePendingConfirm: 'Congelar imagens em {count} mensagem(ns) pendente(s) da pagina atual?',
+        freezePendingProgress: 'Congelando pendentes... {current}/{total}',
+        freezePendingDone: 'Freeze pendentes concluido: mensagens={messages}, baixadas={downloaded}, falhas={failed}, ignoradas={skipped}, errosReq={requestErrors}',
+        reindexConfirm: 'Reindexacao completa vai reler todos os .eml e atualizar metadados/corpos. Pode demorar. Deseja continuar?',
+        maintenanceConfirm: 'Manutencao remove arquivos orfaos e executa VACUUM no SQLite. Pode consumir IO e tempo. Deseja continuar?',
+      },
+    };
+
+    function t(key, vars = {}) {
+      const bundle = I18N[state.language] || I18N.en;
+      const template = bundle[key] ?? I18N.en[key] ?? key;
+      return template.replaceAll(/\{(\w+)}/g, (_, variable) => String(vars[variable] ?? ''));
+    }
 
     function escapeHtml(value) {
       return (value ?? '')
@@ -605,9 +788,9 @@
     function formatDate(epochMs) {
       const numeric = Number(epochMs);
       if (!Number.isFinite(numeric) || numeric <= 0) {
-        return '(sem data)';
+        return t('noDate');
       }
-      return new Intl.DateTimeFormat('pt-BR', {
+      return new Intl.DateTimeFormat(state.language === 'pt-BR' ? 'pt-BR' : 'en-US', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -615,6 +798,78 @@
         minute: '2-digit',
         hour12: false,
       }).format(new Date(numeric));
+    }
+
+    function applyStaticTexts() {
+      document.documentElement.lang = state.language;
+      document.title = t('pageTitle');
+      heroSubtitle.textContent = t('heroSubtitle');
+      statsTitle.textContent = t('statsTitle');
+      document.getElementById('labelTotalMessages').textContent = t('labelTotalMessages');
+      document.getElementById('labelTotalWithHtml').textContent = t('labelTotalWithHtml');
+      document.getElementById('labelTotalAttachments').textContent = t('labelTotalAttachments');
+      document.getElementById('labelAssetsDownloaded').textContent = t('labelAssetsDownloaded');
+      document.getElementById('labelAssetsFailed').textContent = t('labelAssetsFailed');
+      document.getElementById('labelBytesAttachments').textContent = t('labelBytesAttachments');
+      document.getElementById('labelBytesAssets').textContent = t('labelBytesAssets');
+      document.getElementById('labelLastIndex').textContent = t('labelLastIndex');
+      queryInput.placeholder = t('searchPlaceholder');
+      searchBtn.textContent = t('searchBtn');
+      clearBtn.textContent = t('clearBtn');
+      document.getElementById('yearFilterLabel').textContent = t('yearFilterLabel');
+      yearFilter.placeholder = t('yearFilterPlaceholder');
+      document.getElementById('hasAttachmentsFilterLabel').textContent = t('hasAttachmentsFilterLabel');
+      hasAttachmentsFilter.options[0].textContent = t('hasAttachmentsAny');
+      hasAttachmentsFilter.options[1].textContent = t('hasAttachmentsTrue');
+      hasAttachmentsFilter.options[2].textContent = t('hasAttachmentsFalse');
+      document.getElementById('hasHtmlFilterLabel').textContent = t('hasHtmlFilterLabel');
+      hasHtmlFilter.options[0].textContent = t('hasHtmlAny');
+      hasHtmlFilter.options[1].textContent = t('hasHtmlTrue');
+      hasHtmlFilter.options[2].textContent = t('hasHtmlFalse');
+      document.getElementById('hasFrozenImagesFilterLabel').textContent = t('hasFrozenImagesFilterLabel');
+      hasFrozenImagesFilter.options[0].textContent = t('hasFrozenImagesAny');
+      hasFrozenImagesFilter.options[1].textContent = t('hasFrozenImagesTrue');
+      hasFrozenImagesFilter.options[2].textContent = t('hasFrozenImagesFalse');
+      indexBtn.textContent = t('indexBtn');
+      reindexBtn.textContent = t('reindexBtn');
+      freezePendingBtn.textContent = t('freezePendingBtn');
+      maintenanceBtn.textContent = t('maintenanceBtn');
+      searchHint.innerHTML = t('searchHint');
+      prevBtn.textContent = t('prevBtn') || 'Previous';
+      nextBtn.textContent = t('nextBtn') || 'Next';
+      languageSelect.value = state.language;
+    }
+
+    async function loadLanguagePreference() {
+      try {
+        const response = await fetch('/api/ui/language');
+        if (!response.ok) {
+          state.language = 'en';
+          return;
+        }
+        const data = await response.json();
+        state.language = data.language === 'pt-BR' ? 'pt-BR' : 'en';
+      } catch (_) {
+        state.language = 'en';
+      }
+    }
+
+    async function saveLanguagePreference(language) {
+      const normalized = language === 'pt-BR' ? 'pt-BR' : 'en';
+      state.language = normalized;
+      applyStaticTexts();
+      renderActiveFilters();
+      renderMeta();
+      renderItems(state.items, null);
+      try {
+        await fetch('/api/ui/language', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ language: normalized }),
+        });
+      } catch (_) {
+        // Ignore save failure, keep local selection.
+      }
     }
 
     function currentQueryFromUrl() {
@@ -689,15 +944,15 @@
       const start = state.total === 0 ? 0 : (state.page * PAGE_SIZE) + 1;
       const end = state.page * PAGE_SIZE + state.itemsCount;
       if (state.loading) {
-        summary.textContent = 'Carregando mensagens...';
+        summary.textContent = t('summaryLoading');
       } else if (state.total === 0) {
-        summary.textContent = hasActiveFilters() ? 'Nenhum resultado para os filtros atuais.' : 'Nao ha mensagens indexadas ainda.';
+        summary.textContent = hasActiveFilters() ? t('summaryNoResults') : t('summaryNoMessages');
       } else {
-        summary.textContent = `Exibindo ${start}-${end} de ${state.total} mensagens`;
+        summary.textContent = t('summaryShowing', { start, end, total: state.total });
       }
 
       const totalPages = Math.max(1, Math.ceil(state.total / PAGE_SIZE));
-      pageInfo.textContent = `Pagina ${Math.min(state.page + 1, totalPages)} de ${totalPages}`;
+      pageInfo.textContent = t('pageInfo', { current: Math.min(state.page + 1, totalPages), total: totalPages });
       prevBtn.disabled = state.loading || state.page <= 0;
       nextBtn.disabled = state.loading || (state.page + 1) * PAGE_SIZE >= state.total;
     }
@@ -709,20 +964,20 @@
       }
 
       if (state.loading) {
-        results.innerHTML = '<li class="loading">Atualizando resultados...</li>';
+        results.innerHTML = `<li class="loading">${escapeHtml(t('listLoading'))}</li>`;
         return;
       }
 
       if (!items.length) {
-        results.innerHTML = '<li class="empty">Nenhuma mensagem encontrada.</li>';
+        results.innerHTML = `<li class="empty">${escapeHtml(t('listEmpty'))}</li>`;
         return;
       }
 
       results.innerHTML = items.map((item) => {
         const date = formatDate(item.dateEpoch ?? item.fileMtimeEpoch);
-        const from = item.fromDisplay || item.fromRaw || '(sem remetente)';
-        const subject = item.subjectDisplay || item.subject || '(sem assunto)';
-        const snippet = item.snippet || '(sem preview)';
+        const from = item.fromDisplay || item.fromRaw || t('noSender');
+        const subject = item.subjectDisplay || item.subject || t('noSubject');
+        const snippet = item.snippet || t('noPreview');
         const highlightedSubject = highlightText(subject, state.query);
         const highlightedSnippet = highlightText(snippet, state.query);
         const badges = [];
@@ -730,16 +985,16 @@
         const frozenAssetsCount = Number(item.frozenAssetsCount || 0);
         const assetsFailedCount = Number(item.assetsFailedCount || 0);
         if (item.hasHtml) {
-          badges.push('<span class="mini-badge">HTML</span>');
+          badges.push(`<span class="mini-badge">${escapeHtml(t('badgeHtml'))}</span>`);
         }
         if (attachmentsCount > 0) {
-          badges.push(`<span class="mini-badge">Anexos: ${attachmentsCount}</span>`);
+          badges.push(`<span class="mini-badge">${escapeHtml(t('badgeAttachments', { count: attachmentsCount }))}</span>`);
         }
         if (frozenAssetsCount > 0) {
-          badges.push('<span class="mini-badge warn">Congelado</span>');
+          badges.push(`<span class="mini-badge warn">${escapeHtml(t('badgeFrozen'))}</span>`);
         }
         if (assetsFailedCount > 0) {
-          badges.push(`<span class="mini-badge danger">Falha: ${assetsFailedCount}</span>`);
+          badges.push(`<span class="mini-badge danger">${escapeHtml(t('badgeFailure', { count: assetsFailedCount }))}</span>`);
         }
         const detailParams = new URLSearchParams();
         if (window.location.search) {
@@ -794,7 +1049,7 @@
           state.total = 0;
           state.itemsCount = 0;
           renderMeta();
-          renderItems([], 'Erro ao carregar mensagens.');
+          renderItems([], t('listError'));
           return;
         }
 
@@ -812,7 +1067,7 @@
         state.total = 0;
         state.itemsCount = 0;
         renderMeta();
-        renderItems([], 'Falha de rede ao carregar mensagens.');
+        renderItems([], t('listNetworkError'));
       }
     }
 
@@ -836,19 +1091,19 @@
     function renderActiveFilters() {
       const chips = [];
       if (state.query) {
-        chips.push({ key: 'query', label: `Busca: ${state.query}` });
+        chips.push({ key: 'query', label: t('chipSearch', { value: state.query }) });
       }
       if (state.year !== null) {
-        chips.push({ key: 'year', label: `Ano: ${state.year}` });
+        chips.push({ key: 'year', label: t('chipYear', { value: state.year }) });
       }
       if (state.hasAttachments !== null) {
-        chips.push({ key: 'hasAttachments', label: `Anexos: ${state.hasAttachments ? 'sim' : 'nao'}` });
+        chips.push({ key: 'hasAttachments', label: t('chipAttachments', { value: state.hasAttachments ? t('chipYes') : t('chipNo') }) });
       }
       if (state.hasHtml !== null) {
-        chips.push({ key: 'hasHtml', label: `HTML: ${state.hasHtml ? 'sim' : 'nao'}` });
+        chips.push({ key: 'hasHtml', label: t('chipHtml', { value: state.hasHtml ? t('chipYes') : t('chipNo') }) });
       }
       if (state.hasFrozenImages !== null) {
-        chips.push({ key: 'hasFrozenImages', label: `Imagens congeladas: ${state.hasFrozenImages ? 'sim' : 'nao'}` });
+        chips.push({ key: 'hasFrozenImages', label: t('chipFrozenImages', { value: state.hasFrozenImages ? t('chipYes') : t('chipNo') }) });
       }
 
       if (!chips.length) {
@@ -859,7 +1114,7 @@
       activeFilters.innerHTML = chips.map((chip) => `
         <span class="chip">
           ${escapeHtml(chip.label)}
-          <button type="button" data-filter-key="${chip.key}" aria-label="Remover filtro">x</button>
+          <button type="button" data-filter-key="${chip.key}" aria-label="${escapeHtml(t('removeFilterAria'))}">x</button>
         </span>
       `).join('');
     }
@@ -894,7 +1149,7 @@
     }
 
     function formatNumber(value) {
-      return Number(value || 0).toLocaleString('pt-BR');
+      return Number(value || 0).toLocaleString(state.language === 'pt-BR' ? 'pt-BR' : 'en-US');
     }
 
     function setStatsFallback() {
@@ -943,19 +1198,24 @@
 
     async function runIndex(actionLabel) {
       setIndexRunning(true);
-      setOpsStatus('info', `${actionLabel} em andamento...`);
+      setOpsStatus('info', t('opInProgress', { action: actionLabel }));
       try {
         const response = await fetch('/api/index', { method: 'POST' });
         if (!response.ok) {
-          setOpsStatus('error', `Falha ao ${actionLabel.toLowerCase()}.`);
+          setOpsStatus('error', t('opFailed', { action: actionLabel }));
           return;
         }
         const data = await response.json();
-        setOpsStatus('ok', `${actionLabel} concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`);
+        setOpsStatus('ok', t('opDone', {
+          action: actionLabel,
+          inserted: data.inserted,
+          updated: data.updated,
+          skipped: data.skipped,
+        }));
         applyAndLoad({ page: 0 });
         loadStats();
       } catch (_) {
-        setOpsStatus('error', `Falha de rede ao ${actionLabel.toLowerCase()}.`);
+        setOpsStatus('error', t('opNetworkFailed', { action: actionLabel }));
       } finally {
         setIndexRunning(false);
       }
@@ -963,29 +1223,33 @@
 
     async function runMaintenance() {
       setIndexRunning(true);
-      setOpsStatus('info', 'Manutencao em andamento...');
+      setOpsStatus('info', t('maintenanceRunning'));
       try {
         const cleanupRes = await fetch('/api/maintenance/cleanup', { method: 'POST' });
         if (!cleanupRes.ok) {
-          setOpsStatus('error', 'Falha ao executar limpeza.');
+          setOpsStatus('error', t('maintenanceCleanupFailed'));
           return;
         }
         const cleanup = await cleanupRes.json();
 
         const vacuumRes = await fetch('/api/maintenance/vacuum', { method: 'POST' });
         if (!vacuumRes.ok) {
-          setOpsStatus('error', 'Limpeza concluida, mas VACUUM falhou.');
+          setOpsStatus('error', t('maintenanceVacuumFailed'));
           return;
         }
         const vacuum = await vacuumRes.json();
         setOpsStatus(
           'ok',
-          `Manutencao concluida: arquivosRemovidos=${cleanup.removedAttachmentFiles + cleanup.removedAssetFiles}, mensagensRemovidas=${cleanup.removedMissingMessageRows}, vacuumMs=${vacuum.durationMs}`,
+          t('maintenanceDone', {
+            removedFiles: cleanup.removedAttachmentFiles + cleanup.removedAssetFiles,
+            removedMessages: cleanup.removedMissingMessageRows,
+            vacuumMs: vacuum.durationMs,
+          }),
         );
         applyAndLoad({ page: 0 });
         loadStats();
       } catch (_) {
-        setOpsStatus('error', 'Falha de rede ao executar manutencao.');
+        setOpsStatus('error', t('maintenanceNetworkFailed'));
       } finally {
         setIndexRunning(false);
       }
@@ -996,12 +1260,12 @@
         item.hasHtml && Number(item.frozenAssetsCount || 0) <= 0);
 
       if (!candidates.length) {
-        setOpsStatus('info', 'Nenhuma mensagem pendente de freeze nesta pagina.');
+        setOpsStatus('info', t('freezePendingNone'));
         return;
       }
 
       const confirmed = window.confirm(
-        `Congelar imagens em ${candidates.length} mensagem(ns) pendente(s) da pagina atual?`,
+        t('freezePendingConfirm', { count: candidates.length }),
       );
       if (!confirmed) {
         return;
@@ -1016,7 +1280,7 @@
 
       try {
         for (const item of candidates) {
-          setOpsStatus('info', `Congelando pendentes... ${processed + 1}/${candidates.length}`);
+          setOpsStatus('info', t('freezePendingProgress', { current: processed + 1, total: candidates.length }));
           try {
             const response = await fetch(`/api/messages/${encodeURIComponent(item.id)}/freeze-assets`, { method: 'POST' });
             if (!response.ok) {
@@ -1035,7 +1299,7 @@
 
         setOpsStatus(
           requestErrors > 0 ? 'error' : 'ok',
-          `Freeze pendentes concluido: mensagens=${processed}, baixadas=${downloaded}, falhas=${failed}, ignoradas=${skipped}, errosReq=${requestErrors}`,
+          t('freezePendingDone', { messages: processed, downloaded, failed, skipped, requestErrors }),
         );
         await loadMessages();
         await loadStats();
@@ -1091,22 +1355,22 @@
     });
 
     indexBtn.addEventListener('click', () => {
-      runIndex('Indexacao incremental');
+      runIndex(t('actionIndexing'));
     });
 
     reindexBtn.addEventListener('click', () => {
       const confirmed = window.confirm(
-        'Reindexacao completa vai reler todos os .eml e atualizar metadados/corpos. Pode demorar. Deseja continuar?',
+        t('reindexConfirm'),
       );
       if (!confirmed) {
         return;
       }
-      runIndex('Reindexacao completa');
+      runIndex(t('actionReindexing'));
     });
 
     maintenanceBtn.addEventListener('click', () => {
       const confirmed = window.confirm(
-        'Manutencao remove arquivos orfaos e executa VACUUM no SQLite. Pode consumir IO e tempo. Deseja continuar?',
+        t('maintenanceConfirm'),
       );
       if (!confirmed) {
         return;
@@ -1130,6 +1394,10 @@
       }
     });
 
+    languageSelect.addEventListener('change', () => {
+      saveLanguagePreference(languageSelect.value);
+    });
+
     document.addEventListener('keydown', (event) => {
       if (event.key === '/' && document.activeElement !== queryInput) {
         event.preventDefault();
@@ -1149,16 +1417,22 @@
       loadMessages();
     });
 
-    state.query = currentQueryFromUrl();
-    state.year = currentYearFromUrl();
-    state.hasAttachments = currentBooleanFilterFromUrl('hasAttachments');
-    state.hasHtml = currentBooleanFilterFromUrl('hasHtml');
-    state.hasFrozenImages = currentBooleanFilterFromUrl('hasFrozenImages');
-    state.page = currentPageFromUrl();
-    syncFormFromState();
-    renderActiveFilters();
-    loadMessages();
-    loadStats();
+    async function initPage() {
+      await loadLanguagePreference();
+      applyStaticTexts();
+      state.query = currentQueryFromUrl();
+      state.year = currentYearFromUrl();
+      state.hasAttachments = currentBooleanFilterFromUrl('hasAttachments');
+      state.hasHtml = currentBooleanFilterFromUrl('hasHtml');
+      state.hasFrozenImages = currentBooleanFilterFromUrl('hasFrozenImages');
+      state.page = currentPageFromUrl();
+      syncFormFromState();
+      renderActiveFilters();
+      await loadMessages();
+      await loadStats();
+    }
+
+    initPage();
   </script>
 </body>
 </html>

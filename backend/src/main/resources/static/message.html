@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MailVault - Mensagem</title>
+  <title>MailVault - Message</title>
   <style>
     :root {
       --bg: #f4f0e8;
@@ -47,6 +47,11 @@
       flex-wrap: wrap;
       align-items: center;
       margin-bottom: 14px;
+    }
+
+    .language-select {
+      min-width: 175px;
+      margin-left: auto;
     }
 
     button, a.btn {
@@ -323,30 +328,34 @@
 <body>
   <main class="wrap">
     <div class="topbar">
-      <a id="backToListBtn" href="/" class="btn btn-ghost">Voltar para caixa</a>
-      <button id="prevMsgBtn" type="button" class="btn-ghost">Anterior (k)</button>
-      <button id="nextMsgBtn" type="button" class="btn-ghost">Proximo (j)</button>
-      <button id="reindexBtn" type="button" class="btn-primary">Reindexar</button>
-      <button id="freezeBtn" type="button" class="btn-accent">Congelar imagens</button>
+      <a id="backToListBtn" href="/" class="btn btn-ghost">Back to inbox</a>
+      <button id="prevMsgBtn" type="button" class="btn-ghost">Previous (k)</button>
+      <button id="nextMsgBtn" type="button" class="btn-ghost">Next (j)</button>
+      <button id="reindexBtn" type="button" class="btn-primary">Reindex</button>
+      <button id="freezeBtn" type="button" class="btn-accent">Freeze images</button>
+      <select id="languageSelect" class="language-select">
+        <option value="en">English</option>
+        <option value="pt-BR">Português (Brasil)</option>
+      </select>
     </div>
 
     <section class="layout">
       <article class="card">
         <header class="header">
-          <h1 id="subject">Carregando mensagem...</h1>
+          <h1 id="subject">Loading message...</h1>
         </header>
 
         <dl class="meta">
-          <dt>From</dt><dd id="fromRaw">-</dd>
-          <dt>Date</dt><dd id="dateHuman">-</dd>
-          <dt>Raw date</dt><dd id="dateRaw">-</dd>
-          <dt>ID</dt><dd id="messageId">-</dd>
+          <dt id="fromLabel">From</dt><dd id="fromRaw">-</dd>
+          <dt id="dateLabel">Date</dt><dd id="dateHuman">-</dd>
+          <dt id="rawDateLabel">Raw date</dt><dd id="dateRaw">-</dd>
+          <dt id="idLabel">ID</dt><dd id="messageId">-</dd>
         </dl>
 
         <section class="viewer">
           <div class="tabs">
-            <button id="tabHtml" class="tab" type="button">HTML seguro</button>
-            <button id="tabPlain" class="tab" type="button">Texto puro</button>
+            <button id="tabHtml" class="tab" type="button">Safe HTML</button>
+            <button id="tabPlain" class="tab" type="button">Plain text</button>
           </div>
 
           <div class="panel" id="panelHtml" hidden>
@@ -358,7 +367,7 @@
           </div>
 
           <div id="emptyBody" class="panel" hidden>
-            <p class="placeholder">Esta mensagem nao possui corpo em text/plain ou html disponivel.</p>
+            <p id="emptyBodyText" class="placeholder">This message has no text/plain or html body.</p>
           </div>
 
           <p id="status" class="status" role="status" aria-live="polite"></p>
@@ -367,30 +376,30 @@
 
       <aside class="card side">
         <section class="side-block">
-          <h2 class="side-title">Status do email</h2>
+          <h2 id="statusEmailTitle" class="side-title">Email status</h2>
           <div class="status-list">
-            <div id="statusImages">Imagens: congeladas -, falhas -</div>
-            <div id="statusAttachments">Anexos: -</div>
-            <div id="statusSize">Tamanho: -</div>
+            <div id="statusImages">Images: frozen -, failed -</div>
+            <div id="statusAttachments">Attachments: -</div>
+            <div id="statusSize">Size: -</div>
             <div>
-              Arquivo:
+              <span id="fileLabel">File:</span>
               <div id="statusFilePath" class="path-box">-</div>
-              <button id="copyPathBtn" type="button" class="btn-ghost copy-btn">Copiar</button>
+              <button id="copyPathBtn" type="button" class="btn-ghost copy-btn">Copy</button>
             </div>
           </div>
         </section>
 
         <section class="side-block">
-          <h2 class="side-title">Anexos</h2>
+          <h2 id="attachmentsTitle" class="side-title">Attachments</h2>
           <ul id="attachments" class="list">
-            <li>Carregando anexos...</li>
+            <li id="attachmentsLoading">Loading attachments...</li>
           </ul>
         </section>
 
         <section class="side-block">
-          <h2 class="side-title">Notas de seguranca</h2>
-          <p class="tip">Links externos passam por <code>/go</code>. Imagens remotas nao carregam automaticamente.</p>
-          <p class="tip">Use "Congelar imagens" para baixar recursos remotos localmente com as regras de seguranca.</p>
+          <h2 id="securityNotesTitle" class="side-title">Security notes</h2>
+          <p id="securityTip1" class="tip">External links go through <code>/go</code>. Remote images do not auto-load.</p>
+          <p id="securityTip2" class="tip">Use "Freeze images" to download remote resources locally using security rules.</p>
         </section>
       </aside>
     </section>

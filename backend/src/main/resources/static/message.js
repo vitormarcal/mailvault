@@ -25,7 +25,129 @@ const prevMsgBtn = document.getElementById('prevMsgBtn');
 const nextMsgBtn = document.getElementById('nextMsgBtn');
 const reindexBtn = document.getElementById('reindexBtn');
 const freezeBtn = document.getElementById('freezeBtn');
+const languageSelect = document.getElementById('languageSelect');
 const freezeBtnDefaultText = freezeBtn.textContent;
+
+const dateLabel = document.getElementById('dateLabel');
+const rawDateLabel = document.getElementById('rawDateLabel');
+const fromLabel = document.getElementById('fromLabel');
+const idLabel = document.getElementById('idLabel');
+const emptyBodyText = document.getElementById('emptyBodyText');
+const statusEmailTitle = document.getElementById('statusEmailTitle');
+const fileLabel = document.getElementById('fileLabel');
+const attachmentsTitle = document.getElementById('attachmentsTitle');
+const securityNotesTitle = document.getElementById('securityNotesTitle');
+const securityTip1 = document.getElementById('securityTip1');
+const securityTip2 = document.getElementById('securityTip2');
+
+const I18N = {
+  en: {
+    pageTitle: 'MailVault - Message',
+    backToInbox: 'Back to inbox',
+    prev: 'Previous (k)',
+    next: 'Next (j)',
+    reindex: 'Reindex',
+    freezeImages: 'Freeze images',
+    loadingMessage: 'Loading message...',
+    notFound: 'Message not found',
+    fromFallback: '(no sender)',
+    subjectFallback: '(no subject)',
+    noDateRaw: '(no raw date)',
+    noDate: '(no date)',
+    dateLabel: 'Date',
+    rawDateLabel: 'Raw date',
+    fromLabel: 'De',
+    idLabel: 'ID',
+    safeHtml: 'Safe HTML',
+    plainText: 'Plain text',
+    emptyBody: 'This message has no text/plain or html body.',
+    statusTitle: 'Email status',
+    statusImages: 'Images: frozen {frozen}, failed {failed}',
+    statusAttachments: 'Attachments: {count}',
+    statusSize: 'Size: {size}',
+    fileLabel: 'File:',
+    copy: 'Copy',
+    attachmentsTitle: 'Attachments',
+    loadingAttachments: 'Loading attachments...',
+    attachmentsLoadFailed: 'Failed to load attachments.',
+    noAttachments: '(no attachments)',
+    unnamedAttachment: '(unnamed)',
+    bytes: 'bytes',
+    inline: 'inline',
+    securityNotes: 'Security notes',
+    securityTip1: 'External links go through /go. Remote images do not auto-load.',
+    securityTip2: 'Use "Freeze images" to download remote resources locally using security rules.',
+    loadDetailsFailed: 'Could not load message details.',
+    reindexRunning: 'Reindexing email store...',
+    reindexFailed: 'Reindex failed.',
+    reindexNetworkFailed: 'Network failure while reindexing.',
+    reindexDone: 'Reindex complete: inserted={inserted}, updated={updated}, skipped={skipped}',
+    freezeRunning: 'Downloading remote images...',
+    freezeFailed: 'Failed to freeze images.',
+    freezeNetworkFailed: 'Network failure while freezing images.',
+    freezeDone: '{downloaded} downloaded, {failed} failed, {skipped} skipped (of {total})',
+    freezeFailuresPrefix: 'Failures',
+    freezeButtonLoading: 'Downloading...',
+    noPathToCopy: 'No file path to copy.',
+    copiedPath: 'Path copied.',
+    copyFailed: 'Failed to copy path.',
+    sizeUnknown: '-',
+    pathUnknown: '-',
+  },
+  'pt-BR': {
+    pageTitle: 'MailVault - Mensagem',
+    backToInbox: 'Voltar para caixa',
+    prev: 'Anterior (k)',
+    next: 'Proximo (j)',
+    reindex: 'Reindexar',
+    freezeImages: 'Congelar imagens',
+    loadingMessage: 'Carregando mensagem...',
+    notFound: 'Mensagem nao encontrada',
+    fromFallback: '(sem remetente)',
+    subjectFallback: '(sem assunto)',
+    noDateRaw: '(sem data raw)',
+    noDate: '(sem data)',
+    dateLabel: 'Date',
+    rawDateLabel: 'Raw date',
+    fromLabel: 'From',
+    idLabel: 'ID',
+    safeHtml: 'HTML seguro',
+    plainText: 'Texto puro',
+    emptyBody: 'Esta mensagem nao possui corpo em text/plain ou html disponivel.',
+    statusTitle: 'Status do email',
+    statusImages: 'Imagens: congeladas {frozen}, falhas {failed}',
+    statusAttachments: 'Anexos: {count}',
+    statusSize: 'Tamanho: {size}',
+    fileLabel: 'Arquivo:',
+    copy: 'Copiar',
+    attachmentsTitle: 'Anexos',
+    loadingAttachments: 'Carregando anexos...',
+    attachmentsLoadFailed: 'Falha ao carregar anexos.',
+    noAttachments: '(sem anexos)',
+    unnamedAttachment: '(sem nome)',
+    bytes: 'bytes',
+    inline: 'inline',
+    securityNotes: 'Notas de seguranca',
+    securityTip1: 'Links externos passam por /go. Imagens remotas nao carregam automaticamente.',
+    securityTip2: 'Use "Congelar imagens" para baixar recursos remotos localmente com as regras de seguranca.',
+    loadDetailsFailed: 'Nao foi possivel carregar os dados da mensagem.',
+    reindexRunning: 'Reindexando base de emails...',
+    reindexFailed: 'Falha ao reindexar.',
+    reindexNetworkFailed: 'Falha de rede ao reindexar.',
+    reindexDone: 'Reindexacao concluida: inserted={inserted}, updated={updated}, skipped={skipped}',
+    freezeRunning: 'Baixando imagens remotas...',
+    freezeFailed: 'Falha ao congelar imagens.',
+    freezeNetworkFailed: 'Falha de rede ao congelar imagens.',
+    freezeDone: '{downloaded} baixadas, {failed} falharam, {skipped} ignoradas (de {total})',
+    freezeFailuresPrefix: 'Falhas',
+    freezeButtonLoading: 'Baixando...',
+    noPathToCopy: 'Sem caminho de arquivo para copiar.',
+    copiedPath: 'Caminho copiado.',
+    copyFailed: 'Falha ao copiar caminho.',
+    sizeUnknown: '-',
+    pathUnknown: '-',
+  },
+};
 
 let currentState = {
   messageId: '',
@@ -34,7 +156,72 @@ let currentState = {
   prevId: null,
   nextId: null,
   activeTab: 'plain',
+  language: 'en',
 };
+
+function t(key, vars = {}) {
+  const bundle = I18N[currentState.language] || I18N.en;
+  const template = bundle[key] ?? I18N.en[key] ?? key;
+  return template.replaceAll(/\{(\w+)\}/g, (_, variable) => String(vars[variable] ?? ''));
+}
+
+function currentLocale() {
+  return currentState.language === 'pt-BR' ? 'pt-BR' : 'en-US';
+}
+
+function applyStaticTexts() {
+  document.documentElement.lang = currentState.language;
+  document.title = t('pageTitle');
+  backToListBtn.textContent = t('backToInbox');
+  prevMsgBtn.textContent = t('prev');
+  nextMsgBtn.textContent = t('next');
+  reindexBtn.textContent = t('reindex');
+  freezeBtn.textContent = t('freezeImages');
+  tabHtmlEl.textContent = t('safeHtml');
+  tabPlainEl.textContent = t('plainText');
+  dateLabel.textContent = t('dateLabel');
+  rawDateLabel.textContent = t('rawDateLabel');
+  fromLabel.textContent = t('fromLabel');
+  idLabel.textContent = t('idLabel');
+  emptyBodyText.textContent = t('emptyBody');
+  statusEmailTitle.textContent = t('statusTitle');
+  fileLabel.textContent = t('fileLabel');
+  copyPathBtn.textContent = t('copy');
+  attachmentsTitle.textContent = t('attachmentsTitle');
+  securityNotesTitle.textContent = t('securityNotes');
+  securityTip1.textContent = t('securityTip1');
+  securityTip2.textContent = t('securityTip2');
+  languageSelect.value = currentState.language;
+}
+
+async function loadLanguagePreference() {
+  try {
+    const response = await fetch('/api/ui/language');
+    if (!response.ok) {
+      currentState.language = 'en';
+      return;
+    }
+    const data = await response.json();
+    currentState.language = data.language === 'pt-BR' ? 'pt-BR' : 'en';
+  } catch (_) {
+    currentState.language = 'en';
+  }
+}
+
+async function saveLanguagePreference(language) {
+  currentState.language = language === 'pt-BR' ? 'pt-BR' : 'en';
+  applyStaticTexts();
+  await loadMessage();
+  try {
+    await fetch('/api/ui/language', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: currentState.language }),
+    });
+  } catch (_) {
+    // Keep local language even if save fails.
+  }
+}
 
 function currentId() {
   const parts = window.location.pathname.split('/').filter(Boolean);
@@ -58,13 +245,13 @@ function setLoadingButtons(isLoading) {
 
 function setFreezeLoading(isLoading) {
   freezeBtn.disabled = isLoading;
-  freezeBtn.textContent = isLoading ? 'Baixando...' : freezeBtnDefaultText;
+  freezeBtn.textContent = isLoading ? t('freezeButtonLoading') : t('freezeImages');
 }
 
 function formatBytes(bytes) {
   const value = Number(bytes);
   if (!Number.isFinite(value) || value < 0) {
-    return '-';
+    return t('sizeUnknown');
   }
   if (value < 1024) {
     return `${value} B`;
@@ -76,7 +263,7 @@ function formatBytes(bytes) {
     current /= 1024;
     idx += 1;
   }
-  return `${current.toFixed(1)} ${units[idx]} (${value.toLocaleString('pt-BR')} B)`;
+  return `${current.toFixed(1)} ${units[idx]} (${value.toLocaleString(currentLocale())} B)`;
 }
 
 function resolveListQuery() {
@@ -130,10 +317,10 @@ function normalizeTimezoneLabel(label) {
 function formatHumanDate(epochMs) {
   const numeric = Number(epochMs);
   if (!Number.isFinite(numeric) || numeric <= 0) {
-    return '(sem data)';
+    return t('noDate');
   }
   const date = new Date(numeric);
-  const main = new Intl.DateTimeFormat('pt-BR', {
+  const main = new Intl.DateTimeFormat(currentLocale(), {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -141,7 +328,7 @@ function formatHumanDate(epochMs) {
     minute: '2-digit',
     hour12: false,
   }).format(date);
-  const timezoneRaw = new Intl.DateTimeFormat('pt-BR', { timeZoneName: 'shortOffset' }).formatToParts(date)
+  const timezoneRaw = new Intl.DateTimeFormat(currentLocale(), { timeZoneName: 'shortOffset' }).formatToParts(date)
     .find((part) => part.type === 'timeZoneName')?.value;
   const timezone = normalizeTimezoneLabel(timezoneRaw);
   return timezone ? `${main} (${timezone})` : main;
@@ -170,30 +357,30 @@ async function loadRenderedHtml(id) {
 }
 
 async function loadAttachments(id) {
-  attachmentsEl.innerHTML = '<li>Carregando anexos...</li>';
+  attachmentsEl.innerHTML = `<li>${t('loadingAttachments')}</li>`;
   const response = await fetch(`/api/messages/${encodeURIComponent(id)}/attachments`);
   if (!response.ok) {
-    attachmentsEl.innerHTML = '<li>Falha ao carregar anexos.</li>';
+    attachmentsEl.innerHTML = `<li>${t('attachmentsLoadFailed')}</li>`;
     return;
   }
 
   const items = await response.json();
   if (!items || items.length === 0) {
-    attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
+    attachmentsEl.innerHTML = `<li>${t('noAttachments')}</li>`;
     return;
   }
 
   attachmentsEl.innerHTML = items.map((att) => {
-    const name = (att.filename || '(sem nome)')
+    const name = (att.filename || t('unnamedAttachment'))
       .replaceAll('&', '&amp;')
       .replaceAll('<', '&lt;')
       .replaceAll('>', '&gt;')
       .replaceAll('"', '&quot;');
-    const inlineMark = att.isInline ? '<span class="badge">inline</span>' : '';
+    const inlineMark = att.isInline ? `<span class="badge">${t('inline')}</span>` : '';
     const size = Number(att.size || 0);
     return `<li>
       <a href="/api/attachments/${encodeURIComponent(att.id)}/download">${name}</a>${inlineMark}
-      <div>${size.toLocaleString('pt-BR')} bytes</div>
+      <div>${size.toLocaleString(currentLocale())} ${t('bytes')}</div>
     </li>`;
   }).join('');
 }
@@ -226,7 +413,7 @@ async function loadMessage() {
   currentState.messageId = id;
   updateBackLink();
 
-  subjectEl.textContent = 'Carregando mensagem...';
+  subjectEl.textContent = t('loadingMessage');
   fromEl.textContent = '-';
   dateHumanEl.textContent = '-';
   dateRawEl.textContent = '-';
@@ -237,30 +424,33 @@ async function loadMessage() {
 
   const response = await fetch(`/api/messages/${encodeURIComponent(id)}`);
   if (!response.ok) {
-    subjectEl.textContent = 'Mensagem nao encontrada';
+    subjectEl.textContent = t('notFound');
     textEl.textContent = '';
     htmlContainerEl.innerHTML = '';
-    attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
-    statusImagesEl.textContent = 'Imagens: congeladas -, falhas -';
-    statusAttachmentsEl.textContent = 'Anexos: -';
-    statusSizeEl.textContent = 'Tamanho: -';
-    statusFilePathEl.textContent = '-';
-    setStatus('error', 'Nao foi possivel carregar os dados da mensagem.');
+    attachmentsEl.innerHTML = `<li>${t('noAttachments')}</li>`;
+    statusImagesEl.textContent = t('statusImages', { frozen: '-', failed: '-' });
+    statusAttachmentsEl.textContent = t('statusAttachments', { count: '-' });
+    statusSizeEl.textContent = t('statusSize', { size: t('sizeUnknown') });
+    statusFilePathEl.textContent = t('pathUnknown');
+    setStatus('error', t('loadDetailsFailed'));
     updateNeighborButtons();
     return;
   }
 
   const data = await response.json();
-  subjectEl.textContent = data.subjectDisplay || data.subject || '(sem assunto)';
-  fromEl.textContent = data.fromDisplay || data.fromRaw || '(sem remetente)';
+  subjectEl.textContent = data.subjectDisplay || data.subject || t('subjectFallback');
+  fromEl.textContent = data.fromDisplay || data.fromRaw || t('fromFallback');
   dateHumanEl.textContent = formatHumanDate(data.dateEpoch ?? data.fileMtimeEpoch);
-  dateRawEl.textContent = data.dateRaw || '(sem data raw)';
+  dateRawEl.textContent = data.dateRaw || t('noDateRaw');
   messageIdEl.textContent = data.messageId || id;
   textEl.textContent = data.textPlain || '';
-  statusImagesEl.textContent = `Imagens: congeladas ${Number(data.frozenAssetsCount || 0)}, falhas ${Number(data.assetsFailedCount || 0)}`;
-  statusAttachmentsEl.textContent = `Anexos: ${Number(data.attachmentsCount || 0)}`;
-  statusSizeEl.textContent = `Tamanho: ${formatBytes(data.messageSizeBytes ?? data.fileSize)}`;
-  statusFilePathEl.textContent = data.filePath || '-';
+  statusImagesEl.textContent = t('statusImages', {
+    frozen: Number(data.frozenAssetsCount || 0),
+    failed: Number(data.assetsFailedCount || 0),
+  });
+  statusAttachmentsEl.textContent = t('statusAttachments', { count: Number(data.attachmentsCount || 0) });
+  statusSizeEl.textContent = t('statusSize', { size: formatBytes(data.messageSizeBytes ?? data.fileSize) });
+  statusFilePathEl.textContent = data.filePath || t('pathUnknown');
 
   const renderedHtml = await loadRenderedHtml(id);
   htmlContainerEl.innerHTML = renderedHtml || '';
@@ -270,8 +460,6 @@ async function loadMessage() {
 
   if (currentState.hasHtml) {
     applyTab('html');
-  } else if (currentState.hasPlain) {
-    applyTab('plain');
   } else {
     applyTab('plain');
   }
@@ -287,19 +475,23 @@ nextMsgBtn.addEventListener('click', () => gotoMessageById(currentState.nextId))
 
 reindexBtn.addEventListener('click', async () => {
   setLoadingButtons(true);
-  setStatus('info', 'Reindexando base de emails...');
+  setStatus('info', t('reindexRunning'));
 
   try {
     const response = await fetch('/api/index', { method: 'POST' });
     if (!response.ok) {
-      setStatus('error', 'Falha ao reindexar.');
+      setStatus('error', t('reindexFailed'));
       return;
     }
     const data = await response.json();
-    setStatus('ok', `Reindexacao concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`);
+    setStatus('ok', t('reindexDone', {
+      inserted: data.inserted,
+      updated: data.updated,
+      skipped: data.skipped,
+    }));
     await loadMessage();
   } catch (_) {
-    setStatus('error', 'Falha de rede ao reindexar.');
+    setStatus('error', t('reindexNetworkFailed'));
   } finally {
     setLoadingButtons(false);
   }
@@ -308,28 +500,33 @@ reindexBtn.addEventListener('click', async () => {
 freezeBtn.addEventListener('click', async () => {
   const id = currentId();
   setFreezeLoading(true);
-  setStatus('info', 'Baixando imagens remotas...');
+  setStatus('info', t('freezeRunning'));
 
   try {
     const response = await fetch(`/api/messages/${encodeURIComponent(id)}/freeze-assets`, { method: 'POST' });
     if (!response.ok) {
-      setStatus('error', 'Falha ao congelar imagens.');
+      setStatus('error', t('freezeFailed'));
       return;
     }
     const data = await response.json();
-    const summary = `${data.downloaded || 0} baixadas, ${data.failed || 0} falharam, ${data.skipped || 0} ignoradas (de ${data.totalFound || 0})`;
+    const summary = t('freezeDone', {
+      downloaded: data.downloaded || 0,
+      failed: data.failed || 0,
+      skipped: data.skipped || 0,
+      total: data.totalFound || 0,
+    });
     if (Array.isArray(data.failures) && data.failures.length > 0) {
       const details = data.failures
         .slice(0, 3)
         .map((item) => `${item.host}: ${item.reason} (${item.count})`)
         .join(' | ');
-      setStatus('ok', `${summary}. Falhas: ${details}`);
+      setStatus('ok', `${summary}. ${t('freezeFailuresPrefix')}: ${details}`);
     } else {
       setStatus('ok', summary);
     }
     await loadMessage();
   } catch (_) {
-    setStatus('error', 'Falha de rede ao congelar imagens.');
+    setStatus('error', t('freezeNetworkFailed'));
   } finally {
     setFreezeLoading(false);
   }
@@ -365,15 +562,25 @@ document.addEventListener('keydown', (event) => {
 copyPathBtn.addEventListener('click', async () => {
   const path = statusFilePathEl.textContent || '';
   if (!path || path === '-') {
-    setStatus('error', 'Sem caminho de arquivo para copiar.');
+    setStatus('error', t('noPathToCopy'));
     return;
   }
   try {
     await navigator.clipboard.writeText(path);
-    setStatus('ok', 'Caminho copiado.');
+    setStatus('ok', t('copiedPath'));
   } catch (_) {
-    setStatus('error', 'Falha ao copiar caminho.');
+    setStatus('error', t('copyFailed'));
   }
 });
 
-loadMessage();
+languageSelect.addEventListener('change', () => {
+  saveLanguagePreference(languageSelect.value);
+});
+
+async function initPage() {
+  await loadLanguagePreference();
+  applyStaticTexts();
+  await loadMessage();
+}
+
+initPage();
