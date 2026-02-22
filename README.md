@@ -47,6 +47,7 @@ A aplicacao sobe em `http://localhost:8080`.
    - `MAILVAULT_TOTAL_MAX_BYTES_PER_MESSAGE` (default `52428800`)
    - `MAILVAULT_ASSET_CONNECT_TIMEOUT_SECONDS` (default `5`)
    - `MAILVAULT_ASSET_READ_TIMEOUT_SECONDS` (default `10`)
+   - `MAILVAULT_ASSET_ALLOWED_PORTS` (default `80,443`)
 4. Abra `http://localhost:8080/` e busque mensagens.
 5. Clique em um item para abrir `http://localhost:8080/messages/{id}` e ler `text/plain`/HTML.
 6. No detalhe, use **Congelar imagens** para baixar imagens remotas com limites e protecao SSRF.

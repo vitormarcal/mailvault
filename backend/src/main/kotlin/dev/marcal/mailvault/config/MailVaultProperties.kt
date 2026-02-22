@@ -11,4 +11,5 @@ data class MailVaultProperties(
     val totalMaxBytesPerMessage: Long = 50L * 1024L * 1024L,
     val assetConnectTimeoutSeconds: Long = 5,
     val assetReadTimeoutSeconds: Long = 10,
+    val assetAllowedPorts: Set<Int> = setOf(80, 443),
 )

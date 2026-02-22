@@ -31,7 +31,7 @@ class AssetFreezeService(
 ) {
     private val httpClient: HttpClient =
         HttpClient.newBuilder()
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(mailVaultProperties.assetConnectTimeoutSeconds))
             .build()
 
@@ -117,20 +117,13 @@ class AssetFreezeService(
     private fun downloadAsset(messageId: String, url: String, currentTotalBytes: Long): AssetUpsert {
         val idBase = "$messageId|$url"
 
-        val guarded = runCatching { assertSafeRemoteUrl(url) }
+        val guarded = runCatching { validateRemoteUri(url) }
         if (guarded.isFailure) {
             return persistSkipped(messageId, url, guarded.exceptionOrNull()?.message ?: "blocked by ssrf guard")
         }
 
         return try {
-            val request =
-                HttpRequest.newBuilder()
-                    .uri(URI(url))
-                    .timeout(Duration.ofSeconds(mailVaultProperties.assetReadTimeoutSeconds))
-                    .GET()
-                    .build()
-
-            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream())
+            val response = sendWithManualRedirects(URI(url))
             val statusCode = response.statusCode()
             if (statusCode !in 200..299) {
                 return persistFailed(messageId, url, "http status $statusCode")
@@ -177,6 +170,41 @@ class AssetFreezeService(
         }
     }
 
+    private fun sendWithManualRedirects(initialUri: URI): HttpResponse<java.io.InputStream> {
+        var current = initialUri
+
+        repeat(MAX_REDIRECTS + 1) { hop ->
+            validateRemoteUri(current.toString())
+            val request =
+                HttpRequest.newBuilder()
+                    .uri(current)
+                    .timeout(Duration.ofSeconds(mailVaultProperties.assetReadTimeoutSeconds))
+                    .GET()
+                    .build()
+
+            val response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream())
+            val statusCode = response.statusCode()
+            if (statusCode !in REDIRECT_STATUS_CODES) {
+                return response
+            }
+
+            response.body().close()
+            if (hop >= MAX_REDIRECTS) {
+                throw IllegalArgumentException("too many redirects")
+            }
+
+            val location = response.headers().firstValue("Location").orElseThrow {
+                IllegalArgumentException("redirect without location")
+            }
+            val locationUri = runCatching { URI(location) }.getOrElse {
+                throw IllegalArgumentException("invalid redirect location")
+            }
+            current = current.resolve(locationUri)
+        }
+
+        throw IllegalArgumentException("too many redirects")
+    }
+
     private fun persistSkipped(messageId: String, url: String, reason: String): AssetUpsert {
         val upsert =
             AssetUpsert(
@@ -213,11 +241,23 @@ class AssetFreezeService(
         return upsert
     }
 
-    private fun assertSafeRemoteUrl(url: String) {
+    internal fun validateRemoteUri(url: String) {
         val uri = URI(url)
         val scheme = uri.scheme?.lowercase() ?: throw IllegalArgumentException("missing url scheme")
         if (scheme != "http" && scheme != "https") {
             throw IllegalArgumentException("invalid url scheme")
+        }
+        if (!uri.userInfo.isNullOrBlank()) {
+            throw IllegalArgumentException("url userinfo is blocked")
+        }
+        val effectivePort =
+            when {
+                uri.port > 0 -> uri.port
+                scheme == "http" -> 80
+                else -> 443
+            }
+        if (!mailVaultProperties.assetAllowedPorts.contains(effectivePort)) {
+            throw IllegalArgumentException("url port is blocked")
         }
 
         val host = uri.host?.trim()?.lowercase() ?: throw IllegalArgumentException("missing host")
@@ -298,6 +338,8 @@ class AssetFreezeService(
     }
 
     private companion object {
+        const val MAX_REDIRECTS = 5
+        val REDIRECT_STATUS_CODES = setOf(301, 302, 303, 307, 308)
         val IMG_SRC_REGEX = Regex("""(?i)<img\b[^>]*?\s+src\s*=\s*(["'])(.*?)\1""")
     }
 }
