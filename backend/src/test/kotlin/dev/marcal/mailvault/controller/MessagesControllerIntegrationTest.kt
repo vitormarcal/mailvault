@@ -28,10 +28,12 @@ class MessagesControllerIntegrationTest {
 
     @BeforeEach
     fun setupData() {
+        jdbcTemplate.update("DELETE FROM message_bodies")
         jdbcTemplate.update("DELETE FROM messages")
         insert("id-1", "/tmp/1.eml", 1000, 10, "2024-01-01T10:00:00Z", "Hello there", "Alice <alice@x.com>", "<1@x>")
         insert("id-2", "/tmp/2.eml", 3000, 20, "2024-02-01T10:00:00Z", "Monthly report", "Bob <bob@x.com>", "<2@x>")
         insert("id-3", "/tmp/3.eml", 4000, 30, null, "No date mail", "Charlie <charlie@x.com>", "<3@x>")
+        jdbcTemplate.update("INSERT INTO message_bodies(message_id, text_plain) VALUES (?, ?)", "id-1", "Body one")
     }
 
     @Test
@@ -67,6 +69,17 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"filePath\":\"/tmp/1.eml\""))
         assertEquals(true, body.contains("\"subject\":\"Hello there\""))
         assertEquals(true, body.contains("\"fromRaw\":\"Alice <alice@x.com>\""))
+        assertEquals(true, body.contains("\"textPlain\":\"Body one\""))
+    }
+
+    @Test
+    fun `GET message by id returns null textPlain when body is missing`() {
+        val response = get("/api/messages/id-2")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"id\":\"id-2\""))
+        assertEquals(true, body.contains("\"textPlain\":null"))
     }
 
     @Test

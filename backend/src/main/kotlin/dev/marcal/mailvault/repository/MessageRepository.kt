@@ -100,9 +100,11 @@ class MessageRepository(
         try {
             jdbcTemplate.queryForObject(
                 """
-                SELECT id, file_path, file_mtime_epoch, file_size, date_raw, subject, from_raw, message_id
-                FROM messages
-                WHERE id = ?
+                SELECT m.id, m.file_path, m.file_mtime_epoch, m.file_size, m.date_raw, m.subject, m.from_raw, m.message_id,
+                       mb.text_plain
+                FROM messages m
+                LEFT JOIN message_bodies mb ON mb.message_id = m.id
+                WHERE m.id = ?
                 """.trimIndent(),
                 { rs, _ ->
                     MessageDetailResponse(
@@ -114,6 +116,7 @@ class MessageRepository(
                         subject = rs.getString("subject"),
                         fromRaw = rs.getString("from_raw"),
                         messageId = rs.getString("message_id"),
+                        textPlain = rs.getString("text_plain"),
                     )
                 },
                 id,

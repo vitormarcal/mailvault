@@ -40,7 +40,7 @@ class IndexerServiceIntegrationTest {
             Int::class.java,
         )
         assertNotNull(count)
-        assertEquals(true, count >= 2)
+        assertEquals(true, count >= 4)
     }
 
     @Test
@@ -174,6 +174,72 @@ class IndexerServiceIntegrationTest {
             "reddittoken",
         )
         assertEquals(0, secondCount)
+    }
+
+    @Test
+    fun `stores text plain for simple email in message_bodies`() {
+        val emlPath = indexRootDir.resolve("plain.eml")
+        Files.writeString(
+            emlPath,
+            """
+            From: Plain Sender <plain@example.com>
+            Subject: Simple
+            Message-ID: <plain-1@example.com>
+
+            Line one
+            Line two
+            """.trimIndent(),
+        )
+
+        indexerService.index()
+
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
+        assertEquals("Line one\nLine two", textPlain?.trim())
+    }
+
+    @Test
+    fun `stores null text plain for multipart email without failing`() {
+        val emlPath = indexRootDir.resolve("multipart.eml")
+        Files.writeString(
+            emlPath,
+            """
+            From: Multi Sender <multi@example.com>
+            Subject: Multi
+            Message-ID: <multi-1@example.com>
+            MIME-Version: 1.0
+            Content-Type: multipart/alternative; boundary="b1"
+
+            --b1
+            Content-Type: text/plain; charset=UTF-8
+
+            Hello part
+            --b1--
+            """.trimIndent(),
+        )
+
+        val result = indexerService.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), result)
+
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
+        assertEquals(null, textPlain)
     }
 
     companion object {

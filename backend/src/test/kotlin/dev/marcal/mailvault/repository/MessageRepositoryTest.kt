@@ -44,6 +44,14 @@ class MessageRepositoryTest {
         )
         jdbcTemplate.execute(
             """
+            CREATE TABLE IF NOT EXISTS message_bodies (
+                message_id TEXT PRIMARY KEY,
+                text_plain TEXT
+            )
+            """.trimIndent(),
+        )
+        jdbcTemplate.execute(
+            """
             CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
                 id UNINDEXED,
                 subject,
@@ -80,6 +88,7 @@ class MessageRepositoryTest {
         )
         jdbcTemplate.update("DELETE FROM messages")
         jdbcTemplate.update("DELETE FROM messages_fts")
+        jdbcTemplate.update("DELETE FROM message_bodies")
 
         insert("a", "/tmp/a.eml", 1000, 10, "2024-01-01T10:00:00Z", "Hello", "Alice <alice@x.com>", "<a@x>")
         insert("b", "/tmp/b.eml", 3000, 20, "2024-02-01T10:00:00Z", "Report", "Bob <bob@x.com>", "<b@x>")
@@ -145,12 +154,19 @@ class MessageRepositoryTest {
 
     @Test
     fun `findById returns full detail and null for unknown id`() {
+        jdbcTemplate.update(
+            "INSERT INTO message_bodies(message_id, text_plain) VALUES (?, ?)",
+            "a",
+            "Body A",
+        )
+
         val found = repository.findById("a")
         val missing = repository.findById("missing")
 
         assertNotNull(found)
         assertEquals("/tmp/a.eml", found.filePath)
         assertEquals("Hello", found.subject)
+        assertEquals("Body A", found.textPlain)
         assertNull(missing)
     }
 

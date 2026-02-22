@@ -40,6 +40,14 @@ class IndexerServiceTest {
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS message_bodies (
+                message_id TEXT PRIMARY KEY,
+                text_plain TEXT
+            )
+            """.trimIndent(),
+        )
         rootDir = tempDir.resolve("emails")
         Files.createDirectories(rootDir)
         service = IndexerService(jdbcTemplate, EmlHeaderParser(), rootDir.toString())
@@ -104,5 +112,70 @@ class IndexerServiceTest {
             )
 
         assertEquals(firstId, secondId)
+    }
+
+    @Test
+    fun `stores text plain for simple email`() {
+        val eml = rootDir.resolve("simple.eml")
+        Files.writeString(
+            eml,
+            """
+            From: A <a@x.com>
+            Subject: Plain
+            Message-ID: <plain@x>
+
+            Hello body line
+            """.trimIndent(),
+        )
+
+        service.index()
+
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+        assertEquals("Hello body line", textPlain?.trim())
+    }
+
+    @Test
+    fun `does not fail for multipart email and stores empty text plain`() {
+        val eml = rootDir.resolve("multipart.eml")
+        Files.writeString(
+            eml,
+            """
+            From: A <a@x.com>
+            Subject: Multipart
+            Message-ID: <multi@x>
+            MIME-Version: 1.0
+            Content-Type: multipart/alternative; boundary="abc"
+
+            --abc
+            Content-Type: text/plain; charset=UTF-8
+
+            Plain part
+            --abc--
+            """.trimIndent(),
+        )
+
+        val result = service.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), result)
+
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+        assertEquals(null, textPlain)
     }
 }

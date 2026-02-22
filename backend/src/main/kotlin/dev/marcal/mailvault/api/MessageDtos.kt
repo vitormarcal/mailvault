@@ -30,4 +30,5 @@ data class MessageDetailResponse(
     val subject: String?,
     val fromRaw: String?,
     val messageId: String?,
+    val textPlain: String?,
 )

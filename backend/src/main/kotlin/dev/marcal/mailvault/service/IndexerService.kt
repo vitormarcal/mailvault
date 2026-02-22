@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
+import org.slf4j.LoggerFactory
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
@@ -22,6 +23,8 @@ class IndexerService(
     private val emlHeaderParser: EmlHeaderParser,
     @Value("\${mailvault.index.root-dir}") private val rootDir: String,
 ) {
+    private val logger = LoggerFactory.getLogger(IndexerService::class.java)
+
     fun index(): IndexResult {
         val rootPath = Path.of(rootDir).toAbsolutePath().normalize()
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
@@ -49,6 +52,7 @@ class IndexerService(
                     }
 
                     val headers = emlHeaderParser.parse(filePath)
+                    val textPlain = extractTextPlain(filePath)
                     val id = sha256Hex("${headers.messageId ?: ""}|$normalizedPath")
 
                     upsertMessage(
@@ -61,6 +65,7 @@ class IndexerService(
                         fromRaw = headers.from,
                         messageId = headers.messageId,
                     )
+                    upsertMessageBody(id = id, textPlain = textPlain)
 
                     if (existing == null) {
                         inserted++
@@ -128,6 +133,51 @@ class IndexerService(
         )
     }
 
+    private fun upsertMessageBody(id: String, textPlain: String?) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies (message_id, text_plain)
+            VALUES (?, ?)
+            ON CONFLICT(message_id) DO UPDATE SET
+                text_plain = excluded.text_plain
+            """.trimIndent(),
+            id,
+            textPlain,
+        )
+    }
+
+    private fun extractTextPlain(filePath: Path): String? {
+        val raw = Files.readString(filePath, StandardCharsets.UTF_8)
+        val separator = findHeaderBodySeparator(raw)
+
+        if (separator == null) {
+            logger.info("EML without header/body separator, storing empty text_plain: {}", filePath)
+            return null
+        }
+
+        val headerSection = raw.substring(0, separator.first)
+        if (MULTIPART_CONTENT_TYPE_REGEX.containsMatchIn(headerSection)) {
+            logger.info("Multipart MIME not parsed yet, storing empty text_plain: {}", filePath)
+            return null
+        }
+
+        return raw.substring(separator.second)
+    }
+
+    private fun findHeaderBodySeparator(raw: String): Pair<Int, Int>? {
+        val crlfIndex = raw.indexOf("\r\n\r\n")
+        if (crlfIndex >= 0) {
+            return Pair(crlfIndex, crlfIndex + 4)
+        }
+
+        val lfIndex = raw.indexOf("\n\n")
+        if (lfIndex >= 0) {
+            return Pair(lfIndex, lfIndex + 2)
+        }
+
+        return null
+    }
+
     private fun sha256Hex(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(value.toByteArray(StandardCharsets.UTF_8))
@@ -138,5 +188,9 @@ class IndexerService(
         val fileMtimeEpoch: Long,
         val fileSize: Long,
     )
+
+    private companion object {
+        val MULTIPART_CONTENT_TYPE_REGEX = Regex("(?im)^content-type\\s*:\\s*multipart/")
+    }
 
 }
