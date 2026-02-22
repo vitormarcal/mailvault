@@ -44,7 +44,6 @@ class IndexerService(
         var updated = 0
         var skipped = 0
         val freezeCandidates = mutableListOf<String>()
-        val freezeMaxMessages = mailVaultProperties.freezeOnIndexMaxMessages.coerceAtLeast(0)
 
         Files.walk(rootPath).use { stream ->
             stream
@@ -111,7 +110,6 @@ class IndexerService(
 
                         if (
                             mailVaultProperties.freezeOnIndex &&
-                            freezeCandidates.size < freezeMaxMessages &&
                             shouldScheduleFreeze(messageId, parsed.htmlRaw)
                         ) {
                             freezeCandidates += messageId
@@ -146,8 +144,7 @@ class IndexerService(
             return
         }
 
-        val maxMessages = mailVaultProperties.freezeOnIndexMaxMessages.coerceAtLeast(0)
-        val targets = candidates.distinct().take(maxMessages)
+        val targets = candidates.distinct()
         if (targets.isEmpty()) {
             return
         }

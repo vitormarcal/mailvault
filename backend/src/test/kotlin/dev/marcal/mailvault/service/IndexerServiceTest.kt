@@ -391,7 +391,6 @@ class IndexerServiceTest {
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
                     freezeOnIndex = true,
-                    freezeOnIndexMaxMessages = 200,
                     freezeOnIndexConcurrency = 2,
                 ),
             )
@@ -431,7 +430,6 @@ class IndexerServiceTest {
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
                     freezeOnIndex = true,
-                    freezeOnIndexMaxMessages = 200,
                     freezeOnIndexConcurrency = 2,
                 ),
             )
@@ -478,6 +476,53 @@ class IndexerServiceTest {
 
         val assetCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM assets", Int::class.java)
         assertEquals(1, assetCount)
+    }
+
+    @Test
+    fun `freeze on index attempts all candidate messages when enabled`() {
+        service =
+            createIndexerService(
+                MailVaultProperties(
+                    rootEmailsDir = rootDir.toString(),
+                    storageDir = storageDir.toString(),
+                    freezeOnIndex = true,
+                    freezeOnIndexConcurrency = 2,
+                ),
+            )
+
+        Files.writeString(
+            rootDir.resolve("freeze-all-1.eml"),
+            """
+            From: Freeze 1 <freeze1@x.com>
+            Subject: Remote 1
+            Message-ID: <freeze-all-1@x>
+            MIME-Version: 1.0
+            Content-Type: text/html; charset=UTF-8
+
+            <html><body><img src="http://localhost/private-1.png"></body></html>
+            """.trimIndent(),
+        )
+        Files.writeString(
+            rootDir.resolve("freeze-all-2.eml"),
+            """
+            From: Freeze 2 <freeze2@x.com>
+            Subject: Remote 2
+            Message-ID: <freeze-all-2@x>
+            MIME-Version: 1.0
+            Content-Type: text/html; charset=UTF-8
+
+            <html><body><img src="http://localhost/private-2.png"></body></html>
+            """.trimIndent(),
+        )
+
+        val result = service.index()
+        assertEquals(IndexResult(inserted = 2, updated = 0, skipped = 0), result)
+
+        val skippedAssets = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
+            Int::class.java,
+        )
+        assertEquals(2, skippedAssets)
     }
 
     private fun sha256Hex(value: String): String {

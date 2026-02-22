@@ -20,5 +20,4 @@ mailvault:
   assetReadTimeoutSeconds: ${MAILVAULT_ASSET_READ_TIMEOUT_SECONDS:10}
   assetAllowedPorts: ${MAILVAULT_ASSET_ALLOWED_PORTS:80,443}
   freezeOnIndex: ${MAILVAULT_FREEZE_ON_INDEX:false}
-  freezeOnIndexMaxMessages: ${MAILVAULT_FREEZE_ON_INDEX_MAX_MESSAGES:200}
   freezeOnIndexConcurrency: ${MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY:2}

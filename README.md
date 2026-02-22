@@ -53,7 +53,6 @@ A aplicacao sobe em `http://localhost:8080`.
    - `MAILVAULT_ASSET_READ_TIMEOUT_SECONDS` (default `10`)
    - `MAILVAULT_ASSET_ALLOWED_PORTS` (default `80,443`)
    - `MAILVAULT_FREEZE_ON_INDEX` (default `false`)
-   - `MAILVAULT_FREEZE_ON_INDEX_MAX_MESSAGES` (default `200`)
    - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY` (default `2`)
 4. Abra `http://localhost:8080/` e busque mensagens.
 5. Clique em um item para abrir `http://localhost:8080/messages/{id}` e ler `text/plain`/HTML.
@@ -65,7 +64,6 @@ A aplicacao sobe em `http://localhost:8080`.
 - Com `MAILVAULT_FREEZE_ON_INDEX=true`, mensagens novas/atualizadas podem disparar freeze de imagens remotas automaticamente ao final da indexacao.
 - O processo e best-effort: falhas de rede/SSRF nao derrubam a indexacao.
 - Limites:
-  - `MAILVAULT_FREEZE_ON_INDEX_MAX_MESSAGES`: maximo de mensagens por execucao do index para tentar freeze automatico.
   - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY`: paralelismo de freeze automatico.
 - Para evitar trabalho repetido, mensagens que ja possuem assets `DOWNLOADED` sao ignoradas no auto-freeze.
 
