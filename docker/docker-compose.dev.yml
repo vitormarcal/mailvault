@@ -7,20 +7,9 @@ services:
       - "8080:8080"
     volumes:
       - mailvault-data:/app/data
-      - ../data/emails:/data/emails:ro
+      - ../data/emails:/app/data/emails:ro
     environment:
       - SPRING_PROFILES_ACTIVE=dev
-      - SPRING_APPLICATION_NAME=Mail Vault
-      - SPRING_DATASOURCE_URL=jdbc:sqlite:/app/data/mailvault.db
-      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.sqlite.JDBC
-      - SPRING_FLYWAY_ENABLED=true
-      - SPRING_FLYWAY_URL=jdbc:sqlite:/app/data/mailvault.db
-      - SPRING_FLYWAY_DRIVER_CLASS_NAME=org.sqlite.JDBC
-      - SPRING_FLYWAY_LOCATIONS=classpath:db/migration
-      - MAILVAULT_INDEX_ROOT_DIR=/app/data/emails
-      - MAILVAULT_STORAGE_DIR=/app/data/storage
-      - MAILVAULT_FREEZE_ON_INDEX=false
-      - MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY=2
 
 volumes:
   mailvault-data:
