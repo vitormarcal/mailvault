@@ -6,6 +6,7 @@ import jakarta.mail.Multipart
 import jakarta.mail.Part
 import jakarta.mail.Session
 import jakarta.mail.internet.InternetAddress
+import jakarta.mail.internet.MailDateFormat
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimeUtility
 import org.jsoup.Jsoup
@@ -51,6 +52,7 @@ class MessageParseService {
     fun parse(filePath: Path): ParsedMessage {
         val session = Session.getInstance(Properties())
         val mimeMessage = Files.newInputStream(filePath).use { input -> MimeMessage(session, input) }
+        val dateRaw = mimeMessage.getHeader(HEADER_DATE, null)
         val fromRaw = mimeMessage.getHeader(HEADER_FROM, null)
         val fromParts = parseFrom(fromRaw)
 
@@ -58,8 +60,8 @@ class MessageParseService {
         parsePart(mimeMessage, accumulator)
 
         return ParsedMessage(
-            dateRaw = mimeMessage.getHeader(HEADER_DATE, null),
-            dateEpoch = mimeMessage.sentDate?.time,
+            dateRaw = dateRaw,
+            dateEpoch = parseDateEpochUtc(mimeMessage, dateRaw),
             subject = mimeMessage.subject,
             subjectDisplay = MailHeaderDecoder.decodeHeader(mimeMessage.subject),
             fromRaw = fromRaw,
@@ -72,6 +74,21 @@ class MessageParseService {
             htmlText = extractHtmlText(accumulator.htmlRaw),
             attachments = accumulator.attachments,
         )
+    }
+
+    private fun parseDateEpochUtc(mimeMessage: MimeMessage, dateRaw: String?): Long? {
+        val sentDate = mimeMessage.sentDate
+        if (sentDate != null) {
+            return sentDate.toInstant().toEpochMilli()
+        }
+        if (dateRaw.isNullOrBlank()) {
+            return null
+        }
+        return try {
+            MailDateFormat().parse(dateRaw)?.toInstant()?.toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun extractHtmlText(html: String?): String? {

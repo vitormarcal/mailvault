@@ -578,11 +578,19 @@
         .join('');
     }
 
-    function formatDate(value) {
-      if (!value || !value.trim()) {
+    function formatDate(epochMs) {
+      const numeric = Number(epochMs);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
         return '(sem data)';
       }
-      return value;
+      return new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(new Date(numeric));
     }
 
     function currentQueryFromUrl() {
@@ -687,7 +695,7 @@
       }
 
       results.innerHTML = items.map((item) => {
-        const date = formatDate(item.dateRaw);
+        const date = formatDate(item.dateEpoch ?? item.fileMtimeEpoch);
         const from = item.fromDisplay || item.fromRaw || '(sem remetente)';
         const subject = item.subjectDisplay || item.subject || '(sem assunto)';
         const snippet = item.snippet || '(sem preview)';

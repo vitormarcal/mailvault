@@ -3,6 +3,7 @@ package dev.marcal.mailvault.domain
 data class MessageSummary(
     val id: String,
     val dateRaw: String?,
+    val dateEpoch: Long?,
     val subject: String?,
     val subjectDisplay: String?,
     val snippetSource: String?,
@@ -21,6 +22,7 @@ data class MessageDetail(
     val fileMtimeEpoch: Long,
     val fileSize: Long,
     val dateRaw: String?,
+    val dateEpoch: Long?,
     val subject: String?,
     val subjectDisplay: String?,
     val fromRaw: String?,

@@ -9,6 +9,7 @@ data class MessagesListRequest(
 data class MessageSummaryResponse(
     val id: String,
     val dateRaw: String?,
+    val dateEpoch: Long?,
     val subject: String?,
     val subjectDisplay: String?,
     val snippet: String?,
@@ -34,6 +35,7 @@ data class MessageDetailResponse(
     val fileMtimeEpoch: Long,
     val fileSize: Long,
     val dateRaw: String?,
+    val dateEpoch: Long?,
     val subject: String?,
     val subjectDisplay: String?,
     val fromRaw: String?,

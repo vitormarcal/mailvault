@@ -1,6 +1,7 @@
 const subjectEl = document.getElementById('subject');
 const fromEl = document.getElementById('fromRaw');
-const dateEl = document.getElementById('dateRaw');
+const dateHumanEl = document.getElementById('dateHuman');
+const dateRawEl = document.getElementById('dateRaw');
 const messageIdEl = document.getElementById('messageId');
 
 const htmlContainerEl = document.getElementById('htmlContainer');
@@ -95,6 +96,34 @@ function gotoMessageById(id) {
   window.location.href = `/messages/${encodeURIComponent(id)}${suffix ? `?${suffix}` : ''}`;
 }
 
+function normalizeTimezoneLabel(label) {
+  if (!label) {
+    return '';
+  }
+  const normalized = label.replace('GMT', 'UTC').replace(/\s+/g, ' ').trim();
+  return normalized.length <= 10 ? normalized : normalized.slice(0, 10);
+}
+
+function formatHumanDate(epochMs) {
+  const numeric = Number(epochMs);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return '(sem data)';
+  }
+  const date = new Date(numeric);
+  const main = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+  const timezoneRaw = new Intl.DateTimeFormat('pt-BR', { timeZoneName: 'shortOffset' }).formatToParts(date)
+    .find((part) => part.type === 'timeZoneName')?.value;
+  const timezone = normalizeTimezoneLabel(timezoneRaw);
+  return timezone ? `${main} (${timezone})` : main;
+}
+
 function applyTab(tab) {
   currentState.activeTab = tab;
   tabHtmlEl.classList.toggle('active', tab === 'html');
@@ -176,7 +205,8 @@ async function loadMessage() {
 
   subjectEl.textContent = 'Carregando mensagem...';
   fromEl.textContent = '-';
-  dateEl.textContent = '-';
+  dateHumanEl.textContent = '-';
+  dateRawEl.textContent = '-';
   messageIdEl.textContent = id || '-';
   panelHtmlEl.hidden = true;
   panelPlainEl.hidden = true;
@@ -196,7 +226,8 @@ async function loadMessage() {
   const data = await response.json();
   subjectEl.textContent = data.subjectDisplay || data.subject || '(sem assunto)';
   fromEl.textContent = data.fromDisplay || data.fromRaw || '(sem remetente)';
-  dateEl.textContent = data.dateRaw || '(sem data)';
+  dateHumanEl.textContent = formatHumanDate(data.dateEpoch ?? data.fileMtimeEpoch);
+  dateRawEl.textContent = data.dateRaw || '(sem data raw)';
   messageIdEl.textContent = data.messageId || id;
   textEl.textContent = data.textPlain || '';
 

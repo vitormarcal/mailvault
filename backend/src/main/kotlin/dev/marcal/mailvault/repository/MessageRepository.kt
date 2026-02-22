@@ -110,6 +110,7 @@ class MessageRepository(
                         ) AS page_order,
                         m.id,
                         m.date_raw,
+                        m.date_epoch,
                         m.subject,
                         m.subject_display,
                         COALESCE(
@@ -152,6 +153,7 @@ class MessageRepository(
                 SELECT
                     p.id,
                     p.date_raw,
+                    p.date_epoch,
                     p.subject,
                     p.subject_display,
                     p.snippet_source,
@@ -171,6 +173,7 @@ class MessageRepository(
                     MessageSummary(
                         id = rs.getString("id"),
                         dateRaw = rs.getString("date_raw"),
+                        dateEpoch = readNullableLong(rs, "date_epoch"),
                         subject = rs.getString("subject"),
                         subjectDisplay = rs.getString("subject_display"),
                         snippetSource = rs.getString("snippet_source"),
@@ -193,7 +196,7 @@ class MessageRepository(
         try {
             jdbcTemplate.queryForObject(
                 """
-                SELECT m.id, m.file_path, m.file_mtime_epoch, m.file_size, m.date_raw, m.subject, m.subject_display, m.from_raw, m.from_display, m.from_email, m.from_name, m.message_id,
+                SELECT m.id, m.file_path, m.file_mtime_epoch, m.file_size, m.date_raw, m.date_epoch, m.subject, m.subject_display, m.from_raw, m.from_display, m.from_email, m.from_name, m.message_id,
                        mb.text_plain
                 FROM messages m
                 LEFT JOIN message_bodies mb ON mb.message_id = m.id
@@ -206,6 +209,7 @@ class MessageRepository(
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
                         fileSize = rs.getLong("file_size"),
                         dateRaw = rs.getString("date_raw"),
+                        dateEpoch = readNullableLong(rs, "date_epoch"),
                         subject = rs.getString("subject"),
                         subjectDisplay = rs.getString("subject_display"),
                         fromRaw = rs.getString("from_raw"),
@@ -221,6 +225,14 @@ class MessageRepository(
         } catch (_: EmptyResultDataAccessException) {
             null
         }
+
+    private fun readNullableLong(
+        rs: java.sql.ResultSet,
+        column: String,
+    ): Long? {
+        val value = rs.getLong(column)
+        return if (rs.wasNull()) null else value
+    }
 
     fun findPrevId(id: String): String? =
         try {

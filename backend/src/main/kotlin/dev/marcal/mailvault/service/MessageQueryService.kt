@@ -51,6 +51,7 @@ class MessageQueryService(
                 MessageSummaryResponse(
                     id = it.id,
                     dateRaw = it.dateRaw,
+                    dateEpoch = it.dateEpoch,
                     subject = it.subject,
                     subjectDisplay = it.subjectDisplay,
                     snippet = buildSnippet(it.snippetSource),
@@ -74,6 +75,7 @@ class MessageQueryService(
             fileMtimeEpoch = message.fileMtimeEpoch,
             fileSize = message.fileSize,
             dateRaw = message.dateRaw,
+            dateEpoch = message.dateEpoch,
             subject = message.subject,
             subjectDisplay = message.subjectDisplay,
             fromRaw = message.fromRaw,

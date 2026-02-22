@@ -36,6 +36,7 @@ class MessageParseServiceTest {
         assertEquals("alice@example.com", parsed.fromEmail)
         assertEquals("Alice", parsed.fromName)
         assertEquals("Sat, 21 Feb 2026 20:00:00 -0300", parsed.dateRaw)
+        assertEquals(1771714800000L, parsed.dateEpoch)
         assertEquals("Hello", parsed.subject)
         assertEquals("Hello", parsed.subjectDisplay)
         assertEquals("<id-1@example.com>", parsed.messageId)
