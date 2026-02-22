@@ -523,9 +523,11 @@ class MessagesControllerIntegrationTest {
 
         assertEquals(200, response.statusCode())
         val body = response.body()
+        assertEquals(true, body.contains("\"totalFound\":1"))
         assertEquals(true, body.contains("\"downloaded\":0"))
         assertEquals(true, body.contains("\"failed\":0"))
         assertEquals(true, body.contains("\"skipped\":1"))
+        assertEquals(true, body.contains("\"failures\":[]"))
     }
 
     @Test

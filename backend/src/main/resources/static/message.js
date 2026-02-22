@@ -19,6 +19,7 @@ const prevMsgBtn = document.getElementById('prevMsgBtn');
 const nextMsgBtn = document.getElementById('nextMsgBtn');
 const reindexBtn = document.getElementById('reindexBtn');
 const freezeBtn = document.getElementById('freezeBtn');
+const freezeBtnDefaultText = freezeBtn.textContent;
 
 let currentState = {
   messageId: '',
@@ -47,6 +48,11 @@ function clearStatus() {
 function setLoadingButtons(isLoading) {
   reindexBtn.disabled = isLoading;
   freezeBtn.disabled = isLoading;
+}
+
+function setFreezeLoading(isLoading) {
+  freezeBtn.disabled = isLoading;
+  freezeBtn.textContent = isLoading ? 'Baixando...' : freezeBtnDefaultText;
 }
 
 function resolveListQuery() {
@@ -239,8 +245,8 @@ reindexBtn.addEventListener('click', async () => {
 
 freezeBtn.addEventListener('click', async () => {
   const id = currentId();
-  setLoadingButtons(true);
-  setStatus('info', 'Congelando imagens remotas desta mensagem...');
+  setFreezeLoading(true);
+  setStatus('info', 'Baixando imagens remotas...');
 
   try {
     const response = await fetch(`/api/messages/${encodeURIComponent(id)}/freeze-assets`, { method: 'POST' });
@@ -249,12 +255,21 @@ freezeBtn.addEventListener('click', async () => {
       return;
     }
     const data = await response.json();
-    setStatus('ok', `Freeze concluido: downloaded=${data.downloaded}, failed=${data.failed}, skipped=${data.skipped}`);
+    const summary = `${data.downloaded || 0} baixadas, ${data.failed || 0} falharam, ${data.skipped || 0} ignoradas (de ${data.totalFound || 0})`;
+    if (Array.isArray(data.failures) && data.failures.length > 0) {
+      const details = data.failures
+        .slice(0, 3)
+        .map((item) => `${item.host}: ${item.reason} (${item.count})`)
+        .join(' | ');
+      setStatus('ok', `${summary}. Falhas: ${details}`);
+    } else {
+      setStatus('ok', summary);
+    }
     await loadMessage();
   } catch (_) {
     setStatus('error', 'Falha de rede ao congelar imagens.');
   } finally {
-    setLoadingButtons(false);
+    setFreezeLoading(false);
   }
 });
 

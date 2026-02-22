@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.service
 
 import dev.marcal.mailvault.api.AssetFreezeResponse
+import dev.marcal.mailvault.api.AssetFreezeFailureSummary
 import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.domain.AssetStatus
 import dev.marcal.mailvault.domain.AssetUpsert
@@ -38,17 +39,18 @@ class AssetFreezeService(
     fun freeze(messageId: String): AssetFreezeResponse {
         val html = messageHtmlRepository.findByMessageId(messageId)
             ?: throw ResourceNotFoundException("message not found")
-        val htmlRaw = html.htmlRaw ?: return AssetFreezeResponse(downloaded = 0, failed = 0, skipped = 0)
+        val htmlRaw = html.htmlRaw ?: return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
 
         val urls = extractRemoteImageUrls(htmlRaw)
         if (urls.isEmpty()) {
-            return AssetFreezeResponse(downloaded = 0, failed = 0, skipped = 0)
+            return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
         }
 
         var downloaded = 0
         var failed = 0
         var skipped = 0
         var totalBytes: Long = 0
+        val failures = mutableListOf<FreezeFailureEntry>()
 
         val limited = urls.take(mailVaultProperties.maxAssetsPerMessage)
         val overflowCount = urls.size - limited.size
@@ -76,13 +78,41 @@ class AssetFreezeService(
                 }
 
                 AssetStatus.SKIPPED -> skipped++
-                AssetStatus.FAILED -> failed++
+                AssetStatus.FAILED -> {
+                    failed++
+                    failures +=
+                        FreezeFailureEntry(
+                            host = hostFromUrl(url),
+                            reason = summarizeReason(result.error),
+                        )
+                }
             }
         }
 
         messageHtmlRepository.clearHtmlSanitized(messageId)
         htmlRenderService.render(messageId)
-        return AssetFreezeResponse(downloaded = downloaded, failed = failed, skipped = skipped)
+        val failureSummary =
+            failures
+                .groupingBy { "${it.host}\u0000${it.reason}" }
+                .eachCount()
+                .entries
+                .map { (key, count) ->
+                    val parts = key.split('\u0000')
+                    AssetFreezeFailureSummary(
+                        host = parts.getOrElse(0) { "desconhecido" },
+                        reason = parts.getOrElse(1) { "erro no download" },
+                        count = count,
+                    )
+                }
+                .sortedWith(compareByDescending<AssetFreezeFailureSummary> { it.count }.thenBy { it.host })
+
+        return AssetFreezeResponse(
+            totalFound = urls.size,
+            downloaded = downloaded,
+            failed = failed,
+            skipped = skipped,
+            failures = failureSummary,
+        )
     }
 
     private fun extractRemoteImageUrls(html: String): List<String> =
@@ -337,9 +367,34 @@ class AssetFreezeService(
         return if (clean.isBlank()) "bin" else clean
     }
 
+    private fun hostFromUrl(url: String): String =
+        runCatching { URI(url).host?.trim()?.lowercase() }
+            .getOrNull()
+            ?.ifBlank { null }
+            ?: "desconhecido"
+
+    private fun summarizeReason(reason: String?): String {
+        if (reason.isNullOrBlank()) {
+            return "erro no download"
+        }
+        val normalized =
+            reason
+                .trim()
+                .replace(URL_REGEX, "[url]")
+                .replace(WHITESPACE_REGEX, " ")
+        return if (normalized.length <= 80) normalized else normalized.take(80).trimEnd() + "..."
+    }
+
+    private data class FreezeFailureEntry(
+        val host: String,
+        val reason: String,
+    )
+
     private companion object {
         const val MAX_REDIRECTS = 5
         val REDIRECT_STATUS_CODES = setOf(301, 302, 303, 307, 308)
         val IMG_SRC_REGEX = Regex("""(?i)<img\b[^>]*?\s+src\s*=\s*(["'])(.*?)\1""")
+        val URL_REGEX = Regex("""(?i)https?://\S+""")
+        val WHITESPACE_REGEX = Regex("\\s+")
     }
 }
