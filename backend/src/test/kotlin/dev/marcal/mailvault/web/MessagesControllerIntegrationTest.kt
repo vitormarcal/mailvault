@@ -33,7 +33,18 @@ class MessagesControllerIntegrationTest {
         insert("id-1", "/tmp/1.eml", 1000, 10, "2024-01-01T10:00:00Z", "Hello there", "Alice <alice@x.com>", "<1@x>")
         insert("id-2", "/tmp/2.eml", 3000, 20, "2024-02-01T10:00:00Z", "Monthly report", "Bob <bob@x.com>", "<2@x>")
         insert("id-3", "/tmp/3.eml", 4000, 30, null, "No date mail", "Charlie <charlie@x.com>", "<3@x>")
-        jdbcTemplate.update("INSERT INTO message_bodies(message_id, text_plain) VALUES (?, ?)", "id-1", "Body one")
+        jdbcTemplate.update(
+            "INSERT INTO message_bodies(message_id, text_plain, html_raw, html_sanitized) VALUES (?, ?, ?, ?)",
+            "id-1",
+            "Body one",
+            """
+            <div>
+              <a href="https://example.com">Link</a>
+              <img src="https://example.com/x.png" />
+            </div>
+            """.trimIndent(),
+            null,
+        )
     }
 
     @Test
@@ -101,6 +112,27 @@ class MessagesControllerIntegrationTest {
         assertEquals(200, response.statusCode())
         assertEquals(true, response.body().contains("Reindexar"))
         assertEquals(true, response.body().contains("text/plain"))
+    }
+
+    @Test
+    fun `GET messages id render returns sanitized html with rewritten links`() {
+        val response = get("/api/messages/id-1/render")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"html\":"))
+        assertEquals(true, body.contains("/go?url"))
+        assertEquals(true, body.contains("/static/remote-image-blocked.svg"))
+    }
+
+    @Test
+    fun `GET go redirects for safe schemes and blocks unsafe ones`() {
+        val safe = get("/go?url=https://example.com")
+        assertEquals(302, safe.statusCode())
+
+        val blocked = get("/go?url=javascript:alert(1)")
+        assertEquals(400, blocked.statusCode())
+        assertEquals(true, blocked.body().contains("\"error\":\"VALIDATION_ERROR\""))
     }
 
     private fun get(path: String): HttpResponse<String> {

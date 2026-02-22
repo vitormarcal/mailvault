@@ -18,6 +18,17 @@ A aplicacao sobe em `http://localhost:8080`.
 - Caixa historica (lista e busca): `GET /`
 - Detalhe da mensagem: `GET /messages/{id}`
 - Reindexacao manual no detalhe: botao **Reindexar** (chama `POST /api/index`)
+- Render HTML sanitizado: `GET /api/messages/{id}/render`
+- Navegacao externa segura (links): `GET /go?url=...`
+
+## Renderizacao HTML segura
+
+- HTML bruto de emails (`html_raw`) e reescrito para:
+  - links `<a href>` -> `/go?url=...`
+  - imagens `cid:` -> `/api/messages/{id}/cid/{cid}`
+  - imagens remotas `http/https` -> `/static/remote-image-blocked.svg` com `data-original-src`
+- O HTML final e sanitizado com OWASP Java HTML Sanitizer e cacheado em `html_sanitized`.
+- Elementos ativos/perigosos (ex.: `script`, `iframe`, `form`, handlers `on*`, `javascript:`) sao bloqueados.
 
 ## Fluxo rapido
 

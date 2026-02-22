@@ -1,6 +1,9 @@
 package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.repository.MessageRepository
+import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.service.HtmlRenderService
+import dev.marcal.mailvault.service.HtmlSanitizerService
 import dev.marcal.mailvault.service.MessageQueryService
 import dev.marcal.mailvault.util.ResourceNotFoundException
 import dev.marcal.mailvault.util.ValidationException
@@ -50,7 +53,11 @@ class MessagesControllerTest {
             )
             """.trimIndent(),
         )
-        controller = MessagesController(MessageQueryService(MessageRepository(jdbcTemplate)))
+        controller =
+            MessagesController(
+                MessageQueryService(MessageRepository(jdbcTemplate)),
+                HtmlRenderService(MessageHtmlRepository(jdbcTemplate), HtmlSanitizerService()),
+            )
     }
 
     @Test

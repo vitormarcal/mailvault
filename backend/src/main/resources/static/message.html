@@ -12,6 +12,7 @@
     dl { display: grid; grid-template-columns: 80px 1fr; gap: 8px 12px; }
     dt { font-weight: bold; }
     pre { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; white-space: pre-wrap; word-break: break-word; }
+    #htmlContainer { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; }
     #status { color: #4b5563; min-height: 20px; }
   </style>
 </head>
@@ -27,7 +28,10 @@
     <dt>Date</dt><dd id="dateRaw">-</dd>
   </dl>
 
-  <h2>text/plain</h2>
+  <h2 id="htmlTitle" hidden>HTML sanitizado</h2>
+  <div id="htmlContainer" hidden></div>
+
+  <h2 id="plainTitle">text/plain</h2>
   <pre id="textPlain"></pre>
   <p id="status"></p>
 
@@ -36,12 +40,24 @@
     const fromEl = document.getElementById('fromRaw');
     const dateEl = document.getElementById('dateRaw');
     const textEl = document.getElementById('textPlain');
+    const plainTitleEl = document.getElementById('plainTitle');
+    const htmlTitleEl = document.getElementById('htmlTitle');
+    const htmlContainerEl = document.getElementById('htmlContainer');
     const statusEl = document.getElementById('status');
     const reindexBtn = document.getElementById('reindexBtn');
 
     function currentId() {
       const parts = window.location.pathname.split('/').filter(Boolean);
       return decodeURIComponent(parts[parts.length - 1] || '');
+    }
+
+    async function loadRenderedHtml(id) {
+      const response = await fetch(`/api/messages/${encodeURIComponent(id)}/render`);
+      if (!response.ok) {
+        return '';
+      }
+      const data = await response.json();
+      return data.html || '';
     }
 
     async function loadMessage() {
@@ -58,6 +74,20 @@
       fromEl.textContent = data.fromRaw || '(sem remetente)';
       dateEl.textContent = data.dateRaw || '(sem data)';
       textEl.textContent = data.textPlain || '';
+
+      const renderedHtml = await loadRenderedHtml(id);
+      if (renderedHtml && renderedHtml.trim().length > 0) {
+        htmlContainerEl.innerHTML = renderedHtml;
+        htmlContainerEl.hidden = false;
+        htmlTitleEl.hidden = false;
+        plainTitleEl.hidden = true;
+        textEl.hidden = true;
+      } else {
+        htmlContainerEl.hidden = true;
+        htmlTitleEl.hidden = true;
+        plainTitleEl.hidden = false;
+        textEl.hidden = false;
+      }
     }
 
     reindexBtn.addEventListener('click', async () => {
