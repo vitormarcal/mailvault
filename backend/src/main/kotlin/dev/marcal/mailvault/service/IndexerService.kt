@@ -3,9 +3,9 @@ package dev.marcal.mailvault.service
 import dev.marcal.mailvault.domain.AttachmentUpsert
 import dev.marcal.mailvault.domain.MessageBodyUpsert
 import dev.marcal.mailvault.domain.MessageUpsert
+import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.repository.IndexWriteRepository
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
@@ -24,15 +24,14 @@ class IndexerService(
     private val indexWriteRepository: IndexWriteRepository,
     private val messageParseService: MessageParseService,
     private val attachmentStorageService: AttachmentStorageService,
-    @Value("\${mailvault.index.root-dir}") private val rootDir: String,
-    @Value("\${mailvault.storageDir}") private val storageDir: String,
+    private val mailVaultProperties: MailVaultProperties,
 ) {
     private val logger = LoggerFactory.getLogger(IndexerService::class.java)
 
     fun index(): IndexResult {
-        val rootPath = Path.of(rootDir).toAbsolutePath().normalize()
+        val rootPath = Path.of(mailVaultProperties.rootEmailsDir).toAbsolutePath().normalize()
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
-            "Invalid rootDir: $rootDir"
+            "Invalid rootDir: ${mailVaultProperties.rootEmailsDir}"
         }
 
         var inserted = 0
@@ -125,7 +124,7 @@ class IndexerService(
     }
 
     private fun attachmentMessageDir(messageId: String): Path =
-        Path.of(storageDir)
+        Path.of(mailVaultProperties.storageDir)
             .toAbsolutePath()
             .normalize()
             .resolve("attachments")

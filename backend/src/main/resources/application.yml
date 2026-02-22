@@ -11,6 +11,7 @@ spring:
     locations: ${SPRING_FLYWAY_LOCATIONS:classpath:db/migration}
 
 mailvault:
-  index:
-    root-dir: ${MAILVAULT_INDEX_ROOT_DIR:./data/emails}
+  rootEmailsDir: ${MAILVAULT_INDEX_ROOT_DIR:./data/emails}
   storageDir: ${MAILVAULT_STORAGE_DIR:./data/storage}
+  maxAssetsPerMessage: ${MAILVAULT_MAX_ASSETS_PER_MESSAGE:64}
+  maxAssetBytes: ${MAILVAULT_MAX_ASSET_BYTES:10485760}

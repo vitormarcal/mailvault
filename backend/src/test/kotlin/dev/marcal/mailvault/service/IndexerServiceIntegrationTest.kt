@@ -338,7 +338,7 @@ class IndexerServiceIntegrationTest {
             registry.add("spring.flyway.url") { "jdbc:sqlite:$dbPath" }
             registry.add("spring.flyway.driver-class-name") { "org.sqlite.JDBC" }
             registry.add("spring.flyway.locations") { "classpath:db/migration" }
-            registry.add("mailvault.index.root-dir") { indexRootDir.toString() }
+            registry.add("mailvault.rootEmailsDir") { indexRootDir.toString() }
             registry.add("mailvault.storageDir") { storageRootDir.toString() }
         }
     }

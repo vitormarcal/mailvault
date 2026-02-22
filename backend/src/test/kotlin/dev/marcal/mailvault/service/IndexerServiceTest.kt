@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import dev.marcal.mailvault.repository.IndexWriteRepository
+import dev.marcal.mailvault.config.MailVaultProperties
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
@@ -78,8 +79,10 @@ class IndexerServiceTest {
                 IndexWriteRepository(jdbcTemplate),
                 MessageParseService(),
                 AttachmentStorageService(),
-                rootDir.toString(),
-                storageDir.toString(),
+                MailVaultProperties(
+                    rootEmailsDir = rootDir.toString(),
+                    storageDir = storageDir.toString(),
+                ),
             )
     }
 
@@ -90,8 +93,10 @@ class IndexerServiceTest {
                 IndexWriteRepository(jdbcTemplate),
                 MessageParseService(),
                 AttachmentStorageService(),
-                tempDir.resolve("missing").toString(),
-                storageDir.toString(),
+                MailVaultProperties(
+                    rootEmailsDir = tempDir.resolve("missing").toString(),
+                    storageDir = storageDir.toString(),
+                ),
             )
 
         assertFailsWith<IllegalArgumentException> {

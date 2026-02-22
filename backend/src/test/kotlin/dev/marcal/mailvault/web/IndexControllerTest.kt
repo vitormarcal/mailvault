@@ -5,6 +5,7 @@ import dev.marcal.mailvault.service.IndexerService
 import dev.marcal.mailvault.service.MessageParseService
 import dev.marcal.mailvault.service.AttachmentStorageService
 import dev.marcal.mailvault.repository.IndexWriteRepository
+import dev.marcal.mailvault.config.MailVaultProperties
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -77,8 +78,10 @@ class IndexControllerTest {
                     IndexWriteRepository(jdbcTemplate),
                     MessageParseService(),
                     AttachmentStorageService(),
-                    emailsDir.toString(),
-                    tempDir.resolve("storage").toString(),
+                    MailVaultProperties(
+                        rootEmailsDir = emailsDir.toString(),
+                        storageDir = tempDir.resolve("storage").toString(),
+                    ),
                 ),
             )
     }
@@ -97,8 +100,10 @@ class IndexControllerTest {
                     IndexWriteRepository(jdbcTemplate),
                     MessageParseService(),
                     AttachmentStorageService(),
-                    tempDir.resolve("missing").toString(),
-                    tempDir.resolve("storage").toString(),
+                    MailVaultProperties(
+                        rootEmailsDir = tempDir.resolve("missing").toString(),
+                        storageDir = tempDir.resolve("storage").toString(),
+                    ),
                 ),
             )
 
