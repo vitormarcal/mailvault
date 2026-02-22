@@ -144,6 +144,28 @@
       font-size: .96rem;
     }
 
+    .ops {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      background: #fff9ee;
+    }
+
+    .ops-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ops-status {
+      color: var(--muted);
+      font-size: .92rem;
+      min-height: 20px;
+    }
+
     .kbd {
       font-family: "Consolas", "Liberation Mono", monospace;
       background: #f1e8d8;
@@ -220,6 +242,7 @@
         grid-template-columns: 1fr;
       }
       .meta,
+      .ops,
       .pager {
         flex-direction: column;
         align-items: flex-start;
@@ -240,6 +263,14 @@
         <button type="submit" class="btn-primary">Buscar</button>
         <button id="clearBtn" type="button" class="btn-ghost">Limpar</button>
       </form>
+
+      <div class="ops">
+        <div class="ops-actions">
+          <button id="indexBtn" type="button" class="btn-primary">Indexar</button>
+          <button id="reindexBtn" type="button" class="btn-ghost">Reindexar</button>
+        </div>
+        <span id="indexStatus" class="ops-status"></span>
+      </div>
 
       <div class="meta">
         <span id="summary">Carregando mensagens...</span>
@@ -266,6 +297,9 @@
     const clearBtn = document.getElementById('clearBtn');
     const results = document.getElementById('results');
     const summary = document.getElementById('summary');
+    const indexBtn = document.getElementById('indexBtn');
+    const reindexBtn = document.getElementById('reindexBtn');
+    const indexStatus = document.getElementById('indexStatus');
     const pageInfo = document.getElementById('pageInfo');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -414,6 +448,30 @@
       loadMessages();
     }
 
+    function setIndexRunning(running) {
+      indexBtn.disabled = running;
+      reindexBtn.disabled = running;
+    }
+
+    async function runIndex(actionLabel) {
+      setIndexRunning(true);
+      indexStatus.textContent = `${actionLabel} em andamento...`;
+      try {
+        const response = await fetch('/api/index', { method: 'POST' });
+        if (!response.ok) {
+          indexStatus.textContent = `Falha ao ${actionLabel.toLowerCase()}.`;
+          return;
+        }
+        const data = await response.json();
+        indexStatus.textContent = `${actionLabel} concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`;
+        applyAndLoad({ page: 0 });
+      } catch (_) {
+        indexStatus.textContent = `Falha de rede ao ${actionLabel.toLowerCase()}.`;
+      } finally {
+        setIndexRunning(false);
+      }
+    }
+
     searchForm.addEventListener('submit', (event) => {
       event.preventDefault();
       applyAndLoad({
@@ -426,6 +484,14 @@
       queryInput.value = '';
       applyAndLoad({ query: '', page: 0 });
       queryInput.focus();
+    });
+
+    indexBtn.addEventListener('click', () => {
+      runIndex('Indexacao');
+    });
+
+    reindexBtn.addEventListener('click', () => {
+      runIndex('Reindexacao');
     });
 
     prevBtn.addEventListener('click', () => {

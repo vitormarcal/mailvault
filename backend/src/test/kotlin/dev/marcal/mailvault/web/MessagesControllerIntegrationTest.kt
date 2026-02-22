@@ -118,8 +118,9 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"page\":0"))
         assertEquals(true, body.contains("\"size\":2"))
         assertEquals(true, body.contains("\"total\":3"))
+        assertEquals(true, body.contains("\"id\":\"id-3\""))
         assertEquals(true, body.contains("\"id\":\"id-2\""))
-        assertEquals(true, body.contains("\"id\":\"id-1\""))
+        assertEquals(false, body.contains("\"id\":\"id-1\""))
     }
 
     @Test

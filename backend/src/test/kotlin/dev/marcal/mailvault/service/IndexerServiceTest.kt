@@ -39,6 +39,7 @@ class IndexerServiceTest {
                 file_mtime_epoch INTEGER NOT NULL,
                 file_size INTEGER NOT NULL,
                 date_raw TEXT,
+                date_epoch INTEGER,
                 subject TEXT,
                 from_raw TEXT,
                 message_id TEXT

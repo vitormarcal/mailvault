@@ -55,3 +55,4 @@ A aplicacao sobe em `http://localhost:8080`.
 - `V5__html.sql`: adiciona `html_raw` e `html_sanitized` em `message_bodies`
 - `V6__attachments.sql`: cria tabela `attachments` para metadados e path de storage
 - `V7__assets.sql`: cria tabela `assets` para freeze de imagens remotas e cache local
+- `V8__message_date_epoch.sql`: adiciona `date_epoch` em `messages` para ordenacao cronologica desc consistente

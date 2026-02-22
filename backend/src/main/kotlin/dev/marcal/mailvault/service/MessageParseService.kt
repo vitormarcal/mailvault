@@ -29,6 +29,7 @@ data class ParsedAttachment(
 
 data class ParsedMessage(
     val dateRaw: String?,
+    val dateEpoch: Long?,
     val subject: String?,
     val fromRaw: String?,
     val messageId: String?,
@@ -48,6 +49,7 @@ class MessageParseService {
 
         return ParsedMessage(
             dateRaw = mimeMessage.getHeader(HEADER_DATE, null),
+            dateEpoch = mimeMessage.sentDate?.time,
             subject = mimeMessage.subject,
             fromRaw = mimeMessage.getHeader(HEADER_FROM, null),
             messageId = mimeMessage.getHeader(HEADER_MESSAGE_ID, null),

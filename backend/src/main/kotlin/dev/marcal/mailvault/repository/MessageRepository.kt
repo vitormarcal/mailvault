@@ -40,10 +40,7 @@ class MessageRepository(
                     """
                     SELECT id, date_raw, subject, from_raw, file_mtime_epoch
                     FROM messages
-                    ORDER BY
-                        CASE WHEN date_raw IS NULL OR TRIM(date_raw) = '' THEN 1 ELSE 0 END,
-                        date_raw DESC,
-                        file_mtime_epoch DESC
+                    ORDER BY COALESCE(date_epoch, file_mtime_epoch) DESC, file_mtime_epoch DESC, id DESC
                     LIMIT ? OFFSET ?
                     """.trimIndent(),
                     { rs, _ ->
@@ -68,10 +65,7 @@ class MessageRepository(
                         FROM messages_fts
                         WHERE messages_fts MATCH ?
                     )
-                    ORDER BY
-                        CASE WHEN date_raw IS NULL OR TRIM(date_raw) = '' THEN 1 ELSE 0 END,
-                        date_raw DESC,
-                        file_mtime_epoch DESC
+                    ORDER BY COALESCE(date_epoch, file_mtime_epoch) DESC, file_mtime_epoch DESC, id DESC
                     LIMIT ? OFFSET ?
                     """.trimIndent(),
                     { rs, _ ->

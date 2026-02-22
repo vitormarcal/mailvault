@@ -36,6 +36,7 @@ class MessageRepositoryTest {
                 file_mtime_epoch INTEGER NOT NULL,
                 file_size INTEGER NOT NULL,
                 date_raw TEXT,
+                date_epoch INTEGER,
                 subject TEXT,
                 from_raw TEXT,
                 message_id TEXT
@@ -98,13 +99,13 @@ class MessageRepositoryTest {
     }
 
     @Test
-    fun `list paginates and orders by date_raw desc then file_mtime_epoch desc`() {
+    fun `list paginates and orders by file_mtime_epoch desc`() {
         val page = repository.list(query = null, page = 0, size = 2)
 
         assertEquals(3, page.total)
         assertEquals(2, page.items.size)
-        assertEquals("b", page.items[0].id)
-        assertEquals("a", page.items[1].id)
+        assertEquals("c", page.items[0].id)
+        assertEquals("b", page.items[1].id)
     }
 
     @Test
@@ -135,7 +136,7 @@ class MessageRepositoryTest {
         val secondPage = repository.list(query = null, page = 1, size = 1)
         assertEquals(3, secondPage.total)
         assertEquals(1, secondPage.items.size)
-        assertEquals("a", secondPage.items.first().id)
+        assertEquals("b", secondPage.items.first().id)
     }
 
     @Test

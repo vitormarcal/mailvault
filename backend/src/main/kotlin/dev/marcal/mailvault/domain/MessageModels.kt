@@ -29,6 +29,7 @@ data class ExistingMessage(
     val fileMtimeEpoch: Long,
     val fileSize: Long,
     val hasBodyContent: Boolean,
+    val hasDateEpoch: Boolean,
 )
 
 data class MessageUpsert(
@@ -37,6 +38,7 @@ data class MessageUpsert(
     val fileMtimeEpoch: Long,
     val fileSize: Long,
     val dateRaw: String?,
+    val dateEpoch: Long?,
     val subject: String?,
     val fromRaw: String?,
     val messageId: String?,
