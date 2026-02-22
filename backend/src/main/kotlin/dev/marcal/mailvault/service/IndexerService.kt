@@ -1,5 +1,6 @@
 package dev.marcal.mailvault.service
 
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
@@ -19,8 +20,9 @@ data class IndexResult(
 class IndexerService(
     private val jdbcTemplate: JdbcTemplate,
     private val emlHeaderParser: EmlHeaderParser,
+    @Value("\${mailvault.index.root-dir}") private val rootDir: String,
 ) {
-    fun index(rootDir: String): IndexResult {
+    fun index(): IndexResult {
         val rootPath = Path.of(rootDir).toAbsolutePath().normalize()
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
             "Invalid rootDir: $rootDir"

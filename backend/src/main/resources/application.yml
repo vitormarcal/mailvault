@@ -9,3 +9,7 @@ spring:
     url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:sqlite:./data/mailvault.db}}
     driver-class-name: ${SPRING_FLYWAY_DRIVER_CLASS_NAME:${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.sqlite.JDBC}}
     locations: ${SPRING_FLYWAY_LOCATIONS:classpath:db/migration}
+
+mailvault:
+  index:
+    root-dir: ${MAILVAULT_INDEX_ROOT_DIR:./data/emails}

@@ -16,6 +16,7 @@ class IndexerServiceTest {
 
     private lateinit var jdbcTemplate: JdbcTemplate
     private lateinit var service: IndexerService
+    private lateinit var rootDir: Path
 
     @BeforeEach
     fun setUp() {
@@ -39,31 +40,31 @@ class IndexerServiceTest {
             )
             """.trimIndent(),
         )
-        service = IndexerService(jdbcTemplate, EmlHeaderParser())
+        rootDir = tempDir.resolve("emails")
+        Files.createDirectories(rootDir)
+        service = IndexerService(jdbcTemplate, EmlHeaderParser(), rootDir.toString())
     }
 
     @Test
-    fun `throws when root dir is invalid`() {
+    fun `throws when configured root dir is invalid`() {
+        service = IndexerService(jdbcTemplate, EmlHeaderParser(), tempDir.resolve("missing").toString())
+
         assertFailsWith<IllegalArgumentException> {
-            service.index(tempDir.resolve("missing").toString())
+            service.index()
         }
     }
 
     @Test
     fun `ignores non eml files`() {
-        val root = tempDir.resolve("emails")
-        Files.createDirectories(root)
-        Files.writeString(root.resolve("notes.txt"), "plain file")
+        Files.writeString(rootDir.resolve("notes.txt"), "plain file")
 
-        val result = service.index(root.toString())
+        val result = service.index()
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 0), result)
     }
 
     @Test
     fun `keeps stable id for same file path and message id`() {
-        val root = tempDir.resolve("emails")
-        Files.createDirectories(root)
-        val eml = root.resolve("a.eml")
+        val eml = rootDir.resolve("a.eml")
 
         Files.writeString(
             eml,
@@ -75,7 +76,7 @@ class IndexerServiceTest {
             Body
             """.trimIndent(),
         )
-        service.index(root.toString())
+        service.index()
         val firstId =
             jdbcTemplate.queryForObject(
                 "SELECT id FROM messages WHERE file_path = ?",
@@ -94,7 +95,7 @@ class IndexerServiceTest {
             Body changed
             """.trimIndent(),
         )
-        service.index(root.toString())
+        service.index()
         val secondId =
             jdbcTemplate.queryForObject(
                 "SELECT id FROM messages WHERE file_path = ?",

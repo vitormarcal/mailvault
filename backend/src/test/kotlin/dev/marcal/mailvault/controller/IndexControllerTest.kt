@@ -18,16 +18,20 @@ class IndexControllerTest {
     @TempDir
     lateinit var tempDir: Path
 
+    private lateinit var jdbcTemplate: JdbcTemplate
     private lateinit var controller: IndexController
 
     @BeforeEach
     fun setUp() {
+        val emailsDir = tempDir.resolve("emails")
+        Files.createDirectories(emailsDir)
+
         val dbPath = tempDir.resolve("index-controller-test.db").toAbsolutePath().normalize()
         val dataSource = DriverManagerDataSource().apply {
             setDriverClassName("org.sqlite.JDBC")
             url = "jdbc:sqlite:$dbPath"
         }
-        val jdbcTemplate = JdbcTemplate(dataSource)
+        jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """
             CREATE TABLE IF NOT EXISTS messages (
@@ -42,24 +46,22 @@ class IndexControllerTest {
             )
             """.trimIndent(),
         )
-
-        controller = IndexController(IndexerService(jdbcTemplate, EmlHeaderParser()))
+        controller = IndexController(IndexerService(jdbcTemplate, EmlHeaderParser(), emailsDir.toString()))
     }
 
     @Test
     fun `returns counters for valid directory`() {
-        val emailsDir = tempDir.resolve("emails")
-        Files.createDirectories(emailsDir)
-
-        val result = controller.index(IndexRequest(rootDir = emailsDir.toString()))
+        val result = controller.index()
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 0), result)
     }
 
     @Test
-    fun `maps invalid root dir to bad request`() {
+    fun `maps invalid configured root dir to bad request`() {
+        controller = IndexController(IndexerService(jdbcTemplate, EmlHeaderParser(), tempDir.resolve("missing").toString()))
+
         val ex =
             assertFailsWith<ResponseStatusException> {
-                controller.index(IndexRequest(rootDir = tempDir.resolve("missing").toString()))
+                controller.index()
             }
         assertEquals(400, ex.statusCode.value())
     }

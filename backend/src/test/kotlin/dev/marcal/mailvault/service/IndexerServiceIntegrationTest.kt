@@ -2,7 +2,6 @@ package dev.marcal.mailvault.service
 
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
@@ -10,15 +9,13 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Comparator
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 @SpringBootTest
 class IndexerServiceIntegrationTest {
-    @TempDir
-    lateinit var tempDir: Path
-
     @Autowired
     lateinit var indexerService: IndexerService
 
@@ -28,6 +25,12 @@ class IndexerServiceIntegrationTest {
     @BeforeEach
     fun cleanMessagesTable() {
         jdbcTemplate.update("DELETE FROM messages")
+        if (Files.exists(indexRootDir)) {
+            Files.walk(indexRootDir)
+                .sorted(Comparator.reverseOrder())
+                .forEach(Files::delete)
+        }
+        Files.createDirectories(indexRootDir)
     }
 
     @Test
@@ -42,11 +45,10 @@ class IndexerServiceIntegrationTest {
 
     @Test
     fun `indexes eml files and skips unchanged on next run`() {
-        val rootDir = tempDir.resolve("emails")
-        Files.createDirectories(rootDir.resolve("sub"))
+        Files.createDirectories(indexRootDir.resolve("sub"))
 
         Files.writeString(
-            rootDir.resolve("a.eml"),
+            indexRootDir.resolve("a.eml"),
             """
             From: Alice <alice@example.com>
             Date: Sat, 21 Feb 2026 20:00:00 -0300
@@ -57,7 +59,7 @@ class IndexerServiceIntegrationTest {
             """.trimIndent(),
         )
         Files.writeString(
-            rootDir.resolve("sub").resolve("b.eml"),
+            indexRootDir.resolve("sub").resolve("b.eml"),
             """
             From: Bob <bob@example.com>
             Date: Sat, 21 Feb 2026 20:05:00 -0300
@@ -68,8 +70,8 @@ class IndexerServiceIntegrationTest {
             """.trimIndent(),
         )
 
-        val first = indexerService.index(rootDir.toString())
-        val second = indexerService.index(rootDir.toString())
+        val first = indexerService.index()
+        val second = indexerService.index()
 
         assertEquals(IndexResult(inserted = 2, updated = 0, skipped = 0), first)
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 2), second)
@@ -78,9 +80,7 @@ class IndexerServiceIntegrationTest {
 
     @Test
     fun `parses folded headers and updates when file changes`() {
-        val rootDir = tempDir.resolve("emails")
-        Files.createDirectories(rootDir)
-        val emlPath = rootDir.resolve("c.eml")
+        val emlPath = indexRootDir.resolve("c.eml")
 
         Files.writeString(
             emlPath,
@@ -96,7 +96,7 @@ class IndexerServiceIntegrationTest {
             """.trimIndent(),
         )
 
-        val first = indexerService.index(rootDir.toString())
+        val first = indexerService.index()
         assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), first)
 
         val initialSubject = jdbcTemplate.queryForObject(
@@ -119,7 +119,7 @@ class IndexerServiceIntegrationTest {
             """.trimIndent(),
         )
 
-        val second = indexerService.index(rootDir.toString())
+        val second = indexerService.index()
         assertEquals(IndexResult(inserted = 0, updated = 1, skipped = 0), second)
 
         val updatedSubject = jdbcTemplate.queryForObject(
@@ -136,6 +136,11 @@ class IndexerServiceIntegrationTest {
                 System.getProperty("java.io.tmpdir"),
                 "mailvault-test-${UUID.randomUUID()}.db",
             ).toAbsolutePath().normalize()
+        private val indexRootDir =
+            Path.of(
+                System.getProperty("java.io.tmpdir"),
+                "mailvault-index-test-${UUID.randomUUID()}",
+            ).toAbsolutePath().normalize()
 
         @JvmStatic
         @DynamicPropertySource
@@ -146,6 +151,7 @@ class IndexerServiceIntegrationTest {
             registry.add("spring.flyway.url") { "jdbc:sqlite:$dbPath" }
             registry.add("spring.flyway.driver-class-name") { "org.sqlite.JDBC" }
             registry.add("spring.flyway.locations") { "classpath:db/migration" }
+            registry.add("mailvault.index.root-dir") { indexRootDir.toString() }
         }
     }
 }
