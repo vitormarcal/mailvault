@@ -312,6 +312,35 @@ class IndexerServiceIntegrationTest {
         assertEquals(true, Files.exists(Path.of(storagePath)))
     }
 
+    @Test
+    fun `updates app_meta with last index timestamp and duration`() {
+        val emlPath = indexRootDir.resolve("meta.eml")
+        Files.writeString(
+            emlPath,
+            """
+            From: Meta Sender <meta@example.com>
+            Subject: Meta
+            Message-ID: <meta-1@example.com>
+
+            Meta body
+            """.trimIndent(),
+        )
+
+        indexerService.index()
+
+        val lastIndexAt = jdbcTemplate.queryForObject(
+            "SELECT value FROM app_meta WHERE key = 'lastIndexAt'",
+            String::class.java,
+        )
+        val duration = jdbcTemplate.queryForObject(
+            "SELECT value FROM app_meta WHERE key = 'lastIndexDurationMs'",
+            String::class.java,
+        )
+
+        assertEquals(true, !lastIndexAt.isNullOrBlank())
+        assertEquals(true, (duration?.toLongOrNull() ?: -1L) >= 0L)
+    }
+
     companion object {
         private val dbPath =
             Path.of(

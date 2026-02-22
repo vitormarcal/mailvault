@@ -17,6 +17,7 @@ A aplicacao sobe em `http://localhost:8080`.
 
 - Caixa historica (lista e busca): `GET /`
 - API de listagem/busca: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
+- Estatisticas de uso: `GET /api/stats`
 - Detalhe da mensagem: `GET /messages/{id}`
 - Reindexacao manual no detalhe: botao **Reindexar** (chama `POST /api/index`)
 - Render HTML sanitizado: `GET /api/messages/{id}/render`
@@ -83,3 +84,18 @@ A aplicacao sobe em `http://localhost:8080`.
 - Ordenacao:
   - com `query`: relevancia `bm25(messages_fts)` e depois data desc
   - sem `query`: data desc
+
+## Observabilidade minima (`GET /api/stats`)
+
+- Retorna:
+  - `totalMessages`
+  - `totalWithHtml`
+  - `totalAttachments`
+  - `totalAssetsDownloaded`
+  - `totalAssetsFailed`
+  - `storageBytesAttachments`
+  - `storageBytesAssets`
+  - `lastIndexAt`
+- O index registra em `app_meta` ao finalizar:
+  - `lastIndexAt`
+  - `lastIndexDurationMs`

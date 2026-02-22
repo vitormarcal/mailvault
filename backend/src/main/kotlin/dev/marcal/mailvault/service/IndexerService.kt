@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.time.OffsetDateTime
 import java.util.concurrent.Executors
 import kotlin.streams.asSequence
 
@@ -33,6 +34,7 @@ class IndexerService(
     private val logger = LoggerFactory.getLogger(IndexerService::class.java)
 
     fun index(): IndexResult {
+        val startedAtNs = System.nanoTime()
         val rootPath = Path.of(mailVaultProperties.rootEmailsDir).toAbsolutePath().normalize()
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
             "Invalid rootDir: ${mailVaultProperties.rootEmailsDir}"
@@ -117,6 +119,10 @@ class IndexerService(
         }
 
         runAutoFreezeIfEnabled(freezeCandidates)
+
+        val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
+        indexWriteRepository.putMeta("lastIndexAt", OffsetDateTime.now().toString())
+        indexWriteRepository.putMeta("lastIndexDurationMs", durationMs.toString())
 
         return IndexResult(inserted = inserted, updated = updated, skipped = skipped)
     }

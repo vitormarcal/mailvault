@@ -219,6 +219,31 @@ class MessagesControllerIntegrationTest {
         val response = get("/")
         assertEquals(200, response.statusCode())
         assertEquals(true, response.body().contains("Caixa Historica"))
+        assertEquals(true, response.body().contains("Status"))
+    }
+
+    @Test
+    fun `GET stats returns counters and lastIndexAt when available`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO app_meta(key, value)
+            VALUES ('lastIndexAt', ?)
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """.trimIndent(),
+            "2026-02-22T12:00:00Z",
+        )
+
+        val response = get("/api/stats")
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"totalMessages\":3"))
+        assertEquals(true, body.contains("\"totalWithHtml\":1"))
+        assertEquals(true, body.contains("\"totalAttachments\":3"))
+        assertEquals(true, body.contains("\"totalAssetsDownloaded\":2"))
+        assertEquals(true, body.contains("\"totalAssetsFailed\":0"))
+        assertEquals(true, body.contains("\"storageBytesAttachments\""))
+        assertEquals(true, body.contains("\"storageBytesAssets\""))
+        assertEquals(true, body.contains("\"lastIndexAt\":\"2026-02-22T12:00:00Z\""))
     }
 
     @Test

@@ -12,6 +12,19 @@ import org.springframework.stereotype.Repository
 class IndexWriteRepository(
     private val jdbcTemplate: JdbcTemplate,
 ) {
+    fun putMeta(key: String, value: String) {
+        jdbcTemplate.update(
+            """
+            INSERT INTO app_meta (key, value)
+            VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value
+            """.trimIndent(),
+            key,
+            value,
+        )
+    }
+
     fun findByFilePath(filePath: String): ExistingMessage? =
         try {
             jdbcTemplate.queryForObject(

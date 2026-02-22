@@ -35,6 +35,14 @@ class IndexerServiceTest {
         jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """
+            CREATE TABLE IF NOT EXISTS app_meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """.trimIndent(),
+        )
+        jdbcTemplate.execute(
+            """
             CREATE TABLE IF NOT EXISTS messages (
                 id TEXT PRIMARY KEY,
                 file_path TEXT NOT NULL UNIQUE,

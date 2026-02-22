@@ -81,6 +81,46 @@
       overflow: hidden;
     }
 
+    .stats-panel {
+      margin-top: 12px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 14px 16px;
+    }
+
+    .stats-title {
+      margin: 0 0 10px;
+      font-size: 1.02rem;
+      color: #2a241c;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stats-card {
+      border: 1px solid #d8cab5;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fffcf6;
+    }
+
+    .stats-label {
+      font-size: .78rem;
+      color: #6b5f4b;
+      margin-bottom: 4px;
+    }
+
+    .stats-value {
+      font-size: 1.02rem;
+      font-weight: 700;
+      color: #2b2419;
+    }
+
     .search {
       display: grid;
       grid-template-columns: 1fr auto auto;
@@ -247,6 +287,9 @@
         flex-direction: column;
         align-items: flex-start;
       }
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
@@ -255,6 +298,20 @@
     <section class="hero">
       <h1>MailVault</h1>
       <p>Caixa historica para consulta rapida de mensagens indexadas.</p>
+    </section>
+
+    <section class="stats-panel">
+      <h2 class="stats-title">Status</h2>
+      <div class="stats-grid">
+        <div class="stats-card"><div class="stats-label">Mensagens</div><div id="statTotalMessages" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label">Com HTML</div><div id="statTotalWithHtml" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label">Anexos</div><div id="statTotalAttachments" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label">Assets baixados</div><div id="statAssetsDownloaded" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label">Assets falhos</div><div id="statAssetsFailed" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label">Bytes anexos</div><div id="statBytesAttachments" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label">Bytes assets</div><div id="statBytesAssets" class="stats-value">-</div></div>
+        <div class="stats-card"><div class="stats-label">Ultimo index</div><div id="statLastIndexAt" class="stats-value">-</div></div>
+      </div>
     </section>
 
     <section class="panel">
@@ -303,6 +360,14 @@
     const pageInfo = document.getElementById('pageInfo');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
+    const statTotalMessages = document.getElementById('statTotalMessages');
+    const statTotalWithHtml = document.getElementById('statTotalWithHtml');
+    const statTotalAttachments = document.getElementById('statTotalAttachments');
+    const statAssetsDownloaded = document.getElementById('statAssetsDownloaded');
+    const statAssetsFailed = document.getElementById('statAssetsFailed');
+    const statBytesAttachments = document.getElementById('statBytesAttachments');
+    const statBytesAssets = document.getElementById('statBytesAssets');
+    const statLastIndexAt = document.getElementById('statLastIndexAt');
 
     let state = {
       page: 0,
@@ -448,6 +513,42 @@
       loadMessages();
     }
 
+    function formatNumber(value) {
+      return Number(value || 0).toLocaleString('pt-BR');
+    }
+
+    function setStatsFallback() {
+      statTotalMessages.textContent = '-';
+      statTotalWithHtml.textContent = '-';
+      statTotalAttachments.textContent = '-';
+      statAssetsDownloaded.textContent = '-';
+      statAssetsFailed.textContent = '-';
+      statBytesAttachments.textContent = '-';
+      statBytesAssets.textContent = '-';
+      statLastIndexAt.textContent = '-';
+    }
+
+    async function loadStats() {
+      try {
+        const response = await fetch('/api/stats');
+        if (!response.ok) {
+          setStatsFallback();
+          return;
+        }
+        const stats = await response.json();
+        statTotalMessages.textContent = formatNumber(stats.totalMessages);
+        statTotalWithHtml.textContent = formatNumber(stats.totalWithHtml);
+        statTotalAttachments.textContent = formatNumber(stats.totalAttachments);
+        statAssetsDownloaded.textContent = formatNumber(stats.totalAssetsDownloaded);
+        statAssetsFailed.textContent = formatNumber(stats.totalAssetsFailed);
+        statBytesAttachments.textContent = formatNumber(stats.storageBytesAttachments);
+        statBytesAssets.textContent = formatNumber(stats.storageBytesAssets);
+        statLastIndexAt.textContent = stats.lastIndexAt || '-';
+      } catch (_) {
+        setStatsFallback();
+      }
+    }
+
     function setIndexRunning(running) {
       indexBtn.disabled = running;
       reindexBtn.disabled = running;
@@ -465,6 +566,7 @@
         const data = await response.json();
         indexStatus.textContent = `${actionLabel} concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`;
         applyAndLoad({ page: 0 });
+        loadStats();
       } catch (_) {
         indexStatus.textContent = `Falha de rede ao ${actionLabel.toLowerCase()}.`;
       } finally {
@@ -524,6 +626,7 @@
     state.page = currentPageFromUrl();
     queryInput.value = state.query;
     loadMessages();
+    loadStats();
   </script>
 </body>
 </html>
