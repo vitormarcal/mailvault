@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MailVault - Caixa Historica</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", serif; margin: 24px auto; max-width: 960px; padding: 0 16px; color: #1f2937; }
+    h1 { margin-bottom: 8px; }
+    p { color: #4b5563; }
+    form { display: flex; gap: 8px; margin: 16px 0; }
+    input[type="text"] { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; }
+    button { padding: 10px 14px; border: 1px solid #111827; background: #111827; color: #fff; border-radius: 6px; cursor: pointer; }
+    button.secondary { background: #fff; color: #111827; }
+    ul { list-style: none; padding: 0; margin: 16px 0; }
+    li { border-top: 1px solid #e5e7eb; padding: 12px 0; }
+    .meta { color: #6b7280; font-size: 14px; margin-bottom: 4px; }
+    a { color: #0f3d8a; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .empty { color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>Caixa Historica</h1>
+  <p>Busque por assunto/remetente e abra mensagens indexadas.</p>
+
+  <form id="searchForm">
+    <input id="query" type="text" placeholder="Buscar..." />
+    <button type="submit">Buscar</button>
+    <button id="clearBtn" type="button" class="secondary">Limpar</button>
+  </form>
+
+  <ul id="results"></ul>
+  <p id="emptyState" class="empty" hidden>Nenhuma mensagem encontrada.</p>
+
+  <script>
+    const searchForm = document.getElementById('searchForm');
+    const queryInput = document.getElementById('query');
+    const clearBtn = document.getElementById('clearBtn');
+    const results = document.getElementById('results');
+    const emptyState = document.getElementById('emptyState');
+
+    function escapeHtml(value) {
+      return (value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+    }
+
+    async function loadMessages(query) {
+      const params = new URLSearchParams({ page: '0', size: '100' });
+      if (query && query.trim().length > 0) {
+        params.set('query', query.trim());
+      }
+
+      const response = await fetch(`/api/messages?${params.toString()}`);
+      if (!response.ok) {
+        results.innerHTML = '<li>Erro ao carregar mensagens.</li>';
+        emptyState.hidden = true;
+        return;
+      }
+
+      const data = await response.json();
+      const items = data.items || [];
+      emptyState.hidden = items.length !== 0;
+      results.innerHTML = items.map((item) => {
+        const date = item.dateRaw || '(sem data)';
+        const from = item.fromRaw || '(sem remetente)';
+        const subject = item.subject || '(sem assunto)';
+        return `\n<li>\n  <div class="meta">${escapeHtml(date)} - ${escapeHtml(from)}</div>\n  <a href="/messages/${encodeURIComponent(item.id)}">${escapeHtml(subject)}</a>\n</li>`;
+      }).join('');
+    }
+
+    searchForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await loadMessages(queryInput.value);
+    });
+
+    clearBtn.addEventListener('click', async () => {
+      queryInput.value = '';
+      await loadMessages('');
+    });
+
+    loadMessages('');
+  </script>
+</body>
+</html>

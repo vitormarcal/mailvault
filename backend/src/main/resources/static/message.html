@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MailVault - Mensagem</title>
+  <style>
+    body { font-family: Georgia, "Times New Roman", serif; margin: 24px auto; max-width: 960px; padding: 0 16px; color: #1f2937; }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
+    button, a.btn { padding: 10px 14px; border: 1px solid #111827; background: #111827; color: #fff; border-radius: 6px; cursor: pointer; text-decoration: none; }
+    a.btn.secondary { background: #fff; color: #111827; }
+    dl { display: grid; grid-template-columns: 80px 1fr; gap: 8px 12px; }
+    dt { font-weight: bold; }
+    pre { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; white-space: pre-wrap; word-break: break-word; }
+    #status { color: #4b5563; min-height: 20px; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <a href="/" class="btn secondary">Voltar</a>
+    <button id="reindexBtn" type="button">Reindexar</button>
+  </div>
+
+  <h1 id="subject">Carregando...</h1>
+  <dl>
+    <dt>From</dt><dd id="fromRaw">-</dd>
+    <dt>Date</dt><dd id="dateRaw">-</dd>
+  </dl>
+
+  <h2>text/plain</h2>
+  <pre id="textPlain"></pre>
+  <p id="status"></p>
+
+  <script>
+    const subjectEl = document.getElementById('subject');
+    const fromEl = document.getElementById('fromRaw');
+    const dateEl = document.getElementById('dateRaw');
+    const textEl = document.getElementById('textPlain');
+    const statusEl = document.getElementById('status');
+    const reindexBtn = document.getElementById('reindexBtn');
+
+    function currentId() {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      return decodeURIComponent(parts[parts.length - 1] || '');
+    }
+
+    async function loadMessage() {
+      const id = currentId();
+      const response = await fetch(`/api/messages/${encodeURIComponent(id)}`);
+      if (!response.ok) {
+        subjectEl.textContent = 'Mensagem nao encontrada';
+        textEl.textContent = '';
+        return;
+      }
+
+      const data = await response.json();
+      subjectEl.textContent = data.subject || '(sem assunto)';
+      fromEl.textContent = data.fromRaw || '(sem remetente)';
+      dateEl.textContent = data.dateRaw || '(sem data)';
+      textEl.textContent = data.textPlain || '';
+    }
+
+    reindexBtn.addEventListener('click', async () => {
+      statusEl.textContent = 'Reindexando...';
+      const response = await fetch('/api/index', { method: 'POST' });
+      if (!response.ok) {
+        statusEl.textContent = 'Falha ao reindexar.';
+        return;
+      }
+      const data = await response.json();
+      statusEl.textContent = `Reindexacao concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`;
+      await loadMessage();
+    });
+
+    loadMessage();
+  </script>
+</body>
+</html>

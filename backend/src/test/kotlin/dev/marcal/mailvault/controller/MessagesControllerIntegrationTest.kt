@@ -88,6 +88,21 @@ class MessagesControllerIntegrationTest {
         assertEquals(404, response.statusCode())
     }
 
+    @Test
+    fun `GET root serves minimal inbox UI`() {
+        val response = get("/")
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("Caixa Historica"))
+    }
+
+    @Test
+    fun `GET messages id route serves minimal message UI`() {
+        val response = get("/messages/id-1")
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("Reindexar"))
+        assertEquals(true, response.body().contains("text/plain"))
+    }
+
     private fun get(path: String): HttpResponse<String> {
         val request =
             HttpRequest.newBuilder()
