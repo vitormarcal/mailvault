@@ -12,6 +12,8 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -28,6 +30,15 @@ class MessagesControllerIntegrationTest {
 
     @BeforeEach
     fun setupData() {
+        Files.createDirectories(storageDir.resolve("attachments").resolve("id-1"))
+
+        val inlinePath = storageDir.resolve("attachments").resolve("id-1").resolve("cid-bytes")
+        Files.writeString(inlinePath, "INLINE_IMAGE", StandardCharsets.UTF_8)
+
+        val attachPath = storageDir.resolve("attachments").resolve("id-1").resolve("file-bytes")
+        Files.writeString(attachPath, "ATTACHMENT_PAYLOAD", StandardCharsets.UTF_8)
+
+        jdbcTemplate.update("DELETE FROM attachments")
         jdbcTemplate.update("DELETE FROM message_bodies")
         jdbcTemplate.update("DELETE FROM messages")
         insert("id-1", "/tmp/1.eml", 1000, 10, "2024-01-01T10:00:00Z", "Hello there", "Alice <alice@x.com>", "<1@x>")
@@ -44,6 +55,35 @@ class MessagesControllerIntegrationTest {
             </div>
             """.trimIndent(),
             null,
+        )
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO attachments(id, message_id, filename, content_type, size, inline_cid, storage_path, sha256)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "att-inline-1",
+            "id-1",
+            "logo.png",
+            "image/png",
+            Files.size(inlinePath),
+            "img-1",
+            inlinePath.toAbsolutePath().normalize().toString(),
+            "sha-inline",
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO attachments(id, message_id, filename, content_type, size, inline_cid, storage_path, sha256)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "att-file-1",
+            "id-1",
+            "report.pdf",
+            "application/pdf",
+            Files.size(attachPath),
+            null,
+            attachPath.toAbsolutePath().normalize().toString(),
+            "sha-file",
         )
     }
 
@@ -116,13 +156,55 @@ class MessagesControllerIntegrationTest {
 
     @Test
     fun `GET messages id render returns sanitized html with rewritten links`() {
+        jdbcTemplate.update(
+            "UPDATE message_bodies SET html_raw = ? WHERE message_id = ?",
+            """
+            <div>
+              <img src="cid:img-1" />
+            </div>
+            """.trimIndent(),
+            "id-1",
+        )
+        jdbcTemplate.update("UPDATE message_bodies SET html_sanitized = NULL WHERE message_id = ?", "id-1")
+
         val response = get("/api/messages/id-1/render")
 
         assertEquals(200, response.statusCode())
         val body = response.body()
         assertEquals(true, body.contains("\"html\":"))
-        assertEquals(true, body.contains("/go?url"))
-        assertEquals(true, body.contains("/static/remote-image-blocked.svg"))
+        assertEquals(true, body.contains("/api/messages/id-1/cid/img-1"))
+    }
+
+    @Test
+    fun `GET message attachments lists metadata`() {
+        val response = get("/api/messages/id-1/attachments")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"id\":\"att-inline-1\""))
+        assertEquals(true, body.contains("\"isInline\":true"))
+        assertEquals(true, body.contains("\"id\":\"att-file-1\""))
+        assertEquals(true, body.contains("\"isInline\":false"))
+    }
+
+    @Test
+    fun `GET cid serves inline attachment bytes with safe headers`() {
+        val response = getBytes("/api/messages/id-1/cid/%3Cimg-1%3E")
+
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.headers().firstValue("Content-Disposition").orElse("").startsWith("inline;"))
+        assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").orElse(""))
+        assertEquals("INLINE_IMAGE", String(response.body(), StandardCharsets.UTF_8))
+    }
+
+    @Test
+    fun `GET attachment download serves bytes with attachment disposition`() {
+        val response = getBytes("/api/attachments/att-file-1/download")
+
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.headers().firstValue("Content-Disposition").orElse("").startsWith("attachment;"))
+        assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").orElse(""))
+        assertEquals("ATTACHMENT_PAYLOAD", String(response.body(), StandardCharsets.UTF_8))
     }
 
     @Test
@@ -142,6 +224,15 @@ class MessagesControllerIntegrationTest {
                 .GET()
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    }
+
+    private fun getBytes(path: String): HttpResponse<ByteArray> {
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:$port$path"))
+                .GET()
+                .build()
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray())
     }
 
     private fun insert(
@@ -176,6 +267,11 @@ class MessagesControllerIntegrationTest {
                 System.getProperty("java.io.tmpdir"),
                 "mailvault-messages-test-${UUID.randomUUID()}.db",
             ).toAbsolutePath().normalize()
+        private val storageDir =
+            Path.of(
+                System.getProperty("java.io.tmpdir"),
+                "mailvault-messages-storage-${UUID.randomUUID()}",
+            ).toAbsolutePath().normalize()
 
         @JvmStatic
         @DynamicPropertySource
@@ -186,6 +282,7 @@ class MessagesControllerIntegrationTest {
             registry.add("spring.flyway.url") { "jdbc:sqlite:$dbPath" }
             registry.add("spring.flyway.driver-class-name") { "org.sqlite.JDBC" }
             registry.add("spring.flyway.locations") { "classpath:db/migration" }
+            registry.add("mailvault.storageDir") { storageDir.toString() }
         }
     }
 }

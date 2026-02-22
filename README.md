@@ -20,6 +20,9 @@ A aplicacao sobe em `http://localhost:8080`.
 - Reindexacao manual no detalhe: botao **Reindexar** (chama `POST /api/index`)
 - Render HTML sanitizado: `GET /api/messages/{id}/render`
 - Navegacao externa segura (links): `GET /go?url=...`
+- Inline CID: `GET /api/messages/{id}/cid/{cid}`
+- Lista de anexos: `GET /api/messages/{id}/attachments`
+- Download de anexo: `GET /api/attachments/{attachmentId}/download`
 
 ## Renderizacao HTML segura
 

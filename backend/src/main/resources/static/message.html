@@ -13,6 +13,7 @@
     dt { font-weight: bold; }
     pre { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; white-space: pre-wrap; word-break: break-word; }
     #htmlContainer { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; }
+    #attachments li { margin-bottom: 6px; }
     #status { color: #4b5563; min-height: 20px; }
   </style>
 </head>
@@ -33,6 +34,10 @@
 
   <h2 id="plainTitle">text/plain</h2>
   <pre id="textPlain"></pre>
+
+  <h2>Anexos</h2>
+  <ul id="attachments"></ul>
+
   <p id="status"></p>
 
   <script>
@@ -43,6 +48,7 @@
     const plainTitleEl = document.getElementById('plainTitle');
     const htmlTitleEl = document.getElementById('htmlTitle');
     const htmlContainerEl = document.getElementById('htmlContainer');
+    const attachmentsEl = document.getElementById('attachments');
     const statusEl = document.getElementById('status');
     const reindexBtn = document.getElementById('reindexBtn');
 
@@ -60,12 +66,31 @@
       return data.html || '';
     }
 
+    async function loadAttachments(id) {
+      const response = await fetch(`/api/messages/${encodeURIComponent(id)}/attachments`);
+      if (!response.ok) {
+        attachmentsEl.innerHTML = '<li>Falha ao carregar anexos.</li>';
+        return;
+      }
+      const items = await response.json();
+      if (!items || items.length === 0) {
+        attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
+        return;
+      }
+      attachmentsEl.innerHTML = items.map((att) => {
+        const name = att.filename || '(sem nome)';
+        const inlineMark = att.isInline ? ' [inline]' : '';
+        return `<li><a href="/api/attachments/${encodeURIComponent(att.id)}/download">${name}</a> (${att.size} bytes)${inlineMark}</li>`;
+      }).join('');
+    }
+
     async function loadMessage() {
       const id = currentId();
       const response = await fetch(`/api/messages/${encodeURIComponent(id)}`);
       if (!response.ok) {
         subjectEl.textContent = 'Mensagem nao encontrada';
         textEl.textContent = '';
+        attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
         return;
       }
 
@@ -88,6 +113,8 @@
         plainTitleEl.hidden = false;
         textEl.hidden = false;
       }
+
+      await loadAttachments(id);
     }
 
     reindexBtn.addEventListener('click', async () => {
