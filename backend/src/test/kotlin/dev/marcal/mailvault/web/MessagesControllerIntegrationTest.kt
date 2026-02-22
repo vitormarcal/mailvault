@@ -187,6 +187,11 @@ class MessagesControllerIntegrationTest {
         val body = response.body()
         assertEquals(true, body.contains("\"total\":1"))
         assertEquals(true, body.contains("\"id\":\"id-1\""))
+        assertEquals(true, body.contains("\"snippet\":\"Body one\""))
+        assertEquals(true, body.contains("\"hasHtml\":true"))
+        assertEquals(true, body.contains("\"attachmentsCount\":3"))
+        assertEquals(true, body.contains("\"frozenAssetsCount\":2"))
+        assertEquals(true, body.contains("\"assetsFailedCount\":0"))
     }
 
     @Test
@@ -197,6 +202,49 @@ class MessagesControllerIntegrationTest {
         val body = response.body()
         assertEquals(true, body.contains("\"total\":1"))
         assertEquals(true, body.contains("\"id\":\"id-1\""))
+    }
+
+    @Test
+    fun `GET messages builds snippet from html_raw when plain is missing`() {
+        jdbcTemplate.update(
+            "INSERT INTO message_bodies(message_id, html_raw) VALUES (?, ?)",
+            "id-2",
+            "<div>Resumo <strong>HTML</strong> apenas</div>",
+        )
+
+        val response = get("/api/messages?page=0&size=50")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"id\":\"id-2\""))
+        assertEquals(true, body.contains("\"snippet\":\"Resumo HTML apenas\""))
+    }
+
+    @Test
+    fun `GET messages returns failed assets count when present`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO assets(id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "asset-failed-1",
+            "id-1",
+            "https://example.com/fail.png",
+            null,
+            "image/png",
+            null,
+            null,
+            "FAILED",
+            null,
+            "timeout",
+        )
+
+        val response = get("/api/messages?query=%22Body%20one%22&page=0&size=50")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"id\":\"id-1\""))
+        assertEquals(true, body.contains("\"assetsFailedCount\":1"))
     }
 
     @Test

@@ -97,17 +97,75 @@ class MessageRepository(
         val items =
             jdbcTemplate.query(
                 """
-                SELECT m.id, m.date_raw, m.subject, m.subject_display, m.from_raw, m.from_display, m.file_mtime_epoch
-                $fromClause
-                $whereClause
-                ORDER BY ${
+                WITH paged AS (
+                    SELECT
+                        ROW_NUMBER() OVER (
+                            ORDER BY ${
                     if (sanitizedQuery == null) {
                         "COALESCE(m.date_epoch, m.file_mtime_epoch) DESC, m.file_mtime_epoch DESC, m.id DESC"
                     } else {
                         "bm25(messages_fts) ASC, COALESCE(m.date_epoch, m.file_mtime_epoch) DESC, m.file_mtime_epoch DESC, m.id DESC"
                     }
                 }
-                LIMIT ? OFFSET ?
+                        ) AS page_order,
+                        m.id,
+                        m.date_raw,
+                        m.subject,
+                        m.subject_display,
+                        COALESCE(
+                            NULLIF(TRIM(mb.text_plain), ''),
+                            NULLIF(TRIM(mb.html_text), ''),
+                            NULLIF(TRIM(mb.html_raw), '')
+                        ) AS snippet_source,
+                        CASE
+                            WHEN mb.html_raw IS NOT NULL AND TRIM(mb.html_raw) <> '' THEN 1
+                            ELSE 0
+                        END AS has_html,
+                        m.from_raw,
+                        m.from_display,
+                        m.file_mtime_epoch
+                    $fromClause
+                    LEFT JOIN message_bodies mb ON mb.message_id = m.id
+                    $whereClause
+                    ORDER BY ${
+                    if (sanitizedQuery == null) {
+                        "COALESCE(m.date_epoch, m.file_mtime_epoch) DESC, m.file_mtime_epoch DESC, m.id DESC"
+                    } else {
+                        "bm25(messages_fts) ASC, COALESCE(m.date_epoch, m.file_mtime_epoch) DESC, m.file_mtime_epoch DESC, m.id DESC"
+                    }
+                }
+                    LIMIT ? OFFSET ?
+                ),
+                attachment_counts AS (
+                    SELECT a.message_id, COUNT(*) AS attachments_count
+                    FROM attachments a
+                    GROUP BY a.message_id
+                ),
+                asset_counts AS (
+                    SELECT
+                        s.message_id,
+                        SUM(CASE WHEN s.status = 'DOWNLOADED' THEN 1 ELSE 0 END) AS frozen_assets_count,
+                        SUM(CASE WHEN s.status = 'FAILED' THEN 1 ELSE 0 END) AS assets_failed_count
+                    FROM assets s
+                    GROUP BY s.message_id
+                )
+                SELECT
+                    p.id,
+                    p.date_raw,
+                    p.subject,
+                    p.subject_display,
+                    p.snippet_source,
+                    p.has_html,
+                    COALESCE(ac.attachments_count, 0) AS attachments_count,
+                    COALESCE(sc.frozen_assets_count, 0) AS frozen_assets_count,
+                    COALESCE(sc.assets_failed_count, 0) AS assets_failed_count,
+                    p.from_raw,
+                    p.from_display,
+                    p.file_mtime_epoch
+                FROM paged p
+                LEFT JOIN attachment_counts ac ON ac.message_id = p.id
+                LEFT JOIN asset_counts sc ON sc.message_id = p.id
+                ORDER BY p.page_order ASC
                 """.trimIndent(),
                 { rs, _ ->
                     MessageSummary(
@@ -115,6 +173,11 @@ class MessageRepository(
                         dateRaw = rs.getString("date_raw"),
                         subject = rs.getString("subject"),
                         subjectDisplay = rs.getString("subject_display"),
+                        snippetSource = rs.getString("snippet_source"),
+                        hasHtml = rs.getInt("has_html") == 1,
+                        attachmentsCount = rs.getInt("attachments_count"),
+                        frozenAssetsCount = rs.getInt("frozen_assets_count"),
+                        assetsFailedCount = rs.getInt("assets_failed_count"),
                         fromRaw = rs.getString("from_raw"),
                         fromDisplay = rs.getString("from_display"),
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),

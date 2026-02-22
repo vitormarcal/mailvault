@@ -6,6 +6,7 @@ import dev.marcal.mailvault.api.MessagesListResponse
 import dev.marcal.mailvault.repository.MessageRepository
 import dev.marcal.mailvault.util.ResourceNotFoundException
 import dev.marcal.mailvault.util.ValidationException
+import org.jsoup.Jsoup
 import org.springframework.stereotype.Service
 
 @Service
@@ -51,6 +52,11 @@ class MessageQueryService(
                     dateRaw = it.dateRaw,
                     subject = it.subject,
                     subjectDisplay = it.subjectDisplay,
+                    snippet = buildSnippet(it.snippetSource),
+                    hasHtml = it.hasHtml,
+                    attachmentsCount = it.attachmentsCount,
+                    frozenAssetsCount = it.frozenAssetsCount,
+                    assetsFailedCount = it.assetsFailedCount,
                     fromRaw = it.fromRaw,
                     fromDisplay = it.fromDisplay,
                     fileMtimeEpoch = it.fileMtimeEpoch,
@@ -76,5 +82,25 @@ class MessageQueryService(
             messageId = message.messageId,
             textPlain = message.textPlain,
         )
+    }
+
+    private fun buildSnippet(raw: String?): String? {
+        if (raw.isNullOrBlank()) {
+            return null
+        }
+        val normalized =
+            Jsoup.parse(raw)
+                .text()
+                .replace(WHITESPACE_REGEX, " ")
+                .trim()
+        if (normalized.isBlank()) {
+            return null
+        }
+        return if (normalized.length <= SNIPPET_MAX_CHARS) normalized else normalized.take(SNIPPET_MAX_CHARS).trimEnd() + "..."
+    }
+
+    private companion object {
+        const val SNIPPET_MAX_CHARS = 140
+        val WHITESPACE_REGEX = Regex("\\s+")
     }
 }
