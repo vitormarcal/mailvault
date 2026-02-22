@@ -227,6 +227,11 @@ class MessagesControllerIntegrationTest {
         assertEquals(200, response.statusCode())
         assertEquals(true, response.body().contains("Reindexar"))
         assertEquals(true, response.body().contains("text/plain"))
+        val csp = response.headers().firstValue("Content-Security-Policy").orElse("")
+        assertEquals(true, csp.contains("default-src 'none'"))
+        assertEquals(true, csp.contains("img-src 'self'"))
+        assertEquals(true, csp.contains("frame-ancestors 'none'"))
+        assertEquals("no-referrer", response.headers().firstValue("Referrer-Policy").orElse(""))
     }
 
     @Test
@@ -235,7 +240,9 @@ class MessagesControllerIntegrationTest {
             "UPDATE message_bodies SET html_raw = ? WHERE message_id = ?",
             """
             <div>
+              <a href="https://example.com/path">Go</a>
               <img src="cid:img-1" />
+              <iframe src="https://evil.invalid"></iframe>
             </div>
             """.trimIndent(),
             "id-1",
@@ -248,6 +255,7 @@ class MessagesControllerIntegrationTest {
         val body = response.body()
         assertEquals(true, body.contains("\"html\":"))
         assertEquals(true, body.contains("/api/messages/id-1/cid/img-1"))
+        assertEquals(false, body.contains("<iframe", ignoreCase = true))
     }
 
     @Test
@@ -347,6 +355,7 @@ class MessagesControllerIntegrationTest {
     fun `GET go redirects for safe schemes and blocks unsafe ones`() {
         val safe = get("/go?url=https://example.com")
         assertEquals(302, safe.statusCode())
+        assertEquals("no-referrer", safe.headers().firstValue("Referrer-Policy").orElse(""))
 
         val blocked = get("/go?url=javascript:alert(1)")
         assertEquals(400, blocked.statusCode())

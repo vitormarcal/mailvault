@@ -40,7 +40,13 @@ class HtmlRenderService(
             val quote = match.groups[2]?.value ?: "\""
             val href = match.groups[3]?.value ?: ""
             val rewrittenHref = "/go?url=${urlEncode(href)}"
-            "<a$prefix data-safe-href=$quote$rewrittenHref$quote"
+            val rel =
+                if (REL_ATTR_REGEX.containsMatchIn(prefix)) {
+                    ""
+                } else {
+                    " rel=${quote}noopener noreferrer${quote}"
+                }
+            "<a$prefix data-safe-href=$quote$rewrittenHref$quote$rel"
         }
 
         return IMG_SRC_REGEX.replace(withLinks) { match ->
@@ -106,6 +112,7 @@ class HtmlRenderService(
 
     private companion object {
         val ANCHOR_HREF_REGEX = Regex("""(?i)<a\b([^>]*?)\s+href\s*=\s*(["'])(.*?)\2""")
+        val REL_ATTR_REGEX = Regex("""(?i)\brel\s*=""")
         val IMG_SRC_REGEX = Regex("""(?i)<img\b([^>]*?)\s+src\s*=\s*(["'])(.*?)\2""")
         const val REMOTE_IMAGE_PLACEHOLDER = "/static/remote-image-blocked.svg"
     }
