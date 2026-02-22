@@ -21,6 +21,7 @@ A aplicacao sobe em `http://localhost:8080`.
 - Limpeza de manutencao: `POST /api/maintenance/cleanup`
 - Compactacao do SQLite: `POST /api/maintenance/vacuum`
 - Detalhe da mensagem: `GET /messages/{id}`
+- Navegacao no detalhe: `GET /api/messages/{id}/prev` e `GET /api/messages/{id}/next`
 - Reindexacao manual no detalhe: botao **Reindexar** (chama `POST /api/index`)
 - Render HTML sanitizado: `GET /api/messages/{id}/render`
 - Navegacao externa segura (links): `GET /go?url=...`
@@ -57,6 +58,7 @@ A aplicacao sobe em `http://localhost:8080`.
 4. Abra `http://localhost:8080/` e busque mensagens.
 5. Clique em um item para abrir `http://localhost:8080/messages/{id}` e ler `text/plain`/HTML.
 6. No detalhe, use **Congelar imagens** para baixar imagens remotas com limites e protecao SSRF.
+7. No detalhe, use **Anterior/Proximo** ou atalhos `k`/`j`; use `g` para voltar para a lista preservando filtros.
 
 ## Freeze automatico no index
 

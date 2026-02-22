@@ -354,6 +354,18 @@ class MessageRepositoryTest {
         assertNull(missing)
     }
 
+    @Test
+    fun `findPrevId and findNextId follow descending date_epoch with mtime fallback`() {
+        jdbcTemplate.update("UPDATE messages SET date_epoch = ? WHERE id = ?", 1704103200L, "a")
+        jdbcTemplate.update("UPDATE messages SET date_epoch = ? WHERE id = ?", 1706781600L, "b")
+        jdbcTemplate.update("UPDATE messages SET date_epoch = NULL WHERE id = ?", "c")
+
+        assertEquals("b", repository.findPrevId("a"))
+        assertEquals("c", repository.findNextId("a"))
+        assertEquals(null, repository.findPrevId("b"))
+        assertEquals(null, repository.findNextId("c"))
+    }
+
     private fun insert(
         id: String,
         filePath: String,

@@ -281,6 +281,29 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET message prev and next follow list ordering`() {
+        val prev = get("/api/messages/id-1/prev")
+        val next = get("/api/messages/id-1/next")
+        val firstPrev = get("/api/messages/id-2/prev")
+        val lastNext = get("/api/messages/id-3/next")
+
+        assertEquals(200, prev.statusCode())
+        assertEquals(true, prev.body().contains("\"id\":\"id-2\""))
+        assertEquals(200, next.statusCode())
+        assertEquals(true, next.body().contains("\"id\":\"id-3\""))
+        assertEquals(200, firstPrev.statusCode())
+        assertEquals(true, firstPrev.body().contains("\"id\":null"))
+        assertEquals(200, lastNext.statusCode())
+        assertEquals(true, lastNext.body().contains("\"id\":null"))
+    }
+
+    @Test
+    fun `GET message prev returns 404 for unknown message`() {
+        val response = get("/api/messages/missing/prev")
+        assertEquals(404, response.statusCode())
+    }
+
+    @Test
     fun `GET root serves minimal inbox UI`() {
         val response = get("/")
         assertEquals(200, response.statusCode())

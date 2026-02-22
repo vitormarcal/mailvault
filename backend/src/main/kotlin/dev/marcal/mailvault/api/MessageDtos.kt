@@ -43,3 +43,7 @@ data class MessageDetailResponse(
     val messageId: String?,
     val textPlain: String?,
 )
+
+data class MessageNeighborResponse(
+    val id: String?,
+)

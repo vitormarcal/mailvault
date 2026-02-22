@@ -221,4 +221,60 @@ class MessageRepository(
         } catch (_: EmptyResultDataAccessException) {
             null
         }
+
+    fun findPrevId(id: String): String? =
+        try {
+            jdbcTemplate.queryForObject(
+                """
+                WITH ordered AS (
+                    SELECT
+                        id,
+                        ROW_NUMBER() OVER (
+                            ORDER BY COALESCE(date_epoch, file_mtime_epoch) DESC, file_mtime_epoch DESC, id DESC
+                        ) AS rn
+                    FROM messages
+                ),
+                current_row AS (
+                    SELECT rn
+                    FROM ordered
+                    WHERE id = ?
+                )
+                SELECT o.id
+                FROM ordered o
+                JOIN current_row c ON o.rn = c.rn - 1
+                """.trimIndent(),
+                String::class.java,
+                id,
+            )
+        } catch (_: EmptyResultDataAccessException) {
+            null
+        }
+
+    fun findNextId(id: String): String? =
+        try {
+            jdbcTemplate.queryForObject(
+                """
+                WITH ordered AS (
+                    SELECT
+                        id,
+                        ROW_NUMBER() OVER (
+                            ORDER BY COALESCE(date_epoch, file_mtime_epoch) DESC, file_mtime_epoch DESC, id DESC
+                        ) AS rn
+                    FROM messages
+                ),
+                current_row AS (
+                    SELECT rn
+                    FROM ordered
+                    WHERE id = ?
+                )
+                SELECT o.id
+                FROM ordered o
+                JOIN current_row c ON o.rn = c.rn + 1
+                """.trimIndent(),
+                String::class.java,
+                id,
+            )
+        } catch (_: EmptyResultDataAccessException) {
+            null
+        }
 }

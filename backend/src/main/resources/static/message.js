@@ -14,6 +14,9 @@ const tabPlainEl = document.getElementById('tabPlain');
 
 const attachmentsEl = document.getElementById('attachments');
 const statusEl = document.getElementById('status');
+const backToListBtn = document.getElementById('backToListBtn');
+const prevMsgBtn = document.getElementById('prevMsgBtn');
+const nextMsgBtn = document.getElementById('nextMsgBtn');
 const reindexBtn = document.getElementById('reindexBtn');
 const freezeBtn = document.getElementById('freezeBtn');
 
@@ -21,20 +24,14 @@ let currentState = {
   messageId: '',
   hasHtml: false,
   hasPlain: false,
+  prevId: null,
+  nextId: null,
   activeTab: 'plain',
 };
 
 function currentId() {
   const parts = window.location.pathname.split('/').filter(Boolean);
   return decodeURIComponent(parts[parts.length - 1] || '');
-}
-
-function escapeHtml(value) {
-  return (value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
 }
 
 function setStatus(kind, message) {
@@ -50,6 +47,46 @@ function clearStatus() {
 function setLoadingButtons(isLoading) {
   reindexBtn.disabled = isLoading;
   freezeBtn.disabled = isLoading;
+}
+
+function resolveListQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const returnParam = params.get('return');
+  if (returnParam && returnParam.startsWith('?')) {
+    return returnParam;
+  }
+  const stored = window.sessionStorage.getItem('mailvault:lastListQuery');
+  if (stored && stored.startsWith('?')) {
+    return stored;
+  }
+  return '';
+}
+
+function listUrl() {
+  const listQuery = resolveListQuery();
+  return listQuery ? `/${listQuery}` : '/';
+}
+
+function updateBackLink() {
+  backToListBtn.href = listUrl();
+}
+
+function updateNeighborButtons() {
+  prevMsgBtn.disabled = !currentState.prevId;
+  nextMsgBtn.disabled = !currentState.nextId;
+}
+
+function gotoMessageById(id) {
+  if (!id) {
+    return;
+  }
+  const listQuery = resolveListQuery();
+  const params = new URLSearchParams();
+  if (listQuery) {
+    params.set('return', listQuery);
+  }
+  const suffix = params.toString();
+  window.location.href = `/messages/${encodeURIComponent(id)}${suffix ? `?${suffix}` : ''}`;
 }
 
 function applyTab(tab) {
@@ -89,7 +126,11 @@ async function loadAttachments(id) {
   }
 
   attachmentsEl.innerHTML = items.map((att) => {
-    const name = escapeHtml(att.filename || '(sem nome)');
+    const name = (att.filename || '(sem nome)')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
     const inlineMark = att.isInline ? '<span class="badge">inline</span>' : '';
     const size = Number(att.size || 0);
     return `<li>
@@ -99,10 +140,33 @@ async function loadAttachments(id) {
   }).join('');
 }
 
+async function loadNeighbors(id) {
+  currentState.prevId = null;
+  currentState.nextId = null;
+  updateNeighborButtons();
+
+  const [prevResponse, nextResponse] = await Promise.all([
+    fetch(`/api/messages/${encodeURIComponent(id)}/prev`),
+    fetch(`/api/messages/${encodeURIComponent(id)}/next`),
+  ]);
+
+  if (prevResponse.ok) {
+    const prevData = await prevResponse.json();
+    currentState.prevId = prevData.id || null;
+  }
+  if (nextResponse.ok) {
+    const nextData = await nextResponse.json();
+    currentState.nextId = nextData.id || null;
+  }
+
+  updateNeighborButtons();
+}
+
 async function loadMessage() {
   clearStatus();
   const id = currentId();
   currentState.messageId = id;
+  updateBackLink();
 
   subjectEl.textContent = 'Carregando mensagem...';
   fromEl.textContent = '-';
@@ -119,6 +183,7 @@ async function loadMessage() {
     htmlContainerEl.innerHTML = '';
     attachmentsEl.innerHTML = '<li>(sem anexos)</li>';
     setStatus('error', 'Nao foi possivel carregar os dados da mensagem.');
+    updateNeighborButtons();
     return;
   }
 
@@ -144,10 +209,13 @@ async function loadMessage() {
   }
 
   await loadAttachments(id);
+  await loadNeighbors(id);
 }
 
 tabHtmlEl.addEventListener('click', () => applyTab('html'));
 tabPlainEl.addEventListener('click', () => applyTab('plain'));
+prevMsgBtn.addEventListener('click', () => gotoMessageById(currentState.prevId));
+nextMsgBtn.addEventListener('click', () => gotoMessageById(currentState.nextId));
 
 reindexBtn.addEventListener('click', async () => {
   setLoadingButtons(true);
@@ -187,6 +255,33 @@ freezeBtn.addEventListener('click', async () => {
     setStatus('error', 'Falha de rede ao congelar imagens.');
   } finally {
     setLoadingButtons(false);
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+    return;
+  }
+
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  ) {
+    return;
+  }
+
+  if (event.key === 'j') {
+    event.preventDefault();
+    gotoMessageById(currentState.nextId);
+  } else if (event.key === 'k') {
+    event.preventDefault();
+    gotoMessageById(currentState.prevId);
+  } else if (event.key === 'g') {
+    event.preventDefault();
+    window.location.href = listUrl();
   }
 });
 

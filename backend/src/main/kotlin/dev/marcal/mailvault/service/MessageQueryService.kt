@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.service
 
 import dev.marcal.mailvault.api.MessageDetailResponse
+import dev.marcal.mailvault.api.MessageNeighborResponse
 import dev.marcal.mailvault.api.MessageSummaryResponse
 import dev.marcal.mailvault.api.MessagesListResponse
 import dev.marcal.mailvault.repository.MessageRepository
@@ -82,6 +83,20 @@ class MessageQueryService(
             messageId = message.messageId,
             textPlain = message.textPlain,
         )
+    }
+
+    fun prev(id: String): MessageNeighborResponse {
+        if (messageRepository.findById(id) == null) {
+            throw ResourceNotFoundException("message not found")
+        }
+        return MessageNeighborResponse(id = messageRepository.findPrevId(id))
+    }
+
+    fun next(id: String): MessageNeighborResponse {
+        if (messageRepository.findById(id) == null) {
+            throw ResourceNotFoundException("message not found")
+        }
+        return MessageNeighborResponse(id = messageRepository.findNextId(id))
     }
 
     private fun buildSnippet(raw: String?): String? {
