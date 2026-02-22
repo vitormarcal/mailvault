@@ -46,7 +46,9 @@ class MessageRepositoryTest {
             """
             CREATE TABLE IF NOT EXISTS message_bodies (
                 message_id TEXT PRIMARY KEY,
-                text_plain TEXT
+                text_plain TEXT,
+                html_raw TEXT,
+                html_sanitized TEXT
             )
             """.trimIndent(),
         )

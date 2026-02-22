@@ -13,3 +13,4 @@ spring:
 mailvault:
   index:
     root-dir: ${MAILVAULT_INDEX_ROOT_DIR:./data/emails}
+  storageDir: ${MAILVAULT_STORAGE_DIR:./data/storage}

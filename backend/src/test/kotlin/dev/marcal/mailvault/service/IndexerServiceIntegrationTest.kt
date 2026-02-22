@@ -24,6 +24,8 @@ class IndexerServiceIntegrationTest {
 
     @BeforeEach
     fun cleanMessagesTable() {
+        jdbcTemplate.update("DELETE FROM attachments")
+        jdbcTemplate.update("DELETE FROM message_bodies")
         jdbcTemplate.update("DELETE FROM messages")
         if (Files.exists(indexRootDir)) {
             Files.walk(indexRootDir)
@@ -31,6 +33,12 @@ class IndexerServiceIntegrationTest {
                 .forEach(Files::delete)
         }
         Files.createDirectories(indexRootDir)
+        if (Files.exists(storageRootDir)) {
+            Files.walk(storageRootDir)
+                .sorted(Comparator.reverseOrder())
+                .forEach(Files::delete)
+        }
+        Files.createDirectories(storageRootDir)
     }
 
     @Test
@@ -40,7 +48,7 @@ class IndexerServiceIntegrationTest {
             Int::class.java,
         )
         assertNotNull(count)
-        assertEquals(true, count >= 4)
+        assertEquals(true, count >= 6)
     }
 
     @Test
@@ -207,7 +215,7 @@ class IndexerServiceIntegrationTest {
     }
 
     @Test
-    fun `stores null text plain for multipart email without failing`() {
+    fun `stores text plain for multipart email without failing`() {
         val emlPath = indexRootDir.resolve("multipart.eml")
         Files.writeString(
             emlPath,
@@ -222,6 +230,10 @@ class IndexerServiceIntegrationTest {
             Content-Type: text/plain; charset=UTF-8
 
             Hello part
+            --b1
+            Content-Type: text/html; charset=UTF-8
+
+            <p>Hello part</p>
             --b1--
             """.trimIndent(),
         )
@@ -239,7 +251,65 @@ class IndexerServiceIntegrationTest {
             String::class.java,
             emlPath.toAbsolutePath().normalize().toString(),
         )
-        assertEquals(null, textPlain)
+        assertEquals("Hello part", textPlain?.trim())
+
+        val htmlRaw = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.html_raw
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
+        assertEquals(true, htmlRaw?.contains("Hello part") == true)
+    }
+
+    @Test
+    fun `stores attachments and inline cid metadata with file on disk`() {
+        val emlPath = indexRootDir.resolve("with-attachment.eml")
+        Files.writeString(
+            emlPath,
+            """
+            From: Multi Sender <multi@example.com>
+            Subject: Attach
+            Message-ID: <attach-1@example.com>
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="mix"
+
+            --mix
+            Content-Type: text/plain; charset=UTF-8
+
+            Body with attachment
+            --mix
+            Content-Type: image/png; name="pixel.png"
+            Content-Transfer-Encoding: base64
+            Content-Disposition: inline; filename="pixel.png"
+            Content-ID: <img-42>
+
+            iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO9fZQAAAABJRU5ErkJggg==
+            --mix--
+            """.trimIndent(),
+        )
+
+        val result = indexerService.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), result)
+
+        val attachmentCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM attachments", Int::class.java)
+        assertEquals(1, attachmentCount)
+
+        val inlineCid = jdbcTemplate.queryForObject(
+            "SELECT inline_cid FROM attachments LIMIT 1",
+            String::class.java,
+        )
+        assertEquals("img-42", inlineCid)
+
+        val storagePath = jdbcTemplate.queryForObject(
+            "SELECT storage_path FROM attachments LIMIT 1",
+            String::class.java,
+        )
+        assertEquals(true, Files.exists(Path.of(storagePath)))
     }
 
     companion object {
@@ -253,6 +323,11 @@ class IndexerServiceIntegrationTest {
                 System.getProperty("java.io.tmpdir"),
                 "mailvault-index-test-${UUID.randomUUID()}",
             ).toAbsolutePath().normalize()
+        private val storageRootDir =
+            Path.of(
+                System.getProperty("java.io.tmpdir"),
+                "mailvault-storage-test-${UUID.randomUUID()}",
+            ).toAbsolutePath().normalize()
 
         @JvmStatic
         @DynamicPropertySource
@@ -264,6 +339,7 @@ class IndexerServiceIntegrationTest {
             registry.add("spring.flyway.driver-class-name") { "org.sqlite.JDBC" }
             registry.add("spring.flyway.locations") { "classpath:db/migration" }
             registry.add("mailvault.index.root-dir") { indexRootDir.toString() }
+            registry.add("mailvault.storageDir") { storageRootDir.toString() }
         }
     }
 }

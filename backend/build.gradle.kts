@@ -23,6 +23,8 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-jdbc")
 	implementation("org.flywaydb:flyway-core")
+	implementation("org.eclipse.angus:angus-mail:2.0.4")
+	implementation("com.sun.activation:jakarta.activation:2.0.1")
 	implementation("org.xerial:sqlite-jdbc:3.50.3.0")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
 	implementation("tools.jackson.module:jackson-module-kotlin")

@@ -1,14 +1,15 @@
 package dev.marcal.mailvault.service
 
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
-import org.slf4j.LoggerFactory
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.Comparator
 import kotlin.streams.asSequence
 
 data class IndexResult(
@@ -20,8 +21,9 @@ data class IndexResult(
 @Service
 class IndexerService(
     private val jdbcTemplate: JdbcTemplate,
-    private val emlHeaderParser: EmlHeaderParser,
+    private val messageParseService: MessageParseService,
     @Value("\${mailvault.index.root-dir}") private val rootDir: String,
+    @Value("\${mailvault.storageDir}") private val storageDir: String,
 ) {
     private val logger = LoggerFactory.getLogger(IndexerService::class.java)
 
@@ -51,26 +53,36 @@ class IndexerService(
                         return@forEach
                     }
 
-                    val headers = emlHeaderParser.parse(filePath)
-                    val textPlain = extractTextPlain(filePath)
-                    val id = sha256Hex("${headers.messageId ?: ""}|$normalizedPath")
+                    try {
+                        val parsed = messageParseService.parse(filePath)
+                        val id = sha256Hex("${parsed.messageId ?: ""}|$normalizedPath")
 
-                    upsertMessage(
-                        id = id,
-                        filePath = normalizedPath,
-                        fileMtimeEpoch = mtime,
-                        fileSize = size,
-                        dateRaw = headers.date,
-                        subject = headers.subject,
-                        fromRaw = headers.from,
-                        messageId = headers.messageId,
-                    )
-                    upsertMessageBody(id = id, textPlain = textPlain)
+                        upsertMessage(
+                            id = id,
+                            filePath = normalizedPath,
+                            fileMtimeEpoch = mtime,
+                            fileSize = size,
+                            dateRaw = parsed.dateRaw,
+                            subject = parsed.subject,
+                            fromRaw = parsed.fromRaw,
+                            messageId = parsed.messageId,
+                        )
 
-                    if (existing == null) {
-                        inserted++
-                    } else {
-                        updated++
+                        upsertMessageBody(
+                            id = id,
+                            textPlain = parsed.textPlain,
+                            htmlRaw = parsed.htmlRaw,
+                        )
+
+                        replaceAttachments(id, parsed.attachments)
+
+                        if (existing == null) {
+                            inserted++
+                        } else {
+                            updated++
+                        }
+                    } catch (e: Exception) {
+                        logger.error("Failed to index file {}", filePath, e)
                     }
                 }
         }
@@ -133,49 +145,72 @@ class IndexerService(
         )
     }
 
-    private fun upsertMessageBody(id: String, textPlain: String?) {
+    private fun upsertMessageBody(id: String, textPlain: String?, htmlRaw: String?) {
         jdbcTemplate.update(
             """
-            INSERT INTO message_bodies (message_id, text_plain)
-            VALUES (?, ?)
+            INSERT INTO message_bodies (message_id, text_plain, html_raw, html_sanitized)
+            VALUES (?, ?, ?, ?)
             ON CONFLICT(message_id) DO UPDATE SET
-                text_plain = excluded.text_plain
+                text_plain = excluded.text_plain,
+                html_raw = excluded.html_raw,
+                html_sanitized = excluded.html_sanitized
             """.trimIndent(),
             id,
             textPlain,
+            htmlRaw,
+            null,
         )
     }
 
-    private fun extractTextPlain(filePath: Path): String? {
-        val raw = Files.readString(filePath, StandardCharsets.UTF_8)
-        val separator = findHeaderBodySeparator(raw)
+    private fun replaceAttachments(messageId: String, attachments: List<ParsedAttachment>) {
+        val baseDir = attachmentMessageDir(messageId)
+        deleteDirectoryIfExists(baseDir)
+        Files.createDirectories(baseDir)
 
-        if (separator == null) {
-            logger.info("EML without header/body separator, storing empty text_plain: {}", filePath)
-            return null
+        jdbcTemplate.update("DELETE FROM attachments WHERE message_id = ?", messageId)
+
+        attachments.forEachIndexed { index, attachment ->
+            val sha256 = sha256Hex(attachment.bytes)
+            val storagePath = baseDir.resolve(sha256)
+            Files.write(storagePath, attachment.bytes)
+
+            val attachmentId =
+                sha256Hex(
+                    "$messageId|$index|${attachment.filename ?: ""}|${attachment.inlineCid ?: ""}|$sha256",
+                )
+
+            jdbcTemplate.update(
+                """
+                INSERT INTO attachments (
+                    id, message_id, filename, content_type, size, inline_cid, storage_path, sha256
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent(),
+                attachmentId,
+                messageId,
+                attachment.filename,
+                attachment.contentType,
+                attachment.size,
+                attachment.inlineCid,
+                storagePath.toAbsolutePath().normalize().toString(),
+                sha256,
+            )
         }
-
-        val headerSection = raw.substring(0, separator.first)
-        if (MULTIPART_CONTENT_TYPE_REGEX.containsMatchIn(headerSection)) {
-            logger.info("Multipart MIME not parsed yet, storing empty text_plain: {}", filePath)
-            return null
-        }
-
-        return raw.substring(separator.second)
     }
 
-    private fun findHeaderBodySeparator(raw: String): Pair<Int, Int>? {
-        val crlfIndex = raw.indexOf("\r\n\r\n")
-        if (crlfIndex >= 0) {
-            return Pair(crlfIndex, crlfIndex + 4)
-        }
+    private fun attachmentMessageDir(messageId: String): Path =
+        Path.of(storageDir)
+            .toAbsolutePath()
+            .normalize()
+            .resolve("attachments")
+            .resolve(messageId)
 
-        val lfIndex = raw.indexOf("\n\n")
-        if (lfIndex >= 0) {
-            return Pair(lfIndex, lfIndex + 2)
+    private fun deleteDirectoryIfExists(path: Path) {
+        if (!Files.exists(path)) {
+            return
         }
-
-        return null
+        Files.walk(path)
+            .sorted(Comparator.reverseOrder())
+            .forEach(Files::delete)
     }
 
     private fun sha256Hex(value: String): String {
@@ -184,13 +219,14 @@ class IndexerService(
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
+    private fun sha256Hex(value: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val bytes = digest.digest(value)
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
     private data class ExistingMessage(
         val fileMtimeEpoch: Long,
         val fileSize: Long,
     )
-
-    private companion object {
-        val MULTIPART_CONTENT_TYPE_REGEX = Regex("(?im)^content-type\\s*:\\s*multipart/")
-    }
-
 }

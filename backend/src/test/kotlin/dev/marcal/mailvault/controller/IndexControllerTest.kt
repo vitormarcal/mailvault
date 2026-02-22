@@ -1,8 +1,8 @@
 package dev.marcal.mailvault.controller
 
-import dev.marcal.mailvault.service.EmlHeaderParser
 import dev.marcal.mailvault.service.IndexResult
 import dev.marcal.mailvault.service.IndexerService
+import dev.marcal.mailvault.service.MessageParseService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -50,11 +50,35 @@ class IndexControllerTest {
             """
             CREATE TABLE IF NOT EXISTS message_bodies (
                 message_id TEXT PRIMARY KEY,
-                text_plain TEXT
+                text_plain TEXT,
+                html_raw TEXT,
+                html_sanitized TEXT
             )
             """.trimIndent(),
         )
-        controller = IndexController(IndexerService(jdbcTemplate, EmlHeaderParser(), emailsDir.toString()))
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS attachments (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                filename TEXT,
+                content_type TEXT,
+                size INTEGER,
+                inline_cid TEXT NULL,
+                storage_path TEXT NOT NULL,
+                sha256 TEXT NOT NULL
+            )
+            """.trimIndent(),
+        )
+        controller =
+            IndexController(
+                IndexerService(
+                    jdbcTemplate,
+                    MessageParseService(),
+                    emailsDir.toString(),
+                    tempDir.resolve("storage").toString(),
+                ),
+            )
     }
 
     @Test
@@ -65,7 +89,15 @@ class IndexControllerTest {
 
     @Test
     fun `maps invalid configured root dir to bad request`() {
-        controller = IndexController(IndexerService(jdbcTemplate, EmlHeaderParser(), tempDir.resolve("missing").toString()))
+        controller =
+            IndexController(
+                IndexerService(
+                    jdbcTemplate,
+                    MessageParseService(),
+                    tempDir.resolve("missing").toString(),
+                    tempDir.resolve("storage").toString(),
+                ),
+            )
 
         val ex =
             assertFailsWith<ResponseStatusException> {
