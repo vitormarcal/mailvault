@@ -266,6 +266,27 @@
       color: var(--muted);
       font-size: .92rem;
       min-height: 20px;
+      border-radius: 8px;
+      padding: 4px 8px;
+      border: 1px solid transparent;
+    }
+
+    .ops-status.ok {
+      color: #1f613f;
+      background: #e9f6ef;
+      border-color: #b7ddc6;
+    }
+
+    .ops-status.error {
+      color: #772828;
+      background: #fdeeee;
+      border-color: #edc6c6;
+    }
+
+    .ops-status.info {
+      color: #1e4c75;
+      background: #ebf3fb;
+      border-color: #b8d2ea;
     }
 
     .kbd {
@@ -478,9 +499,9 @@
 
       <div class="ops">
         <div class="ops-actions">
-          <button id="indexBtn" type="button" class="btn-primary">Indexar</button>
-          <button id="reindexBtn" type="button" class="btn-ghost">Reindexar</button>
-          <button id="maintenanceBtn" type="button" class="btn-ghost">Manutencao</button>
+          <button id="indexBtn" type="button" class="btn-primary">Indexar (incremental)</button>
+          <button id="reindexBtn" type="button" class="btn-ghost">Reindexar (completo)</button>
+          <button id="maintenanceBtn" type="button" class="btn-ghost">Manutencao (limpeza/vacuum)</button>
         </div>
         <span id="indexStatus" class="ops-status"></span>
       </div>
@@ -908,21 +929,26 @@
       maintenanceBtn.disabled = running;
     }
 
+    function setOpsStatus(kind, message) {
+      indexStatus.className = `ops-status ${kind}`;
+      indexStatus.textContent = message;
+    }
+
     async function runIndex(actionLabel) {
       setIndexRunning(true);
-      indexStatus.textContent = `${actionLabel} em andamento...`;
+      setOpsStatus('info', `${actionLabel} em andamento...`);
       try {
         const response = await fetch('/api/index', { method: 'POST' });
         if (!response.ok) {
-          indexStatus.textContent = `Falha ao ${actionLabel.toLowerCase()}.`;
+          setOpsStatus('error', `Falha ao ${actionLabel.toLowerCase()}.`);
           return;
         }
         const data = await response.json();
-        indexStatus.textContent = `${actionLabel} concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`;
+        setOpsStatus('ok', `${actionLabel} concluida: inserted=${data.inserted}, updated=${data.updated}, skipped=${data.skipped}`);
         applyAndLoad({ page: 0 });
         loadStats();
       } catch (_) {
-        indexStatus.textContent = `Falha de rede ao ${actionLabel.toLowerCase()}.`;
+        setOpsStatus('error', `Falha de rede ao ${actionLabel.toLowerCase()}.`);
       } finally {
         setIndexRunning(false);
       }
@@ -930,27 +956,29 @@
 
     async function runMaintenance() {
       setIndexRunning(true);
-      indexStatus.textContent = 'Manutencao em andamento...';
+      setOpsStatus('info', 'Manutencao em andamento...');
       try {
         const cleanupRes = await fetch('/api/maintenance/cleanup', { method: 'POST' });
         if (!cleanupRes.ok) {
-          indexStatus.textContent = 'Falha ao executar limpeza.';
+          setOpsStatus('error', 'Falha ao executar limpeza.');
           return;
         }
         const cleanup = await cleanupRes.json();
 
         const vacuumRes = await fetch('/api/maintenance/vacuum', { method: 'POST' });
         if (!vacuumRes.ok) {
-          indexStatus.textContent = 'Limpeza concluida, mas VACUUM falhou.';
+          setOpsStatus('error', 'Limpeza concluida, mas VACUUM falhou.');
           return;
         }
         const vacuum = await vacuumRes.json();
-        indexStatus.textContent =
-          `Manutencao concluida: arquivosRemovidos=${cleanup.removedAttachmentFiles + cleanup.removedAssetFiles}, mensagensRemovidas=${cleanup.removedMissingMessageRows}, vacuumMs=${vacuum.durationMs}`;
+        setOpsStatus(
+          'ok',
+          `Manutencao concluida: arquivosRemovidos=${cleanup.removedAttachmentFiles + cleanup.removedAssetFiles}, mensagensRemovidas=${cleanup.removedMissingMessageRows}, vacuumMs=${vacuum.durationMs}`,
+        );
         applyAndLoad({ page: 0 });
         loadStats();
       } catch (_) {
-        indexStatus.textContent = 'Falha de rede ao executar manutenção.';
+        setOpsStatus('error', 'Falha de rede ao executar manutencao.');
       } finally {
         setIndexRunning(false);
       }
@@ -1003,14 +1031,26 @@
     });
 
     indexBtn.addEventListener('click', () => {
-      runIndex('Indexacao');
+      runIndex('Indexacao incremental');
     });
 
     reindexBtn.addEventListener('click', () => {
-      runIndex('Reindexacao');
+      const confirmed = window.confirm(
+        'Reindexacao completa vai reler todos os .eml e atualizar metadados/corpos. Pode demorar. Deseja continuar?',
+      );
+      if (!confirmed) {
+        return;
+      }
+      runIndex('Reindexacao completa');
     });
 
     maintenanceBtn.addEventListener('click', () => {
+      const confirmed = window.confirm(
+        'Manutencao remove arquivos orfaos e executa VACUUM no SQLite. Pode consumir IO e tempo. Deseja continuar?',
+      );
+      if (!confirmed) {
+        return;
+      }
       runMaintenance();
     });
 

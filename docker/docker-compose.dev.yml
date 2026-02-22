@@ -17,8 +17,9 @@ services:
       - SPRING_FLYWAY_URL=jdbc:sqlite:/app/data/mailvault.db
       - SPRING_FLYWAY_DRIVER_CLASS_NAME=org.sqlite.JDBC
       - SPRING_FLYWAY_LOCATIONS=classpath:db/migration
+      - MAILVAULT_INDEX_ROOT_DIR=/app/data/emails
+      - MAILVAULT_STORAGE_DIR=/app/data/storage
       - MAILVAULT_FREEZE_ON_INDEX=false
-      - MAILVAULT_FREEZE_ON_INDEX_MAX_MESSAGES=200
       - MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY=2
 
 volumes:
