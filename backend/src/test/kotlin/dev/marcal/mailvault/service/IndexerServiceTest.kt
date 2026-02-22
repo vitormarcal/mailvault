@@ -6,6 +6,8 @@ import org.junit.jupiter.api.io.TempDir
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
 import dev.marcal.mailvault.repository.IndexWriteRepository
+import dev.marcal.mailvault.repository.AssetRepository
+import dev.marcal.mailvault.repository.MessageHtmlRepository
 import dev.marcal.mailvault.config.MailVaultProperties
 import java.nio.file.Files
 import java.nio.file.Path
@@ -71,6 +73,23 @@ class IndexerServiceTest {
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS assets (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                original_url TEXT NOT NULL,
+                storage_path TEXT,
+                content_type TEXT,
+                size INTEGER,
+                sha256 TEXT,
+                status TEXT NOT NULL,
+                downloaded_at TEXT,
+                error TEXT,
+                UNIQUE(message_id, original_url)
+            )
+            """.trimIndent(),
+        )
 
         rootDir = tempDir.resolve("emails")
         storageDir = tempDir.resolve("storage")
@@ -78,10 +97,7 @@ class IndexerServiceTest {
         Files.createDirectories(storageDir)
 
         service =
-            IndexerService(
-                IndexWriteRepository(jdbcTemplate),
-                MessageParseService(),
-                AttachmentStorageService(),
+            createIndexerService(
                 MailVaultProperties(
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
@@ -92,10 +108,7 @@ class IndexerServiceTest {
     @Test
     fun `throws when configured root dir is invalid`() {
         service =
-            IndexerService(
-                IndexWriteRepository(jdbcTemplate),
-                MessageParseService(),
-                AttachmentStorageService(),
+            createIndexerService(
                 MailVaultProperties(
                     rootEmailsDir = tempDir.resolve("missing").toString(),
                     storageDir = storageDir.toString(),
@@ -339,8 +352,120 @@ class IndexerServiceTest {
         assertEquals("Corpo legado", textPlain?.trim())
     }
 
+    @Test
+    fun `freeze on index is best effort and does not fail indexing`() {
+        service =
+            createIndexerService(
+                MailVaultProperties(
+                    rootEmailsDir = rootDir.toString(),
+                    storageDir = storageDir.toString(),
+                    freezeOnIndex = true,
+                    freezeOnIndexMaxMessages = 200,
+                    freezeOnIndexConcurrency = 2,
+                ),
+            )
+
+        val eml = rootDir.resolve("remote-html.eml")
+        Files.writeString(
+            eml,
+            """
+            From: Freeze <freeze@x.com>
+            Subject: Remote html
+            Message-ID: <freeze-1@x>
+            MIME-Version: 1.0
+            Content-Type: multipart/alternative; boundary="b1"
+
+            --b1
+            Content-Type: text/html; charset=UTF-8
+
+            <html><body><img src="http://localhost/private.png"></body></html>
+            --b1--
+            """.trimIndent(),
+        )
+
+        val result = service.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), result)
+
+        val assetCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM assets", Int::class.java)
+        assertEquals(1, assetCount)
+        val status = jdbcTemplate.queryForObject("SELECT status FROM assets LIMIT 1", String::class.java)
+        assertEquals("SKIPPED", status)
+    }
+
+    @Test
+    fun `freeze on index skips message that already has downloaded assets`() {
+        service =
+            createIndexerService(
+                MailVaultProperties(
+                    rootEmailsDir = rootDir.toString(),
+                    storageDir = storageDir.toString(),
+                    freezeOnIndex = true,
+                    freezeOnIndexMaxMessages = 200,
+                    freezeOnIndexConcurrency = 2,
+                ),
+            )
+
+        val eml = rootDir.resolve("remote-html-2.eml")
+        Files.writeString(
+            eml,
+            """
+            From: Freeze <freeze@x.com>
+            Subject: Remote html
+            Message-ID: <freeze-2@x>
+            MIME-Version: 1.0
+            Content-Type: multipart/alternative; boundary="b1"
+
+            --b1
+            Content-Type: text/html; charset=UTF-8
+
+            <html><body><img src="https://cdn.example.com/img.png"></body></html>
+            --b1--
+            """.trimIndent(),
+        )
+
+        val normalizedPath = eml.toAbsolutePath().normalize().toString()
+        val messageId = sha256Hex("<freeze-2@x>|$normalizedPath")
+        jdbcTemplate.update(
+            """
+            INSERT INTO assets(id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "a-existing",
+            messageId,
+            "https://cdn.example.com/other.png",
+            "/tmp/other.png",
+            "image/png",
+            10L,
+            "sha",
+            "DOWNLOADED",
+            "2026-02-22T10:00:00Z",
+            null,
+        )
+
+        val result = service.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), result)
+
+        val assetCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM assets", Int::class.java)
+        assertEquals(1, assetCount)
+    }
+
     private fun sha256Hex(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         return digest.digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+    }
+
+    private fun createIndexerService(properties: MailVaultProperties): IndexerService {
+        val assetRepository = AssetRepository(jdbcTemplate)
+        val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
+        val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
+        val assetFreezeService = AssetFreezeService(messageHtmlRepository, assetRepository, properties, htmlRenderService)
+        return IndexerService(
+            IndexWriteRepository(jdbcTemplate),
+            MessageParseService(),
+            AttachmentStorageService(),
+            assetRepository,
+            assetFreezeService,
+            properties,
+        )
     }
 }

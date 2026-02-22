@@ -94,6 +94,17 @@ class AssetRepository(
             null
         }
 
+    fun hasDownloadedByMessageId(messageId: String): Boolean =
+        (jdbcTemplate.queryForObject(
+            """
+            SELECT COUNT(*)
+            FROM assets
+            WHERE message_id = ? AND status = 'DOWNLOADED'
+            """.trimIndent(),
+            Int::class.java,
+            messageId,
+        ) ?: 0) > 0
+
     private fun rsToAsset(rs: java.sql.ResultSet): AssetRecord =
         AssetRecord(
             id = rs.getString("id"),

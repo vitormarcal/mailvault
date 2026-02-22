@@ -4,6 +4,7 @@ import dev.marcal.mailvault.domain.AttachmentUpsert
 import dev.marcal.mailvault.domain.MessageBodyUpsert
 import dev.marcal.mailvault.domain.MessageUpsert
 import dev.marcal.mailvault.config.MailVaultProperties
+import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.IndexWriteRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -11,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.util.concurrent.Executors
 import kotlin.streams.asSequence
 
 data class IndexResult(
@@ -24,6 +26,8 @@ class IndexerService(
     private val indexWriteRepository: IndexWriteRepository,
     private val messageParseService: MessageParseService,
     private val attachmentStorageService: AttachmentStorageService,
+    private val assetRepository: AssetRepository,
+    private val assetFreezeService: AssetFreezeService,
     private val mailVaultProperties: MailVaultProperties,
 ) {
     private val logger = LoggerFactory.getLogger(IndexerService::class.java)
@@ -37,6 +41,8 @@ class IndexerService(
         var inserted = 0
         var updated = 0
         var skipped = 0
+        val freezeCandidates = mutableListOf<String>()
+        val freezeMaxMessages = mailVaultProperties.freezeOnIndexMaxMessages.coerceAtLeast(0)
 
         Files.walk(rootPath).use { stream ->
             stream
@@ -96,13 +102,73 @@ class IndexerService(
                         } else {
                             updated++
                         }
+
+                        if (
+                            mailVaultProperties.freezeOnIndex &&
+                            freezeCandidates.size < freezeMaxMessages &&
+                            shouldScheduleFreeze(messageId, parsed.htmlRaw)
+                        ) {
+                            freezeCandidates += messageId
+                        }
                     } catch (e: Exception) {
                         logger.error("Failed to index file {}", filePath, e)
                     }
                 }
         }
 
+        runAutoFreezeIfEnabled(freezeCandidates)
+
         return IndexResult(inserted = inserted, updated = updated, skipped = skipped)
+    }
+
+    private fun shouldScheduleFreeze(messageId: String, htmlRaw: String?): Boolean {
+        if (htmlRaw.isNullOrBlank() || !REMOTE_IMG_SRC_REGEX.containsMatchIn(htmlRaw)) {
+            return false
+        }
+        if (assetRepository.hasDownloadedByMessageId(messageId)) {
+            return false
+        }
+        return true
+    }
+
+    private fun runAutoFreezeIfEnabled(candidates: List<String>) {
+        if (!mailVaultProperties.freezeOnIndex || candidates.isEmpty()) {
+            return
+        }
+
+        val maxMessages = mailVaultProperties.freezeOnIndexMaxMessages.coerceAtLeast(0)
+        val targets = candidates.distinct().take(maxMessages)
+        if (targets.isEmpty()) {
+            return
+        }
+
+        val concurrency = mailVaultProperties.freezeOnIndexConcurrency.coerceIn(1, 8)
+        val executor = Executors.newFixedThreadPool(concurrency)
+        try {
+            val futures =
+                targets.map { messageId ->
+                    executor.submit<Unit> {
+                        try {
+                            val result = assetFreezeService.freeze(messageId)
+                            logger.info(
+                                "Auto-freeze summary messageId={} downloaded={} failed={} skipped={}",
+                                messageId,
+                                result.downloaded,
+                                result.failed,
+                                result.skipped,
+                            )
+                        } catch (e: Exception) {
+                            logger.warn("Auto-freeze failed for messageId={} reason={}", messageId, e.message)
+                        }
+                    }
+                }
+            futures.forEach {
+                runCatching { it.get() }
+                    .onFailure { e -> logger.warn("Auto-freeze task join failure reason={}", e.message) }
+            }
+        } finally {
+            executor.shutdown()
+        }
     }
 
     private fun persistAttachments(
@@ -148,5 +214,9 @@ class IndexerService(
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = digest.digest(value)
         return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    private companion object {
+        val REMOTE_IMG_SRC_REGEX = Regex("""(?i)<img\b[^>]*\bsrc\s*=\s*["']https?://""")
     }
 }

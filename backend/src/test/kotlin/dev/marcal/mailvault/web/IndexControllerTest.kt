@@ -4,7 +4,12 @@ import dev.marcal.mailvault.service.IndexResult
 import dev.marcal.mailvault.service.IndexerService
 import dev.marcal.mailvault.service.MessageParseService
 import dev.marcal.mailvault.service.AttachmentStorageService
+import dev.marcal.mailvault.service.AssetFreezeService
+import dev.marcal.mailvault.service.HtmlRenderService
+import dev.marcal.mailvault.service.HtmlSanitizerService
 import dev.marcal.mailvault.repository.IndexWriteRepository
+import dev.marcal.mailvault.repository.AssetRepository
+import dev.marcal.mailvault.repository.MessageHtmlRepository
 import dev.marcal.mailvault.config.MailVaultProperties
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -74,16 +79,40 @@ class IndexControllerTest {
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS assets (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                original_url TEXT NOT NULL,
+                storage_path TEXT,
+                content_type TEXT,
+                size INTEGER,
+                sha256 TEXT,
+                status TEXT NOT NULL,
+                downloaded_at TEXT,
+                error TEXT,
+                UNIQUE(message_id, original_url)
+            )
+            """.trimIndent(),
+        )
+        val properties =
+            MailVaultProperties(
+                rootEmailsDir = emailsDir.toString(),
+                storageDir = tempDir.resolve("storage").toString(),
+            )
+        val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
+        val assetRepository = AssetRepository(jdbcTemplate)
+        val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
         controller =
             IndexController(
                 IndexerService(
                     IndexWriteRepository(jdbcTemplate),
                     MessageParseService(),
                     AttachmentStorageService(),
-                    MailVaultProperties(
-                        rootEmailsDir = emailsDir.toString(),
-                        storageDir = tempDir.resolve("storage").toString(),
-                    ),
+                    assetRepository,
+                    AssetFreezeService(messageHtmlRepository, assetRepository, properties, htmlRenderService),
+                    properties,
                 ),
             )
     }
@@ -102,6 +131,20 @@ class IndexControllerTest {
                     IndexWriteRepository(jdbcTemplate),
                     MessageParseService(),
                     AttachmentStorageService(),
+                    AssetRepository(jdbcTemplate),
+                    AssetFreezeService(
+                        MessageHtmlRepository(jdbcTemplate),
+                        AssetRepository(jdbcTemplate),
+                        MailVaultProperties(
+                            rootEmailsDir = tempDir.resolve("missing").toString(),
+                            storageDir = tempDir.resolve("storage").toString(),
+                        ),
+                        HtmlRenderService(
+                            MessageHtmlRepository(jdbcTemplate),
+                            AssetRepository(jdbcTemplate),
+                            HtmlSanitizerService(),
+                        ),
+                    ),
                     MailVaultProperties(
                         rootEmailsDir = tempDir.resolve("missing").toString(),
                         storageDir = tempDir.resolve("storage").toString(),
