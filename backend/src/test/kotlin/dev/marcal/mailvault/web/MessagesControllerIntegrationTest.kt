@@ -292,6 +292,16 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET stats returns lastIndexAt null when metadata is missing`() {
+        jdbcTemplate.update("DELETE FROM app_meta WHERE key = 'lastIndexAt'")
+
+        val response = get("/api/stats")
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"lastIndexAt\":null"))
+    }
+
+    @Test
     fun `GET messages id route serves minimal message UI`() {
         val response = get("/messages/id-1")
         assertEquals(200, response.statusCode())

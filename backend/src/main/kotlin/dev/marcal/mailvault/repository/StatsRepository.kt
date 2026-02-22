@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.repository
 
 import dev.marcal.mailvault.api.StatsResponse
+import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Repository
 
@@ -39,5 +40,10 @@ class StatsRepository(
 
     private fun queryLong(sql: String): Long = jdbcTemplate.queryForObject(sql, Long::class.java) ?: 0L
 
-    private fun queryString(sql: String): String? = jdbcTemplate.queryForObject(sql, String::class.java)
+    private fun queryString(sql: String): String? =
+        try {
+            jdbcTemplate.queryForObject(sql, String::class.java)
+        } catch (_: EmptyResultDataAccessException) {
+            null
+        }
 }
