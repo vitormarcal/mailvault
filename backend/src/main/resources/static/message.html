@@ -171,6 +171,21 @@
       max-height: 65vh;
     }
 
+    .email-content {
+      overflow-x: auto;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+
+    .email-content img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .email-content table {
+      max-width: 100%;
+    }
+
     #textPlain {
       margin: 0;
       padding: 14px;
@@ -335,7 +350,7 @@
           </div>
 
           <div class="panel" id="panelHtml" hidden>
-            <div id="htmlContainer"></div>
+            <div id="htmlContainer" class="email-content"></div>
           </div>
 
           <div class="panel" id="panelPlain" hidden>
