@@ -14,6 +14,7 @@ import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.OffsetDateTime
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.streams.asSequence
 
 data class IndexResult(
@@ -39,97 +40,130 @@ class IndexerService(
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
             "Invalid rootDir: ${mailVaultProperties.rootEmailsDir}"
         }
+        logger.info(
+            "Index start rootDir={} freezeOnIndex={} freezeConcurrency={}",
+            rootPath,
+            mailVaultProperties.freezeOnIndex,
+            mailVaultProperties.freezeOnIndexConcurrency,
+        )
 
         var inserted = 0
         var updated = 0
         var skipped = 0
         val freezeCandidates = mutableListOf<String>()
+        var indexError: Exception? = null
 
-        Files.walk(rootPath).use { stream ->
-            stream
-                .asSequence()
-                .filter { Files.isRegularFile(it) }
-                .filter { it.fileName.toString().endsWith(".eml", ignoreCase = true) }
-                .forEach { filePath ->
-                    val normalizedPath = filePath.toAbsolutePath().normalize().toString()
-                    val mtime = Files.getLastModifiedTime(filePath).toMillis()
-                    val size = Files.size(filePath)
+        try {
+            Files.walk(rootPath).use { stream ->
+                stream
+                    .asSequence()
+                    .filter { Files.isRegularFile(it) }
+                    .filter { it.fileName.toString().endsWith(".eml", ignoreCase = true) }
+                    .forEach { filePath ->
+                        val normalizedPath = filePath.toAbsolutePath().normalize().toString()
+                        val mtime = Files.getLastModifiedTime(filePath).toMillis()
+                        val size = Files.size(filePath)
 
-                    val existing = indexWriteRepository.findByFilePath(normalizedPath)
-                    if (
-                        existing != null &&
-                        existing.fileMtimeEpoch == mtime &&
-                        existing.fileSize == size &&
-                        existing.hasBodyContent &&
-                        existing.hasDateEpoch
-                    ) {
-                        if (mailVaultProperties.freezeOnIndex) {
-                            freezeCandidates += existing.id
-                        }
-                        skipped++
-                        return@forEach
-                    }
-
-                    try {
-                        val parsed = messageParseService.parse(filePath)
-                        val messageId = sha256Hex("${parsed.messageId ?: ""}|$normalizedPath")
-
-                        indexWriteRepository.upsertMessage(
-                            MessageUpsert(
-                                id = messageId,
-                                filePath = normalizedPath,
-                                fileMtimeEpoch = mtime,
-                                fileSize = size,
-                                dateRaw = parsed.dateRaw,
-                                dateEpoch = parsed.dateEpoch,
-                                subject = parsed.subject,
-                                subjectDisplay = parsed.subjectDisplay,
-                                fromRaw = parsed.fromRaw,
-                                fromDisplay = parsed.fromDisplay,
-                                fromEmail = parsed.fromEmail,
-                                fromName = parsed.fromName,
-                                messageId = parsed.messageId,
-                            ),
-                        )
-
-                        indexWriteRepository.upsertMessageBody(
-                            MessageBodyUpsert(
-                                messageId = messageId,
-                                textPlain = parsed.textPlain,
-                                htmlRaw = parsed.htmlRaw,
-                                htmlText = parsed.htmlText,
-                                htmlSanitized = null,
-                            ),
-                        )
-
-                        val attachmentRecords = persistAttachments(messageId, parsed.attachments)
-                        indexWriteRepository.replaceAttachments(messageId, attachmentRecords)
-
-                        if (existing == null) {
-                            inserted++
-                        } else {
-                            updated++
-                        }
-
+                        val existing = indexWriteRepository.findByFilePath(normalizedPath)
                         if (
-                            mailVaultProperties.freezeOnIndex &&
-                            shouldScheduleFreeze(messageId, parsed.htmlRaw)
+                            existing != null &&
+                            existing.fileMtimeEpoch == mtime &&
+                            existing.fileSize == size &&
+                            existing.hasBodyContent &&
+                            existing.hasDateEpoch
                         ) {
-                            freezeCandidates += messageId
+                            if (mailVaultProperties.freezeOnIndex) {
+                                freezeCandidates += existing.id
+                            }
+                            skipped++
+                            return@forEach
                         }
-                    } catch (e: Exception) {
-                        logger.error("Failed to index file {}", filePath, e)
+
+                        try {
+                            val parsed = messageParseService.parse(filePath)
+                            val messageId = sha256Hex("${parsed.messageId ?: ""}|$normalizedPath")
+
+                            indexWriteRepository.upsertMessage(
+                                MessageUpsert(
+                                    id = messageId,
+                                    filePath = normalizedPath,
+                                    fileMtimeEpoch = mtime,
+                                    fileSize = size,
+                                    dateRaw = parsed.dateRaw,
+                                    dateEpoch = parsed.dateEpoch,
+                                    subject = parsed.subject,
+                                    subjectDisplay = parsed.subjectDisplay,
+                                    fromRaw = parsed.fromRaw,
+                                    fromDisplay = parsed.fromDisplay,
+                                    fromEmail = parsed.fromEmail,
+                                    fromName = parsed.fromName,
+                                    messageId = parsed.messageId,
+                                ),
+                            )
+
+                            indexWriteRepository.upsertMessageBody(
+                                MessageBodyUpsert(
+                                    messageId = messageId,
+                                    textPlain = parsed.textPlain,
+                                    htmlRaw = parsed.htmlRaw,
+                                    htmlText = parsed.htmlText,
+                                    htmlSanitized = null,
+                                ),
+                            )
+
+                            val attachmentRecords = persistAttachments(messageId, parsed.attachments)
+                            indexWriteRepository.replaceAttachments(messageId, attachmentRecords)
+
+                            if (existing == null) {
+                                inserted++
+                            } else {
+                                updated++
+                            }
+
+                            if (
+                                mailVaultProperties.freezeOnIndex &&
+                                shouldScheduleFreeze(messageId, parsed.htmlRaw)
+                            ) {
+                                freezeCandidates += messageId
+                            }
+                        } catch (e: Exception) {
+                            logger.error("Failed to index file {}", filePath, e)
+                        }
                     }
-                }
+            }
+
+            runAutoFreezeIfEnabled(freezeCandidates)
+
+            val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
+            indexWriteRepository.putMeta("lastIndexAt", OffsetDateTime.now().toString())
+            indexWriteRepository.putMeta("lastIndexDurationMs", durationMs.toString())
+
+            return IndexResult(inserted = inserted, updated = updated, skipped = skipped)
+        } catch (e: Exception) {
+            indexError = e
+            logger.error(
+                "Index failed rootDir={} inserted={} updated={} skipped={} freezeCandidates={} reason={}",
+                rootPath,
+                inserted,
+                updated,
+                skipped,
+                freezeCandidates.distinct().size,
+                e.message,
+                e,
+            )
+            throw e
+        } finally {
+            val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
+            logger.info(
+                "Index finish status={} inserted={} updated={} skipped={} freezeCandidates={} durationMs={}",
+                if (indexError == null) "ok" else "error",
+                inserted,
+                updated,
+                skipped,
+                freezeCandidates.distinct().size,
+                durationMs,
+            )
         }
-
-        runAutoFreezeIfEnabled(freezeCandidates)
-
-        val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
-        indexWriteRepository.putMeta("lastIndexAt", OffsetDateTime.now().toString())
-        indexWriteRepository.putMeta("lastIndexDurationMs", durationMs.toString())
-
-        return IndexResult(inserted = inserted, updated = updated, skipped = skipped)
     }
 
     private fun shouldScheduleFreeze(messageId: String, htmlRaw: String?): Boolean {
@@ -144,16 +178,28 @@ class IndexerService(
 
     private fun runAutoFreezeIfEnabled(candidates: List<String>) {
         if (!mailVaultProperties.freezeOnIndex || candidates.isEmpty()) {
+            if (mailVaultProperties.freezeOnIndex) {
+                logger.info("Auto-freeze skipped candidates=0 reason=no candidates")
+            }
             return
         }
 
         val targets = candidates.distinct()
         if (targets.isEmpty()) {
+            logger.info("Auto-freeze skipped candidates=0 reason=dedup empty")
             return
         }
+        val autoFreezeStartedAtNs = System.nanoTime()
+        logger.info(
+            "Auto-freeze start candidates={} concurrency={}",
+            targets.size,
+            mailVaultProperties.freezeOnIndexConcurrency,
+        )
 
         val concurrency = mailVaultProperties.freezeOnIndexConcurrency.coerceIn(1, 8)
         val executor = Executors.newFixedThreadPool(concurrency)
+        val completed = AtomicInteger(0)
+        val taskFailures = AtomicInteger(0)
         try {
             val futures =
                 targets.map { messageId ->
@@ -168,16 +214,30 @@ class IndexerService(
                                 result.skipped,
                             )
                         } catch (e: Exception) {
+                            taskFailures.incrementAndGet()
                             logger.warn("Auto-freeze failed for messageId={} reason={}", messageId, e.message)
+                        } finally {
+                            completed.incrementAndGet()
                         }
                     }
                 }
             futures.forEach {
                 runCatching { it.get() }
-                    .onFailure { e -> logger.warn("Auto-freeze task join failure reason={}", e.message) }
+                    .onFailure { e ->
+                        taskFailures.incrementAndGet()
+                        logger.warn("Auto-freeze task join failure reason={}", e.message)
+                    }
             }
         } finally {
             executor.shutdown()
+            val durationMs = (System.nanoTime() - autoFreezeStartedAtNs) / 1_000_000
+            logger.info(
+                "Auto-freeze finish candidates={} completed={} taskFailures={} durationMs={}",
+                targets.size,
+                completed.get(),
+                taskFailures.get(),
+                durationMs,
+            )
         }
     }
 

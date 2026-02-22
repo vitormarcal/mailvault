@@ -8,6 +8,7 @@ import dev.marcal.mailvault.domain.AssetUpsert
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
 import dev.marcal.mailvault.util.ResourceNotFoundException
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.ByteArrayOutputStream
 import java.net.Inet4Address
@@ -30,6 +31,7 @@ class AssetFreezeService(
     private val mailVaultProperties: MailVaultProperties,
     private val htmlRenderService: HtmlRenderService,
 ) {
+    private val logger = LoggerFactory.getLogger(AssetFreezeService::class.java)
     private val httpClient: HttpClient =
         HttpClient.newBuilder()
             .followRedirects(HttpClient.Redirect.NEVER)
@@ -37,82 +39,129 @@ class AssetFreezeService(
             .build()
 
     fun freeze(messageId: String): AssetFreezeResponse {
-        val html = messageHtmlRepository.findByMessageId(messageId)
-            ?: throw ResourceNotFoundException("message not found")
-        val htmlRaw = html.htmlRaw ?: return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
-
-        val urls = extractRemoteImageUrls(htmlRaw)
-        if (urls.isEmpty()) {
-            return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
-        }
-
+        val startedAtNs = System.nanoTime()
+        logger.info("Freeze start messageId={}", messageId)
+        var totalFound = 0
         var downloaded = 0
         var failed = 0
         var skipped = 0
-        var totalBytes: Long = 0
-        val failures = mutableListOf<FreezeFailureEntry>()
-
-        val limited = urls.take(mailVaultProperties.maxAssetsPerMessage)
-        val overflowCount = urls.size - limited.size
-        if (overflowCount > 0) {
-            skipped += overflowCount
-        }
-
-        for (url in limited) {
-            if (assetRepository.findDownloadedByMessageAndOriginalUrl(messageId, url) != null) {
-                skipped++
-                continue
-            }
-
-            if (totalBytes >= mailVaultProperties.totalMaxBytesPerMessage) {
-                persistSkipped(messageId, url, "total max bytes per message reached")
-                skipped++
-                continue
-            }
-
-            val result = downloadAsset(messageId, url, totalBytes)
-            when (result.status) {
-                AssetStatus.DOWNLOADED -> {
-                    downloaded++
-                    totalBytes += (result.size ?: 0)
+        try {
+            val html = messageHtmlRepository.findByMessageId(messageId)
+                ?: throw ResourceNotFoundException("message not found")
+            val htmlRaw =
+                html.htmlRaw ?: run {
+                    logger.info("Freeze skipped messageId={} reason=no html", messageId)
+                    return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
                 }
 
-                AssetStatus.SKIPPED -> skipped++
-                AssetStatus.FAILED -> {
-                    failed++
-                    failures +=
-                        FreezeFailureEntry(
-                            host = hostFromUrl(url),
-                            reason = summarizeReason(result.error),
+            val urls = extractRemoteImageUrls(htmlRaw)
+            totalFound = urls.size
+            if (urls.isEmpty()) {
+                logger.info("Freeze skipped messageId={} reason=no remote images", messageId)
+                return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
+            }
+
+            var totalBytes: Long = 0
+            val failures = mutableListOf<FreezeFailureEntry>()
+
+            val limited = urls.take(mailVaultProperties.maxAssetsPerMessage)
+            val overflowCount = urls.size - limited.size
+            if (overflowCount > 0) {
+                skipped += overflowCount
+                logger.info(
+                    "Freeze limit reached messageId={} totalFound={} maxAssetsPerMessage={} skippedOverflow={}",
+                    messageId,
+                    urls.size,
+                    mailVaultProperties.maxAssetsPerMessage,
+                    overflowCount,
+                )
+            }
+
+            for (url in limited) {
+                if (assetRepository.findDownloadedByMessageAndOriginalUrl(messageId, url) != null) {
+                    skipped++
+                    continue
+                }
+
+                if (totalBytes >= mailVaultProperties.totalMaxBytesPerMessage) {
+                    persistSkipped(messageId, url, "total max bytes per message reached")
+                    skipped++
+                    continue
+                }
+
+                val result = downloadAsset(messageId, url, totalBytes)
+                when (result.status) {
+                    AssetStatus.DOWNLOADED -> {
+                        downloaded++
+                        totalBytes += (result.size ?: 0)
+                    }
+
+                    AssetStatus.SKIPPED -> skipped++
+                    AssetStatus.FAILED -> {
+                        failed++
+                        logger.warn(
+                            "Freeze asset failed messageId={} host={} reason={}",
+                            messageId,
+                            hostFromUrl(url),
+                            summarizeReason(result.error),
                         )
+                        failures +=
+                            FreezeFailureEntry(
+                                host = hostFromUrl(url),
+                                reason = summarizeReason(result.error),
+                            )
+                    }
                 }
             }
+
+            messageHtmlRepository.clearHtmlSanitized(messageId)
+            htmlRenderService.render(messageId)
+            val failureSummary =
+                failures
+                    .groupingBy { "${it.host}\u0000${it.reason}" }
+                    .eachCount()
+                    .entries
+                    .map { (key, count) ->
+                        val parts = key.split('\u0000')
+                        AssetFreezeFailureSummary(
+                            host = parts.getOrElse(0) { "desconhecido" },
+                            reason = parts.getOrElse(1) { "erro no download" },
+                            count = count,
+                        )
+                    }
+                    .sortedWith(compareByDescending<AssetFreezeFailureSummary> { it.count }.thenBy { it.host })
+
+            return AssetFreezeResponse(
+                totalFound = totalFound,
+                downloaded = downloaded,
+                failed = failed,
+                skipped = skipped,
+                failures = failureSummary,
+            )
+        } catch (e: Exception) {
+            logger.error(
+                "Freeze failed messageId={} totalFound={} downloaded={} failed={} skipped={} reason={}",
+                messageId,
+                totalFound,
+                downloaded,
+                failed,
+                skipped,
+                summarizeReason(e.message),
+                e,
+            )
+            throw e
+        } finally {
+            val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
+            logger.info(
+                "Freeze finish messageId={} totalFound={} downloaded={} failed={} skipped={} durationMs={}",
+                messageId,
+                totalFound,
+                downloaded,
+                failed,
+                skipped,
+                durationMs,
+            )
         }
-
-        messageHtmlRepository.clearHtmlSanitized(messageId)
-        htmlRenderService.render(messageId)
-        val failureSummary =
-            failures
-                .groupingBy { "${it.host}\u0000${it.reason}" }
-                .eachCount()
-                .entries
-                .map { (key, count) ->
-                    val parts = key.split('\u0000')
-                    AssetFreezeFailureSummary(
-                        host = parts.getOrElse(0) { "desconhecido" },
-                        reason = parts.getOrElse(1) { "erro no download" },
-                        count = count,
-                    )
-                }
-                .sortedWith(compareByDescending<AssetFreezeFailureSummary> { it.count }.thenBy { it.host })
-
-        return AssetFreezeResponse(
-            totalFound = urls.size,
-            downloaded = downloaded,
-            failed = failed,
-            skipped = skipped,
-            failures = failureSummary,
-        )
     }
 
     private fun extractRemoteImageUrls(html: String): List<String> =
@@ -196,6 +245,12 @@ class AssetFreezeService(
             assetRepository.upsert(upsert)
             upsert
         } catch (e: Exception) {
+            logger.warn(
+                "Freeze download error messageId={} host={} reason={}",
+                messageId,
+                hostFromUrl(url),
+                summarizeReason(e.message),
+            )
             persistFailed(messageId, url, "download failed: ${e.message}")
         }
     }
