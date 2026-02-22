@@ -30,6 +30,7 @@ class IndexWriteRepository(
             jdbcTemplate.queryForObject(
                 """
                 SELECT
+                    m.id,
                     m.file_mtime_epoch,
                     m.file_size,
                     CASE
@@ -46,6 +47,7 @@ class IndexWriteRepository(
                 """.trimIndent(),
                 { rs, _ ->
                     ExistingMessage(
+                        id = rs.getString("id"),
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
                         fileSize = rs.getLong("file_size"),
                         hasBodyContent = rs.getInt("has_body_content") == 1,

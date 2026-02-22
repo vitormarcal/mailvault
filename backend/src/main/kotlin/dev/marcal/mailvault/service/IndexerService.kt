@@ -63,6 +63,9 @@ class IndexerService(
                         existing.hasBodyContent &&
                         existing.hasDateEpoch
                     ) {
+                        if (mailVaultProperties.freezeOnIndex) {
+                            freezeCandidates += existing.id
+                        }
                         skipped++
                         return@forEach
                     }

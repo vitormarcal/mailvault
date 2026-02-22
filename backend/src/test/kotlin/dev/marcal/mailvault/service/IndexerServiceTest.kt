@@ -525,6 +525,48 @@ class IndexerServiceTest {
         assertEquals(2, skippedAssets)
     }
 
+    @Test
+    fun `freeze on index also runs for unchanged already indexed message`() {
+        val eml = rootDir.resolve("already-indexed.eml")
+        Files.writeString(
+            eml,
+            """
+            From: Freeze <freeze@x.com>
+            Date: Sat, 21 Feb 2026 20:00:00 -0300
+            Subject: Existing
+            Message-ID: <freeze-existing@x>
+            MIME-Version: 1.0
+            Content-Type: text/html; charset=UTF-8
+
+            <html><body><img src="http://localhost/private-existing.png"></body></html>
+            """.trimIndent(),
+        )
+
+        val first = service.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), first)
+        val before = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM assets", Int::class.java)
+        assertEquals(0, before)
+
+        service =
+            createIndexerService(
+                MailVaultProperties(
+                    rootEmailsDir = rootDir.toString(),
+                    storageDir = storageDir.toString(),
+                    freezeOnIndex = true,
+                    freezeOnIndexConcurrency = 2,
+                ),
+            )
+
+        val second = service.index()
+        assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 1), second)
+
+        val skippedAssets = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
+            Int::class.java,
+        )
+        assertEquals(1, skippedAssets)
+    }
+
     private fun sha256Hex(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
         return digest.digest(value.toByteArray()).joinToString("") { "%02x".format(it) }

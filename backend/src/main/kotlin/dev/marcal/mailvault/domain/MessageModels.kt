@@ -42,6 +42,7 @@ data class MessagesPage(
 )
 
 data class ExistingMessage(
+    val id: String,
     val fileMtimeEpoch: Long,
     val fileSize: Long,
     val hasBodyContent: Boolean,
