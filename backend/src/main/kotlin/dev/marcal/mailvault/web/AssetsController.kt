@@ -2,6 +2,7 @@ package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.service.AssetFileService
 import org.springframework.http.CacheControl
+import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -25,7 +26,8 @@ class AssetsController(
 
         return ResponseEntity.ok()
             .contentType(mediaType)
-            .cacheControl(CacheControl.maxAge(1, TimeUnit.DAYS).cachePublic())
+            .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"${file.filename}\"")
             .header("X-Content-Type-Options", "nosniff")
             .body(file.bytes)
     }

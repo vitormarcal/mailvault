@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.service
 
 import dev.marcal.mailvault.api.AttachmentResponse
+import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.domain.AttachmentRecord
 import dev.marcal.mailvault.repository.AttachmentRepository
 import dev.marcal.mailvault.util.ResourceNotFoundException
@@ -11,6 +12,7 @@ import java.nio.file.Path
 @Service
 class AttachmentService(
     private val attachmentRepository: AttachmentRepository,
+    private val mailVaultProperties: MailVaultProperties,
 ) {
     fun listByMessage(messageId: String): List<AttachmentResponse> =
         attachmentRepository.listByMessageId(messageId).map { it.toResponse() }
@@ -29,6 +31,10 @@ class AttachmentService(
 
     private fun loadAttachmentFile(attachment: AttachmentRecord): AttachmentFile {
         val filePath = Path.of(attachment.storagePath).toAbsolutePath().normalize()
+        val attachmentsBaseDir = Path.of(mailVaultProperties.storageDir).toAbsolutePath().normalize().resolve("attachments")
+        if (!filePath.startsWith(attachmentsBaseDir)) {
+            throw ResourceNotFoundException("attachment file not found")
+        }
         if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
             throw ResourceNotFoundException("attachment file not found")
         }

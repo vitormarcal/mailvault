@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.service.AttachmentService
+import org.springframework.http.CacheControl
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
@@ -25,6 +26,7 @@ class AttachmentsController(
 
         return ResponseEntity.ok()
             .contentType(mediaType)
+            .cacheControl(CacheControl.noStore().cachePrivate())
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$dispositionName\"")
             .header("X-Content-Type-Options", "nosniff")
             .body(file.bytes)

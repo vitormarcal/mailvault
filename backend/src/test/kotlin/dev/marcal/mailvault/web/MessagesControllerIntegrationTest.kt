@@ -42,6 +42,8 @@ class MessagesControllerIntegrationTest {
         val frozenAssetSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
         val frozenAssetPath = storageDir.resolve("assets").resolve("id-1").resolve("$frozenAssetSha.png")
         Files.writeString(frozenAssetPath, "FROZEN_IMAGE", StandardCharsets.UTF_8)
+        val roguePath = storageDir.parent.resolve("rogue.bin")
+        Files.writeString(roguePath, "ROGUE_FILE", StandardCharsets.UTF_8)
 
         jdbcTemplate.update("DELETE FROM assets")
         jdbcTemplate.update("DELETE FROM attachments")
@@ -93,6 +95,20 @@ class MessagesControllerIntegrationTest {
         )
         jdbcTemplate.update(
             """
+            INSERT INTO attachments(id, message_id, filename, content_type, size, inline_cid, storage_path, sha256)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "att-rogue-1",
+            "id-1",
+            "rogue.bin",
+            "application/octet-stream",
+            Files.size(roguePath),
+            null,
+            roguePath.toAbsolutePath().normalize().toString(),
+            "sha-rogue",
+        )
+        jdbcTemplate.update(
+            """
             INSERT INTO assets(id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
@@ -103,6 +119,22 @@ class MessagesControllerIntegrationTest {
             "image/png",
             Files.size(frozenAssetPath),
             frozenAssetSha,
+            "DOWNLOADED",
+            "2026-02-22T10:00:00Z",
+            null,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO assets(id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "asset-rogue-1",
+            "id-1",
+            "https://example.com/rogue.png",
+            roguePath.toAbsolutePath().normalize().toString(),
+            "image/png",
+            Files.size(roguePath),
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "DOWNLOADED",
             "2026-02-22T10:00:00Z",
             null,
@@ -256,6 +288,9 @@ class MessagesControllerIntegrationTest {
 
         assertEquals(200, response.statusCode())
         assertEquals(true, response.headers().firstValue("Content-Disposition").orElse("").startsWith("attachment;"))
+        val cacheControl = response.headers().firstValue("Cache-Control").orElse("")
+        assertEquals(true, cacheControl.contains("private"))
+        assertEquals(true, cacheControl.contains("no-store"))
         assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").orElse(""))
         assertEquals("ATTACHMENT_PAYLOAD", String(response.body(), StandardCharsets.UTF_8))
     }
@@ -265,9 +300,30 @@ class MessagesControllerIntegrationTest {
         val response = getBytes("/assets/id-1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png")
 
         assertEquals(200, response.statusCode())
+        assertEquals(true, response.headers().firstValue("Content-Disposition").orElse("").startsWith("inline;"))
         assertEquals("nosniff", response.headers().firstValue("X-Content-Type-Options").orElse(""))
-        assertEquals(true, response.headers().firstValue("Cache-Control").orElse("").contains("max-age"))
+        val cacheControl = response.headers().firstValue("Cache-Control").orElse("")
+        assertEquals(true, cacheControl.contains("public"))
+        assertEquals(true, cacheControl.contains("max-age=31536000"))
         assertEquals("FROZEN_IMAGE", String(response.body(), StandardCharsets.UTF_8))
+    }
+
+    @Test
+    fun `GET assets blocks traversal-like filename`() {
+        val response = get("/assets/id-1/..%2F..%2Fsecret.txt")
+        assertEquals(true, response.statusCode() == 400 || response.statusCode() == 404)
+    }
+
+    @Test
+    fun `GET attachment download blocks storage path outside base dir`() {
+        val response = get("/api/attachments/att-rogue-1/download")
+        assertEquals(404, response.statusCode())
+    }
+
+    @Test
+    fun `GET assets blocks storage path outside base dir`() {
+        val response = get("/assets/id-1/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.png")
+        assertEquals(404, response.statusCode())
     }
 
     @Test

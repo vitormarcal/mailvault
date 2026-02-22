@@ -83,13 +83,13 @@ class MessagesControllerTest {
         val assetRepository = AssetRepository(jdbcTemplate)
         val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
         controller =
-            MessagesController(
-                MessageQueryService(MessageRepository(jdbcTemplate)),
-                htmlRenderService,
-                AttachmentService(AttachmentRepository(jdbcTemplate)),
-                AssetFreezeService(
-                    messageHtmlRepository,
-                    assetRepository,
+                MessagesController(
+                    MessageQueryService(MessageRepository(jdbcTemplate)),
+                    htmlRenderService,
+                    AttachmentService(AttachmentRepository(jdbcTemplate), MailVaultProperties(storageDir = tempDir.toString())),
+                    AssetFreezeService(
+                        messageHtmlRepository,
+                        assetRepository,
                     MailVaultProperties(),
                     htmlRenderService,
                 ),
