@@ -325,6 +325,7 @@
         <div class="ops-actions">
           <button id="indexBtn" type="button" class="btn-primary">Indexar</button>
           <button id="reindexBtn" type="button" class="btn-ghost">Reindexar</button>
+          <button id="maintenanceBtn" type="button" class="btn-ghost">Manutencao</button>
         </div>
         <span id="indexStatus" class="ops-status"></span>
       </div>
@@ -356,6 +357,7 @@
     const summary = document.getElementById('summary');
     const indexBtn = document.getElementById('indexBtn');
     const reindexBtn = document.getElementById('reindexBtn');
+    const maintenanceBtn = document.getElementById('maintenanceBtn');
     const indexStatus = document.getElementById('indexStatus');
     const pageInfo = document.getElementById('pageInfo');
     const prevBtn = document.getElementById('prevBtn');
@@ -552,6 +554,7 @@
     function setIndexRunning(running) {
       indexBtn.disabled = running;
       reindexBtn.disabled = running;
+      maintenanceBtn.disabled = running;
     }
 
     async function runIndex(actionLabel) {
@@ -569,6 +572,34 @@
         loadStats();
       } catch (_) {
         indexStatus.textContent = `Falha de rede ao ${actionLabel.toLowerCase()}.`;
+      } finally {
+        setIndexRunning(false);
+      }
+    }
+
+    async function runMaintenance() {
+      setIndexRunning(true);
+      indexStatus.textContent = 'Manutencao em andamento...';
+      try {
+        const cleanupRes = await fetch('/api/maintenance/cleanup', { method: 'POST' });
+        if (!cleanupRes.ok) {
+          indexStatus.textContent = 'Falha ao executar limpeza.';
+          return;
+        }
+        const cleanup = await cleanupRes.json();
+
+        const vacuumRes = await fetch('/api/maintenance/vacuum', { method: 'POST' });
+        if (!vacuumRes.ok) {
+          indexStatus.textContent = 'Limpeza concluida, mas VACUUM falhou.';
+          return;
+        }
+        const vacuum = await vacuumRes.json();
+        indexStatus.textContent =
+          `Manutencao concluida: arquivosRemovidos=${cleanup.removedAttachmentFiles + cleanup.removedAssetFiles}, mensagensRemovidas=${cleanup.removedMissingMessageRows}, vacuumMs=${vacuum.durationMs}`;
+        applyAndLoad({ page: 0 });
+        loadStats();
+      } catch (_) {
+        indexStatus.textContent = 'Falha de rede ao executar manutenção.';
       } finally {
         setIndexRunning(false);
       }
@@ -594,6 +625,10 @@
 
     reindexBtn.addEventListener('click', () => {
       runIndex('Reindexacao');
+    });
+
+    maintenanceBtn.addEventListener('click', () => {
+      runMaintenance();
     });
 
     prevBtn.addEventListener('click', () => {

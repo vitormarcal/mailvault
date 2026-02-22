@@ -220,6 +220,51 @@ class MessagesControllerIntegrationTest {
         assertEquals(200, response.statusCode())
         assertEquals(true, response.body().contains("Caixa Historica"))
         assertEquals(true, response.body().contains("Status"))
+        assertEquals(true, response.body().contains("Manutencao"))
+    }
+
+    @Test
+    fun `POST maintenance cleanup removes orphan files and missing message rows`() {
+        val orphanAttachment = storageDir.resolve("attachments").resolve("id-1").resolve("orphan.tmp")
+        val orphanAsset = storageDir.resolve("assets").resolve("id-1").resolve("orphan.tmp")
+        Files.writeString(orphanAttachment, "ORPHAN_ATTACHMENT", StandardCharsets.UTF_8)
+        Files.writeString(orphanAsset, "ORPHAN_ASSET", StandardCharsets.UTF_8)
+
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, date_epoch, subject, from_raw, message_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "missing-row",
+            "/tmp/does-not-exist.eml",
+            1L,
+            1L,
+            null,
+            null,
+            "Missing",
+            "Missing <missing@x.com>",
+            "<missing@x.com>",
+        )
+
+        val response = post("/api/maintenance/cleanup")
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"removedAttachmentFiles\":1"))
+        assertEquals(true, body.contains("\"removedAssetFiles\":1"))
+        assertEquals(true, body.contains("\"removedMissingMessageRows\":"))
+        assertEquals(false, Files.exists(orphanAttachment))
+        assertEquals(false, Files.exists(orphanAsset))
+        val stillExists = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages WHERE id = 'missing-row'", Int::class.java) ?: 0
+        assertEquals(0, stillExists)
+    }
+
+    @Test
+    fun `POST maintenance vacuum returns ok`() {
+        val response = post("/api/maintenance/vacuum")
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"ok\":true"))
+        assertEquals(true, body.contains("\"durationMs\""))
     }
 
     @Test

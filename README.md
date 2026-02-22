@@ -18,6 +18,8 @@ A aplicacao sobe em `http://localhost:8080`.
 - Caixa historica (lista e busca): `GET /`
 - API de listagem/busca: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
 - Estatisticas de uso: `GET /api/stats`
+- Limpeza de manutencao: `POST /api/maintenance/cleanup`
+- Compactacao do SQLite: `POST /api/maintenance/vacuum`
 - Detalhe da mensagem: `GET /messages/{id}`
 - Reindexacao manual no detalhe: botao **Reindexar** (chama `POST /api/index`)
 - Render HTML sanitizado: `GET /api/messages/{id}/render`
@@ -99,3 +101,12 @@ A aplicacao sobe em `http://localhost:8080`.
 - O index registra em `app_meta` ao finalizar:
   - `lastIndexAt`
   - `lastIndexDurationMs`
+
+## Manutencao
+
+- `POST /api/maintenance/cleanup`:
+  - remove arquivos orfaos em `storage/attachments` e `storage/assets` (sem referencia no DB)
+  - remove linhas de `messages` cujo arquivo `.eml` nao existe mais (cascade limpa metadados relacionados)
+- `POST /api/maintenance/vacuum`:
+  - executa `VACUUM` no SQLite para recuperar espaco
+  - pode ser uma operacao custosa e bloquear momentaneamente acesso ao banco
