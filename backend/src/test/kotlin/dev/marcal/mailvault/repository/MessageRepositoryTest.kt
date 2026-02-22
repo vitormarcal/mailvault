@@ -301,6 +301,17 @@ class MessageRepositoryTest {
     }
 
     @Test
+    fun `list year filter supports date_epoch in milliseconds`() {
+        jdbcTemplate.update("UPDATE messages SET date_epoch = ? WHERE id = ?", 1706781600000L, "b")
+
+        val result = list(query = null, year = 2024, page = 0, size = 50)
+        val ids = result.items.map { it.id }.toSet()
+
+        assertEquals(1, result.total)
+        assertEquals(setOf("b"), ids)
+    }
+
+    @Test
     fun `list query finds content from html_text`() {
         jdbcTemplate.update("INSERT INTO message_bodies(message_id, html_raw, html_text) VALUES (?, ?, ?)", "c", "<p>Only html phrase</p>", "Only html phrase")
 

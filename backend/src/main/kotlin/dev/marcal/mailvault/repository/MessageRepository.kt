@@ -30,7 +30,20 @@ class MessageRepository(
             whereParams.add(sanitizedQuery)
         }
         if (year != null) {
-            whereParts.add("strftime('%Y', datetime(m.date_epoch, 'unixepoch')) = ?")
+            whereParts.add(
+                """
+                strftime(
+                    '%Y',
+                    datetime(
+                        CASE
+                            WHEN m.date_epoch > 32503680000 THEN m.date_epoch / 1000
+                            ELSE m.date_epoch
+                        END,
+                        'unixepoch'
+                    )
+                ) = ?
+                """.trimIndent(),
+            )
             whereParams.add(year.toString())
         }
         if (hasAttachments != null) {
