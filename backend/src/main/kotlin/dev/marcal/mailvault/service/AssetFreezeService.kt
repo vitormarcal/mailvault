@@ -71,7 +71,7 @@ class AssetFreezeService(
             if (overflowCount > 0) {
                 skipped += overflowCount
                 logger.info(
-                    "Freeze limit reached messageId={} totalFound={} maxAssetsPerMessage={} skippedOverflow={}",
+                    "Freeze skipped messageId={} reason=max assets per message reached totalFound={} maxAssetsPerMessage={} skippedOverflow={}",
                     messageId,
                     urls.size,
                     mailVaultProperties.maxAssetsPerMessage,
@@ -82,10 +82,20 @@ class AssetFreezeService(
             for (url in limited) {
                 if (assetRepository.findDownloadedByMessageAndOriginalUrl(messageId, url) != null) {
                     skipped++
+                    logger.info(
+                        "Freeze skipped messageId={} host={} reason=already downloaded",
+                        messageId,
+                        hostFromUrl(url),
+                    )
                     continue
                 }
 
                 if (totalBytes >= mailVaultProperties.totalMaxBytesPerMessage) {
+                    logger.info(
+                        "Freeze skipped messageId={} host={} reason=total max bytes per message reached",
+                        messageId,
+                        hostFromUrl(url),
+                    )
                     persistSkipped(messageId, url, "total max bytes per message reached")
                     skipped++
                     continue
@@ -98,7 +108,15 @@ class AssetFreezeService(
                         totalBytes += (result.size ?: 0)
                     }
 
-                    AssetStatus.SKIPPED -> skipped++
+                    AssetStatus.SKIPPED -> {
+                        skipped++
+                        logger.info(
+                            "Freeze skipped messageId={} host={} reason={}",
+                            messageId,
+                            hostFromUrl(url),
+                            summarizeReason(result.error),
+                        )
+                    }
                     AssetStatus.FAILED -> {
                         failed++
                         logger.warn(
