@@ -43,6 +43,26 @@ class AuthBootstrapService(
         appMetaRepository.put(KEY_AUTH_PASSWORD_HASH, encodedPassword)
     }
 
+    @Synchronized
+    fun changePassword(currentPassword: String?, newPassword: String?) {
+        val credentials = credentials() ?: throw ValidationException("Credentials not configured")
+        val current = currentPassword.orEmpty()
+        val next = newPassword.orEmpty()
+        if (current.isBlank()) {
+            throw ValidationException("currentPassword is required")
+        }
+        if (next.isBlank()) {
+            throw ValidationException("newPassword is required")
+        }
+        if (!passwordEncoder.matches(current, credentials.passwordHash)) {
+            throw ValidationException("currentPassword is invalid")
+        }
+        val encodedPassword =
+            passwordEncoder.encode(next)
+                ?: throw IllegalStateException("Password encoder returned null")
+        appMetaRepository.put(KEY_AUTH_PASSWORD_HASH, encodedPassword)
+    }
+
     data class AuthCredentials(
         val username: String,
         val passwordHash: String,

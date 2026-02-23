@@ -28,8 +28,10 @@ docker compose -f docker/docker-compose.dev.yml up --build
   - After setup, `/login` is used to authenticate and all routes/resources require an authenticated session, including `/`, `/messages/{id}`, `/assets/**`, and attachment downloads (`/api/attachments/{attachmentId}/download`).
   - Exception: health endpoint `GET /api/health` is public (no auth).
 - Historical inbox (list and search): `GET /`
+- Administrative page: `GET /admin`
 - List/search API: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
 - Usage statistics: `GET /api/stats`
+- Change password: `PUT /api/auth/password`
 - Maintenance cleanup: `POST /api/maintenance/cleanup`
 - SQLite compaction: `POST /api/maintenance/vacuum`
 - Destructive reset of indexed data + vacuum: `POST /api/maintenance/reset-indexed-data`
@@ -82,6 +84,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 6. Click an item to open `http://localhost:8080/messages/{id}` and read `text/plain`/HTML.
 7. In detail, use **Freeze images** to download remote images with limits and SSRF protection.
 8. In detail, use **Previous/Next** or shortcuts `k`/`j`; use `g` to go back to list while preserving filters.
+9. Open `http://localhost:8080/admin` to change password, change UI language, and run index/maintenance/reset operations.
 
 ## Automatic freeze on index
 

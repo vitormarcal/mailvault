@@ -40,4 +40,12 @@ class UiController(
         } else {
             "redirect:/setup"
         }
+
+    @GetMapping("/admin")
+    fun admin(): String =
+        if (authBootstrapService.isConfigured()) {
+            "forward:/admin.html"
+        } else {
+            "redirect:/setup"
+        }
 }

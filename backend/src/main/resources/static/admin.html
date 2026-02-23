@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MailVault - Admin</title>
+  <style>
+    :root {
+      --bg: #f7f4ef;
+      --bg-2: #ede5d8;
+      --panel: #fffdfa;
+      --line: #d9cfbf;
+      --ink: #1d1a15;
+      --muted: #5e5649;
+      --accent: #176d5b;
+      --accent-strong: #0e4f41;
+      --danger: #7a2f2f;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      --shadow: 0 16px 30px rgba(37, 31, 20, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(23, 109, 91, 0.13), transparent 40%),
+        radial-gradient(circle at 100% 15%, rgba(182, 132, 58, 0.12), transparent 42%),
+        linear-gradient(140deg, var(--bg), var(--bg-2));
+      min-height: 100vh;
+    }
+
+    .wrap {
+      width: min(980px, 92vw);
+      margin: 28px auto 42px;
+    }
+
+    .hero {
+      background: linear-gradient(145deg, #1e5b4e, #143d34);
+      color: #f8f5ef;
+      border-radius: var(--radius-lg);
+      padding: 22px 24px;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(244, 203, 142, 0.28), rgba(244, 203, 142, 0));
+      right: -80px;
+      top: -110px;
+      pointer-events: none;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      letter-spacing: 0.4px;
+      font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(248, 245, 239, 0.9);
+      font-size: 1.02rem;
+    }
+
+    .hero-nav {
+      margin-top: 14px;
+      display: inline-block;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: #fff;
+      text-decoration: none;
+      font-size: 0.92rem;
+    }
+
+    .panel {
+      margin-top: 14px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.08rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.86rem;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      border-radius: var(--radius-md);
+      border: 1px solid #ccbda8;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
+
+    input:focus,
+    select:focus {
+      outline: 2px solid rgba(23, 109, 91, 0.2);
+      border-color: var(--accent);
+    }
+
+    .actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-strong);
+    }
+
+    .btn-ghost {
+      background: #fff;
+      color: var(--ink);
+      cursor: pointer;
+    }
+
+    .btn-danger {
+      background: #fff1f1;
+      border-color: #deb7b7;
+      color: var(--danger);
+      cursor: pointer;
+    }
+
+    .status {
+      margin-top: 10px;
+      min-height: 20px;
+      border-radius: 8px;
+      padding: 6px 9px;
+      border: 1px solid transparent;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    .status.ok {
+      color: #1f613f;
+      background: #e9f6ef;
+      border-color: #b7ddc6;
+    }
+
+    .status.error {
+      color: #772828;
+      background: #fdeeee;
+      border-color: #edc6c6;
+    }
+
+    .status.info {
+      color: #1e4c75;
+      background: #ebf3fb;
+      border-color: #b8d2ea;
+    }
+
+    @media (max-width: 760px) {
+      .wrap { width: min(980px, 95vw); }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <h1 id="pageTitle">Admin</h1>
+      <p id="pageSubtitle">Administrative settings and maintenance operations.</p>
+      <a id="backToInboxLink" class="hero-nav" href="/">Back to inbox</a>
+    </section>
+
+    <section class="panel">
+      <h2 id="languageTitle">Language</h2>
+      <div class="grid">
+        <label for="languageSelect" id="languageLabel">UI language
+          <select id="languageSelect">
+            <option value="en">English</option>
+            <option value="pt-BR">Portugues (Brasil)</option>
+          </select>
+        </label>
+        <button id="saveLanguageBtn" class="btn-primary" type="button">Save language</button>
+      </div>
+      <div id="languageStatus" class="status"></div>
+    </section>
+
+    <section class="panel">
+      <h2 id="passwordTitle">Change password</h2>
+      <div class="grid">
+        <label for="currentPassword" id="currentPasswordLabel">Current password
+          <input id="currentPassword" type="password" autocomplete="current-password" />
+        </label>
+        <label for="newPassword" id="newPasswordLabel">New password
+          <input id="newPassword" type="password" autocomplete="new-password" />
+        </label>
+        <label for="confirmPassword" id="confirmPasswordLabel">Confirm new password
+          <input id="confirmPassword" type="password" autocomplete="new-password" />
+        </label>
+        <button id="changePasswordBtn" class="btn-primary" type="button">Change password</button>
+      </div>
+      <div id="passwordStatus" class="status"></div>
+    </section>
+
+    <section class="panel">
+      <h2 id="operationsTitle">Operations</h2>
+      <div class="actions">
+        <button id="indexBtn" class="btn-primary" type="button">Index (incremental)</button>
+        <button id="reindexBtn" class="btn-ghost" type="button">Reindex (full)</button>
+        <button id="maintenanceBtn" class="btn-ghost" type="button">Maintenance (cleanup + vacuum)</button>
+        <button id="resetIndexedDataBtn" class="btn-danger" type="button">Reset indexed data (destructive)</button>
+      </div>
+      <div id="operationsStatus" class="status"></div>
+    </section>
+  </main>
+
+  <script>
+    const I18N = {
+      en: {
+        pageTitle: 'Admin',
+        pageSubtitle: 'Administrative settings and maintenance operations.',
+        backToInbox: 'Back to inbox',
+        languageTitle: 'Language',
+        languageLabel: 'UI language',
+        saveLanguage: 'Save language',
+        languageSaved: 'Language saved.',
+        languageSaveFailed: 'Could not save language.',
+        passwordTitle: 'Change password',
+        currentPasswordLabel: 'Current password',
+        newPasswordLabel: 'New password',
+        confirmPasswordLabel: 'Confirm new password',
+        changePassword: 'Change password',
+        passwordRequired: 'Fill in all password fields.',
+        passwordMismatch: 'New password and confirmation do not match.',
+        passwordChanged: 'Password changed successfully.',
+        passwordFailed: 'Could not change password.',
+        passwordNetworkFailed: 'Network failure while changing password.',
+        operationsTitle: 'Operations',
+        indexLabel: 'Index (incremental)',
+        reindexLabel: 'Reindex (full)',
+        maintenanceLabel: 'Maintenance (cleanup + vacuum)',
+        resetLabel: 'Reset indexed data (destructive)',
+        opInProgress: '{action} in progress...',
+        opDone: '{action} complete: inserted={inserted}, updated={updated}, skipped={skipped}',
+        opFailed: '{action} failed.',
+        opNetworkFailed: 'Network failure while running {action}.',
+        actionIndexing: 'Indexing',
+        actionReindexing: 'Reindexing',
+        reindexConfirm: 'Run full reindex now?',
+        maintenanceConfirm: 'Run cleanup and vacuum now?',
+        maintenanceRunning: 'Maintenance in progress...',
+        maintenanceCleanupFailed: 'Cleanup failed.',
+        maintenanceVacuumFailed: 'Vacuum failed.',
+        maintenanceDone: 'Maintenance done: removedFiles={removedFiles}, removedMessages={removedMessages}, vacuumMs={vacuumMs}',
+        maintenanceNetworkFailed: 'Network failure while running maintenance.',
+        resetConfirm1: 'This will permanently remove indexed data. Continue?',
+        resetToken: 'RESET',
+        resetPrompt: 'Type {token} to confirm data reset.',
+        resetCancelled: 'Reset cancelled.',
+        resetRunning: 'Reset in progress...',
+        resetFailed: 'Reset failed.',
+        resetNetworkFailed: 'Network failure while resetting data.',
+        resetDone: 'Reset complete: messages={messages}, bodies={bodies}, attachmentsRows={attachmentsRows}, assetsRows={assetsRows}, attachmentFiles={attachmentFiles}, assetFiles={assetFiles}, vacuumMs={vacuumMs}',
+      },
+      'pt-BR': {
+        pageTitle: 'Administracao',
+        pageSubtitle: 'Configuracoes administrativas e operacoes de manutencao.',
+        backToInbox: 'Voltar para caixa',
+        languageTitle: 'Idioma',
+        languageLabel: 'Idioma da interface',
+        saveLanguage: 'Salvar idioma',
+        languageSaved: 'Idioma salvo.',
+        languageSaveFailed: 'Nao foi possivel salvar o idioma.',
+        passwordTitle: 'Alterar senha',
+        currentPasswordLabel: 'Senha atual',
+        newPasswordLabel: 'Nova senha',
+        confirmPasswordLabel: 'Confirmar nova senha',
+        changePassword: 'Alterar senha',
+        passwordRequired: 'Preencha todos os campos de senha.',
+        passwordMismatch: 'Nova senha e confirmacao nao conferem.',
+        passwordChanged: 'Senha alterada com sucesso.',
+        passwordFailed: 'Nao foi possivel alterar a senha.',
+        passwordNetworkFailed: 'Falha de rede ao alterar senha.',
+        operationsTitle: 'Operacoes',
+        indexLabel: 'Indexar (incremental)',
+        reindexLabel: 'Reindexar (completo)',
+        maintenanceLabel: 'Manutencao (cleanup + vacuum)',
+        resetLabel: 'Zerar dados indexados (destrutivo)',
+        opInProgress: '{action} em andamento...',
+        opDone: '{action} concluido: inserted={inserted}, updated={updated}, skipped={skipped}',
+        opFailed: '{action} falhou.',
+        opNetworkFailed: 'Falha de rede ao executar {action}.',
+        actionIndexing: 'Indexacao',
+        actionReindexing: 'Reindexacao',
+        reindexConfirm: 'Executar reindexacao completa agora?',
+        maintenanceConfirm: 'Executar cleanup e vacuum agora?',
+        maintenanceRunning: 'Manutencao em andamento...',
+        maintenanceCleanupFailed: 'Falha no cleanup.',
+        maintenanceVacuumFailed: 'Falha no vacuum.',
+        maintenanceDone: 'Manutencao concluida: removedFiles={removedFiles}, removedMessages={removedMessages}, vacuumMs={vacuumMs}',
+        maintenanceNetworkFailed: 'Falha de rede durante manutencao.',
+        resetConfirm1: 'Esta acao remove os dados indexados permanentemente. Continuar?',
+        resetToken: 'ZERAR',
+        resetPrompt: 'Digite {token} para confirmar o reset.',
+        resetCancelled: 'Reset cancelado.',
+        resetRunning: 'Reset em andamento...',
+        resetFailed: 'Reset falhou.',
+        resetNetworkFailed: 'Falha de rede durante reset.',
+        resetDone: 'Reset concluido: messages={messages}, bodies={bodies}, attachmentsRows={attachmentsRows}, assetsRows={assetsRows}, attachmentFiles={attachmentFiles}, assetFiles={assetFiles}, vacuumMs={vacuumMs}',
+      },
+    };
+
+    const pageTitle = document.getElementById('pageTitle');
+    const pageSubtitle = document.getElementById('pageSubtitle');
+    const backToInboxLink = document.getElementById('backToInboxLink');
+
+    const languageTitle = document.getElementById('languageTitle');
+    const languageLabel = document.getElementById('languageLabel');
+    const languageSelect = document.getElementById('languageSelect');
+    const saveLanguageBtn = document.getElementById('saveLanguageBtn');
+    const languageStatus = document.getElementById('languageStatus');
+
+    const passwordTitle = document.getElementById('passwordTitle');
+    const currentPasswordLabel = document.getElementById('currentPasswordLabel');
+    const newPasswordLabel = document.getElementById('newPasswordLabel');
+    const confirmPasswordLabel = document.getElementById('confirmPasswordLabel');
+    const currentPassword = document.getElementById('currentPassword');
+    const newPassword = document.getElementById('newPassword');
+    const confirmPassword = document.getElementById('confirmPassword');
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    const passwordStatus = document.getElementById('passwordStatus');
+
+    const operationsTitle = document.getElementById('operationsTitle');
+    const indexBtn = document.getElementById('indexBtn');
+    const reindexBtn = document.getElementById('reindexBtn');
+    const maintenanceBtn = document.getElementById('maintenanceBtn');
+    const resetIndexedDataBtn = document.getElementById('resetIndexedDataBtn');
+    const operationsStatus = document.getElementById('operationsStatus');
+
+    let state = {
+      language: 'en',
+      running: false,
+    };
+
+    function t(key, vars = {}) {
+      const bundle = I18N[state.language] || I18N.en;
+      const template = bundle[key] ?? I18N.en[key] ?? key;
+      return template.replaceAll(/\{(\w+)\}/g, (_, variable) => String(vars[variable] ?? ''));
+    }
+
+    function apiFetch(input, init = {}) {
+      return fetch(input, { credentials: 'same-origin', ...init });
+    }
+
+    function setStatus(el, kind, message) {
+      el.className = `status ${kind}`;
+      el.textContent = message;
+    }
+
+    function applyStaticTexts() {
+      document.documentElement.lang = state.language;
+      document.title = `MailVault - ${t('pageTitle')}`;
+      pageTitle.textContent = t('pageTitle');
+      pageSubtitle.textContent = t('pageSubtitle');
+      backToInboxLink.textContent = t('backToInbox');
+
+      languageTitle.textContent = t('languageTitle');
+      languageLabel.childNodes[0].textContent = t('languageLabel');
+      saveLanguageBtn.textContent = t('saveLanguage');
+
+      passwordTitle.textContent = t('passwordTitle');
+      currentPasswordLabel.childNodes[0].textContent = t('currentPasswordLabel');
+      newPasswordLabel.childNodes[0].textContent = t('newPasswordLabel');
+      confirmPasswordLabel.childNodes[0].textContent = t('confirmPasswordLabel');
+      changePasswordBtn.textContent = t('changePassword');
+
+      operationsTitle.textContent = t('operationsTitle');
+      indexBtn.textContent = t('indexLabel');
+      reindexBtn.textContent = t('reindexLabel');
+      maintenanceBtn.textContent = t('maintenanceLabel');
+      resetIndexedDataBtn.textContent = t('resetLabel');
+    }
+
+    function setRunning(running) {
+      state.running = running;
+      indexBtn.disabled = running;
+      reindexBtn.disabled = running;
+      maintenanceBtn.disabled = running;
+      resetIndexedDataBtn.disabled = running;
+      saveLanguageBtn.disabled = running;
+      changePasswordBtn.disabled = running;
+    }
+
+    async function loadLanguagePreference() {
+      try {
+        const response = await apiFetch('/api/ui/language');
+        if (!response.ok) {
+          state.language = 'en';
+          return;
+        }
+        const data = await response.json();
+        state.language = data.language === 'pt-BR' ? 'pt-BR' : 'en';
+      } catch (_) {
+        state.language = 'en';
+      }
+    }
+
+    async function saveLanguagePreference() {
+      const language = languageSelect.value === 'pt-BR' ? 'pt-BR' : 'en';
+      try {
+        const response = await apiFetch('/api/ui/language', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ language }),
+        });
+        if (!response.ok) {
+          setStatus(languageStatus, 'error', t('languageSaveFailed'));
+          return;
+        }
+        state.language = language;
+        applyStaticTexts();
+        setStatus(languageStatus, 'ok', t('languageSaved'));
+      } catch (_) {
+        setStatus(languageStatus, 'error', t('languageSaveFailed'));
+      }
+    }
+
+    async function changePassword() {
+      const current = currentPassword.value;
+      const next = newPassword.value;
+      const confirmation = confirmPassword.value;
+      if (!current || !next || !confirmation) {
+        setStatus(passwordStatus, 'error', t('passwordRequired'));
+        return;
+      }
+      if (next !== confirmation) {
+        setStatus(passwordStatus, 'error', t('passwordMismatch'));
+        return;
+      }
+
+      try {
+        const response = await apiFetch('/api/auth/password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword: current,
+            newPassword: next,
+          }),
+        });
+        if (!response.ok) {
+          setStatus(passwordStatus, 'error', t('passwordFailed'));
+          return;
+        }
+        currentPassword.value = '';
+        newPassword.value = '';
+        confirmPassword.value = '';
+        setStatus(passwordStatus, 'ok', t('passwordChanged'));
+      } catch (_) {
+        setStatus(passwordStatus, 'error', t('passwordNetworkFailed'));
+      }
+    }
+
+    async function runIndex(actionLabel) {
+      setRunning(true);
+      setStatus(operationsStatus, 'info', t('opInProgress', { action: actionLabel }));
+      try {
+        const response = await apiFetch('/api/index', { method: 'POST' });
+        if (!response.ok) {
+          setStatus(operationsStatus, 'error', t('opFailed', { action: actionLabel }));
+          return;
+        }
+        const data = await response.json();
+        setStatus(
+          operationsStatus,
+          'ok',
+          t('opDone', {
+            action: actionLabel,
+            inserted: data.inserted,
+            updated: data.updated,
+            skipped: data.skipped,
+          }),
+        );
+      } catch (_) {
+        setStatus(operationsStatus, 'error', t('opNetworkFailed', { action: actionLabel }));
+      } finally {
+        setRunning(false);
+      }
+    }
+
+    async function runMaintenance() {
+      setRunning(true);
+      setStatus(operationsStatus, 'info', t('maintenanceRunning'));
+      try {
+        const cleanupRes = await apiFetch('/api/maintenance/cleanup', { method: 'POST' });
+        if (!cleanupRes.ok) {
+          setStatus(operationsStatus, 'error', t('maintenanceCleanupFailed'));
+          return;
+        }
+        const cleanup = await cleanupRes.json();
+
+        const vacuumRes = await apiFetch('/api/maintenance/vacuum', { method: 'POST' });
+        if (!vacuumRes.ok) {
+          setStatus(operationsStatus, 'error', t('maintenanceVacuumFailed'));
+          return;
+        }
+        const vacuum = await vacuumRes.json();
+        setStatus(
+          operationsStatus,
+          'ok',
+          t('maintenanceDone', {
+            removedFiles: cleanup.removedAttachmentFiles + cleanup.removedAssetFiles,
+            removedMessages: cleanup.removedMissingMessageRows,
+            vacuumMs: vacuum.durationMs,
+          }),
+        );
+      } catch (_) {
+        setStatus(operationsStatus, 'error', t('maintenanceNetworkFailed'));
+      } finally {
+        setRunning(false);
+      }
+    }
+
+    async function runResetIndexedData() {
+      const confirmed = window.confirm(t('resetConfirm1'));
+      if (!confirmed) {
+        setStatus(operationsStatus, 'info', t('resetCancelled'));
+        return;
+      }
+      const token = t('resetToken');
+      const typed = window.prompt(t('resetPrompt', { token }), '');
+      if ((typed || '').trim() !== token) {
+        setStatus(operationsStatus, 'info', t('resetCancelled'));
+        return;
+      }
+
+      setRunning(true);
+      setStatus(operationsStatus, 'info', t('resetRunning'));
+      try {
+        const response = await apiFetch('/api/maintenance/reset-indexed-data', { method: 'POST' });
+        if (!response.ok) {
+          setStatus(operationsStatus, 'error', t('resetFailed'));
+          return;
+        }
+        const data = await response.json();
+        setStatus(
+          operationsStatus,
+          'ok',
+          t('resetDone', {
+            messages: data.removedMessages,
+            bodies: data.removedMessageBodies,
+            attachmentsRows: data.removedAttachmentsRows,
+            assetsRows: data.removedAssetsRows,
+            attachmentFiles: data.removedAttachmentFiles,
+            assetFiles: data.removedAssetFiles,
+            vacuumMs: data.vacuumDurationMs,
+          }),
+        );
+      } catch (_) {
+        setStatus(operationsStatus, 'error', t('resetNetworkFailed'));
+      } finally {
+        setRunning(false);
+      }
+    }
+
+    saveLanguageBtn.addEventListener('click', () => {
+      saveLanguagePreference();
+    });
+
+    changePasswordBtn.addEventListener('click', () => {
+      changePassword();
+    });
+
+    indexBtn.addEventListener('click', () => {
+      runIndex(t('actionIndexing'));
+    });
+
+    reindexBtn.addEventListener('click', () => {
+      if (!window.confirm(t('reindexConfirm'))) {
+        return;
+      }
+      runIndex(t('actionReindexing'));
+    });
+
+    maintenanceBtn.addEventListener('click', () => {
+      if (!window.confirm(t('maintenanceConfirm'))) {
+        return;
+      }
+      runMaintenance();
+    });
+
+    resetIndexedDataBtn.addEventListener('click', () => {
+      runResetIndexedData();
+    });
+
+    async function initPage() {
+      await loadLanguagePreference();
+      languageSelect.value = state.language;
+      applyStaticTexts();
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

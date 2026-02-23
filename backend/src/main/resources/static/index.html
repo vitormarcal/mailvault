@@ -131,7 +131,7 @@
 
     .search-top {
       display: grid;
-      grid-template-columns: 1fr auto auto auto;
+      grid-template-columns: 1fr auto auto auto auto;
       gap: 10px;
       align-items: center;
     }
@@ -486,6 +486,7 @@
           <input id="query" type="text" placeholder="Search by subject, sender or content terms" autocomplete="off" />
           <button id="searchBtn" type="submit" class="btn-primary">Search</button>
           <button id="clearBtn" type="button" class="btn-ghost">Clear all</button>
+          <a id="adminLink" href="/admin" class="btn btn-ghost">Admin</a>
           <select id="languageSelect" class="language-select">
             <option value="en">English</option>
             <option value="pt-BR">Português (Brasil)</option>
@@ -565,6 +566,7 @@
     const hasFrozenImagesFilter = document.getElementById('hasFrozenImagesFilter');
     const activeFilters = document.getElementById('activeFilters');
     const clearBtn = document.getElementById('clearBtn');
+    const adminLink = document.getElementById('adminLink');
     const searchBtn = document.getElementById('searchBtn');
     const languageSelect = document.getElementById('languageSelect');
     const results = document.getElementById('results');
@@ -620,6 +622,7 @@
         searchPlaceholder: 'Search by subject, sender or content terms',
         searchBtn: 'Search',
         clearBtn: 'Clear all',
+        adminLink: 'Admin',
         yearFilterLabel: 'Year',
         yearFilterPlaceholder: 'All',
         hasAttachmentsFilterLabel: 'Attachments',
@@ -717,6 +720,7 @@
         searchPlaceholder: 'Buscar por assunto, remetente ou termos do conteudo',
         searchBtn: 'Buscar',
         clearBtn: 'Limpar tudo',
+        adminLink: 'Admin',
         yearFilterLabel: 'Ano',
         yearFilterPlaceholder: 'Todos',
         hasAttachmentsFilterLabel: 'Anexos',
@@ -873,6 +877,7 @@
       queryInput.placeholder = t('searchPlaceholder');
       searchBtn.textContent = t('searchBtn');
       clearBtn.textContent = t('clearBtn');
+      adminLink.textContent = t('adminLink');
       document.getElementById('yearFilterLabel').textContent = t('yearFilterLabel');
       yearFilter.placeholder = t('yearFilterPlaceholder');
       document.getElementById('hasAttachmentsFilterLabel').textContent = t('hasAttachmentsFilterLabel');

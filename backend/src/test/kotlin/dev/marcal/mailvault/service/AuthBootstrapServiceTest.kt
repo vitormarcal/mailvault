@@ -11,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 
 class AuthBootstrapServiceTest {
     @TempDir
@@ -57,5 +58,29 @@ class AuthBootstrapServiceTest {
                 service.bootstrap(username = "other", password = "another")
             }
         assertEquals("Credentials already configured", ex.message)
+    }
+
+    @Test
+    fun `changes password when current password is valid`() {
+        service.bootstrap(username = "admin", password = "secret")
+        val beforeHash = service.credentials()?.passwordHash
+
+        service.changePassword(currentPassword = "secret", newPassword = "new-secret")
+
+        val afterCredentials = service.credentials()
+        assertEquals("admin", afterCredentials?.username)
+        assertNotEquals(beforeHash, afterCredentials?.passwordHash)
+        assertEquals(true, BCryptPasswordEncoder().matches("new-secret", afterCredentials?.passwordHash.orEmpty()))
+    }
+
+    @Test
+    fun `rejects password change with invalid current password`() {
+        service.bootstrap(username = "admin", password = "secret")
+
+        val ex =
+            assertFailsWith<ValidationException> {
+                service.changePassword(currentPassword = "wrong", newPassword = "new-secret")
+            }
+        assertEquals("currentPassword is invalid", ex.message)
     }
 }
