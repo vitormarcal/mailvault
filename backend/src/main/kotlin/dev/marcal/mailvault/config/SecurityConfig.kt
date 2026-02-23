@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.Customizer
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
-import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.core.userdetails.UsernameNotFoundException
@@ -24,13 +23,18 @@ class SecurityConfig {
     ): SecurityFilterChain =
         http
             .csrf { it.disable() }
-            .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
-            .httpBasic(Customizer.withDefaults())
             .authorizeHttpRequests {
                 it
                     .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/login", "/login.html").permitAll()
                     .requestMatchers(setupBootstrapRequestMatcher).permitAll()
                     .anyRequest().authenticated()
+            }
+            .formLogin {
+                it
+                    .loginPage("/login")
+                    .defaultSuccessUrl("/", true)
+                    .permitAll()
             }
             .headers {
                 it.contentTypeOptions(Customizer.withDefaults())

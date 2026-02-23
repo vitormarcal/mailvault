@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MailVault Login</title>
+  <style>
+    :root {
+      --bg: #f7f4ef;
+      --panel: #fffdf8;
+      --line: #d8cab3;
+      --ink: #1f1b16;
+      --muted: #5f584b;
+      --accent: #1f5e94;
+      --accent-strong: #154770;
+      --danger: #7b2a2a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      color: var(--ink);
+      background: linear-gradient(140deg, #f7f4ef, #ede5d8);
+    }
+    .card {
+      width: min(460px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 14px 28px rgba(30, 24, 13, 0.08);
+    }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    p { margin: 0 0 18px; color: var(--muted); }
+    label { display: block; margin: 12px 0 5px; font-weight: 700; }
+    input {
+      width: 100%;
+      border: 1px solid #ccbda8;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
+    input:focus {
+      outline: 2px solid rgba(31, 94, 148, 0.2);
+      border-color: var(--accent);
+    }
+    button {
+      margin-top: 16px;
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font: inherit;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-strong); }
+    .error {
+      margin-top: 12px;
+      color: var(--danger);
+      min-height: 20px;
+      font-size: 0.94rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Sign in</h1>
+    <p>Authenticate to access MailVault.</p>
+
+    <form method="post" action="/login">
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="username" required />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+      <button type="submit">Login</button>
+    </form>
+
+    <div id="error" class="error"></div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error')) {
+      document.getElementById('error').textContent = 'Invalid username or password.';
+    }
+    if (params.get('logout')) {
+      document.getElementById('error').textContent = 'You are signed out.';
+    }
+  </script>
+</body>
+</html>

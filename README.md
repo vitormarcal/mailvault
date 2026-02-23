@@ -25,7 +25,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
 
 - Authentication:
   - On first startup, `/` opens an initial setup page to create the first account.
-  - After setup, HTTP Basic is required for all routes and static resources, including `/`, `/messages/{id}`, `/assets/**`, and attachment downloads (`/api/attachments/{attachmentId}/download`).
+  - After setup, `/login` is used to authenticate and all routes/resources require an authenticated session, including `/`, `/messages/{id}`, `/assets/**`, and attachment downloads (`/api/attachments/{attachmentId}/download`).
   - Exception: health endpoint `GET /api/health` is public (no auth).
 - Historical inbox (list and search): `GET /`
 - List/search API: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
@@ -74,7 +74,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
    - `MAILVAULT_FREEZE_ON_INDEX` (default `false`)
    - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY` (default `2`)
 4. Open `http://localhost:8080/` and complete initial setup (create username/password).
-5. After setup, browser prompts for user/password; authenticate and use the UI normally.
+5. After setup, authenticate on `/login` and use the UI normally.
 6. Click an item to open `http://localhost:8080/messages/{id}` and read `text/plain`/HTML.
 7. In detail, use **Freeze images** to download remote images with limits and SSRF protection.
 8. In detail, use **Previous/Next** or shortcuts `k`/`j`; use `g` to go back to list while preserving filters.

@@ -70,7 +70,7 @@
 <body>
   <main class="card">
     <h1>Initial setup</h1>
-    <p>Create the first MailVault account. After this step, all routes require HTTP Basic authentication.</p>
+    <p>Create the first MailVault account. After this step, all routes require authentication.</p>
 
     <form id="setupForm">
       <label for="username">Username</label>
@@ -128,8 +128,8 @@
           return;
         }
 
-        setStatus('ok', 'Account created. Opening login prompt...');
-        window.location.replace('/');
+        setStatus('ok', 'Account created. Redirecting to login...');
+        window.location.replace('/login');
       } catch (_) {
         setStatus('error', 'Network error while creating account.');
       } finally {

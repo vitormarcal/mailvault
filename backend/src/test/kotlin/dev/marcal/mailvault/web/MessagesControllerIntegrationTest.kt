@@ -9,13 +9,14 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import java.net.URI
+import java.net.CookieManager
+import java.net.CookiePolicy
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
 
@@ -27,7 +28,10 @@ class MessagesControllerIntegrationTest {
     @Value("\${local.server.port}")
     var port: Int = 0
 
-    private val httpClient = HttpClient.newHttpClient()
+    private val httpClient =
+        HttpClient.newBuilder()
+            .cookieHandler(CookieManager(null, CookiePolicy.ACCEPT_ALL))
+            .build()
 
     @BeforeEach
     fun setupData() {
@@ -157,6 +161,7 @@ class MessagesControllerIntegrationTest {
 
         jdbcTemplate.update("DELETE FROM app_meta WHERE key IN ('auth.user', 'auth.passwordHash')")
         bootstrapAuth()
+        login()
     }
 
     @Test
@@ -168,8 +173,10 @@ class MessagesControllerIntegrationTest {
 
     @Test
     fun `GET root requires authentication`() {
+        clearCookies()
         val response = getWithoutAuth("/")
-        assertEquals(401, response.statusCode())
+        assertEquals(302, response.statusCode())
+        assertEquals(true, response.headers().firstValue("Location").orElse("").contains("/login"))
     }
 
     @Test
@@ -184,14 +191,18 @@ class MessagesControllerIntegrationTest {
 
     @Test
     fun `GET assets requires authentication`() {
+        clearCookies()
         val response = getWithoutAuth("/assets/id-1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png")
-        assertEquals(401, response.statusCode())
+        assertEquals(302, response.statusCode())
+        assertEquals(true, response.headers().firstValue("Location").orElse("").contains("/login"))
     }
 
     @Test
     fun `GET attachment download requires authentication`() {
+        clearCookies()
         val response = getWithoutAuth("/api/attachments/att-file-1/download")
-        assertEquals(401, response.statusCode())
+        assertEquals(302, response.statusCode())
+        assertEquals(true, response.headers().firstValue("Location").orElse("").contains("/login"))
     }
 
     @Test
@@ -621,7 +632,6 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
-                .header("Authorization", basicAuthHeaderValue)
                 .GET()
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -640,7 +650,6 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
-                .header("Authorization", basicAuthHeaderValue)
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -660,7 +669,6 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
-                .header("Authorization", basicAuthHeaderValue)
                 .header("Content-Type", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build()
@@ -671,7 +679,6 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
-                .header("Authorization", basicAuthHeaderValue)
                 .GET()
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -722,11 +729,27 @@ class MessagesControllerIntegrationTest {
         assertEquals(201, response.statusCode())
     }
 
+    private fun login() {
+        val formBody = "username=$authUser&password=$authPassword"
+        val response =
+            httpClient.send(
+                HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:$port/login"))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(formBody, StandardCharsets.UTF_8))
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+        assertEquals(302, response.statusCode())
+    }
+
+    private fun clearCookies() {
+        (httpClient.cookieHandler().orElse(null) as? CookieManager)?.cookieStore?.removeAll()
+    }
+
     companion object {
         private const val authUser = "test-user"
         private const val authPassword = "test-pass"
-        private val basicAuthHeaderValue =
-            "Basic " + Base64.getEncoder().encodeToString("$authUser:$authPassword".toByteArray(StandardCharsets.UTF_8))
         private val dbPath =
             Path.of(
                 System.getProperty("java.io.tmpdir"),

@@ -25,6 +25,14 @@ class UiController(
             "forward:/setup.html"
         }
 
+    @GetMapping("/login")
+    fun login(): String =
+        if (authBootstrapService.isConfigured()) {
+            "forward:/login.html"
+        } else {
+            "redirect:/setup"
+        }
+
     @GetMapping("/messages/{id}")
     fun message(@PathVariable id: String): String =
         if (authBootstrapService.isConfigured()) {
