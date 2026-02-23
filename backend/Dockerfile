@@ -1,9 +1,9 @@
-# Etapa 1: Build da aplicação
+# Stage 1: Build the application
 FROM amazoncorretto:24-alpine AS builder
 
 WORKDIR /app/backend
 
-# Copie os arquivos do Gradle + wrapper para cache de dependencias
+# Copy Gradle files + wrapper to cache dependencies
 COPY ./backend/gradle ./gradle
 COPY ./backend/gradlew ./gradlew
 COPY ./backend/settings.gradle.kts ./settings.gradle.kts
@@ -12,21 +12,21 @@ COPY ./backend/build.gradle.kts ./build.gradle.kts
 RUN chmod +x ./gradlew
 RUN ./gradlew --no-daemon build -x test || true
 
-# Copie o código
+# Copy source code
 COPY ./backend/src ./src
 
 RUN ./gradlew --no-daemon clean build -PskipIntegrationTests=true
 
-# Etapa 2: Imagem final com Corretto (sem toolchain de build)
+# Stage 2: Final Corretto image (without build toolchain)
 FROM amazoncorretto:24-alpine
 
 WORKDIR /app
 
-# Copie só o jar final
+# Copy only the final JAR
 COPY --from=builder /app/backend/build/libs/*.jar server.jar
 
-# Configurações da aplicação
-# As credenciais de acesso são criadas no primeiro acesso em / (setup inicial).
+# Application settings
+# Access credentials are created on first access to / (initial setup).
 VOLUME /config
 EXPOSE 8080
 
