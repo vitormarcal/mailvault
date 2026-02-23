@@ -9,6 +9,7 @@ import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentService
 import dev.marcal.mailvault.service.HtmlRenderService
 import dev.marcal.mailvault.service.HtmlSanitizerService
+import dev.marcal.mailvault.service.FreezePendingService
 import dev.marcal.mailvault.service.MessageQueryService
 import dev.marcal.mailvault.util.ResourceNotFoundException
 import dev.marcal.mailvault.util.ValidationException
@@ -100,18 +101,22 @@ class MessagesControllerTest {
         )
         val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
         val assetRepository = AssetRepository(jdbcTemplate)
+        val messageRepository = MessageRepository(jdbcTemplate)
         val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
+        val assetFreezeService =
+            AssetFreezeService(
+                messageHtmlRepository,
+                assetRepository,
+                MailVaultProperties(),
+                htmlRenderService,
+            )
         controller =
                 MessagesController(
-                    MessageQueryService(MessageRepository(jdbcTemplate)),
+                    MessageQueryService(messageRepository),
                     htmlRenderService,
                     AttachmentService(AttachmentRepository(jdbcTemplate), MailVaultProperties(storageDir = tempDir.toString())),
-                    AssetFreezeService(
-                        messageHtmlRepository,
-                        assetRepository,
-                    MailVaultProperties(),
-                    htmlRenderService,
-                ),
+                    assetFreezeService,
+                    FreezePendingService(messageRepository, assetFreezeService),
             )
     }
 

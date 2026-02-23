@@ -42,6 +42,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Attachments list: `GET /api/messages/{id}/attachments`
 - Attachment download: `GET /api/attachments/{attachmentId}/download`
 - Remote image freeze: `POST /api/messages/{id}/freeze-assets`
+- Freeze pending for current list query/page: `POST /api/messages/freeze-pending?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
 - Toggle freeze ignore per message: `PUT /api/messages/{id}/freeze-ignored?ignored=true|false`
 - Serve frozen assets: `GET /assets/{messageId}/{filename}`
 

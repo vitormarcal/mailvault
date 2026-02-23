@@ -698,6 +698,7 @@
         freezePendingConfirm: 'Freeze remote images for {count} pending message(s) on current page?',
         freezePendingProgress: 'Freezing pending... {current}/{total}',
         freezePendingDone: 'Pending freeze finished: messages={messages}, downloaded={downloaded}, failed={failed}, skipped={skipped}, requestErrors={requestErrors}',
+        freezePendingNetworkFailed: 'Network failure while freezing pending messages.',
         reindexConfirm: 'Full reindex will re-read all .eml files and update metadata/bodies. It may take time. Continue?',
         maintenanceConfirm: 'Maintenance removes orphan files and runs SQLite VACUUM. It may consume IO/time. Continue?',
       },
@@ -794,6 +795,7 @@
         freezePendingConfirm: 'Congelar imagens em {count} mensagem(ns) pendente(s) da pagina atual?',
         freezePendingProgress: 'Congelando pendentes... {current}/{total}',
         freezePendingDone: 'Freeze pendentes concluido: mensagens={messages}, baixadas={downloaded}, falhas={failed}, ignoradas={skipped}, errosReq={requestErrors}',
+        freezePendingNetworkFailed: 'Falha de rede ao congelar mensagens pendentes.',
         reindexConfirm: 'Reindexacao completa vai reler todos os .eml e atualizar metadados/corpos. Pode demorar. Deseja continuar?',
         maintenanceConfirm: 'Manutencao remove arquivos orfaos e executa VACUUM no SQLite. Pode consumir IO e tempo. Deseja continuar?',
       },
@@ -1365,51 +1367,57 @@
     }
 
     async function runFreezePending() {
-      const candidates = (state.items || []).filter((item) =>
-        item.hasHtml && !item.freezeIgnored && Number(item.frozenAssetsCount || 0) <= 0);
-
-      if (!candidates.length) {
-        setOpsStatus('info', t('freezePendingNone'));
-        return;
-      }
-
       const confirmed = window.confirm(
-        t('freezePendingConfirm', { count: candidates.length }),
+        t('freezePendingConfirm', { count: state.itemsCount || PAGE_SIZE }),
       );
       if (!confirmed) {
         return;
       }
 
       setIndexRunning(true);
-      let processed = 0;
-      let downloaded = 0;
-      let failed = 0;
-      let skipped = 0;
-      let requestErrors = 0;
-
       try {
-        for (const item of candidates) {
-          setOpsStatus('info', t('freezePendingProgress', { current: processed + 1, total: candidates.length }));
-          try {
-            const response = await apiFetch(`/api/messages/${encodeURIComponent(item.id)}/freeze-assets`, { method: 'POST' });
-            if (!response.ok) {
-              requestErrors += 1;
-            } else {
-              const data = await response.json();
-              downloaded += Number(data.downloaded || 0);
-              failed += Number(data.failed || 0);
-              skipped += Number(data.skipped || 0);
-            }
-          } catch (_) {
-            requestErrors += 1;
-          }
-          processed += 1;
+        const params = new URLSearchParams({
+          page: String(state.page),
+          size: String(PAGE_SIZE),
+        });
+        if (state.query) {
+          params.set('query', state.query);
+        }
+        if (state.year !== null) {
+          params.set('year', String(state.year));
+        }
+        if (state.hasAttachments !== null) {
+          params.set('hasAttachments', String(state.hasAttachments));
+        }
+        if (state.hasHtml !== null) {
+          params.set('hasHtml', String(state.hasHtml));
+        }
+        if (state.hasFrozenImages !== null) {
+          params.set('hasFrozenImages', String(state.hasFrozenImages));
         }
 
-        setOpsStatus(
-          requestErrors > 0 ? 'error' : 'ok',
-          t('freezePendingDone', { messages: processed, downloaded, failed, skipped, requestErrors }),
-        );
+        setOpsStatus('info', t('freezePendingProgress', { current: 1, total: 1 }));
+        const response = await apiFetch(`/api/messages/freeze-pending?${params.toString()}`, { method: 'POST' });
+        if (!response.ok) {
+          setOpsStatus('error', t('freezePendingNetworkFailed'));
+          return;
+        }
+        const data = await response.json();
+        const candidates = Number(data.candidates || 0);
+        if (candidates <= 0) {
+          setOpsStatus('info', t('freezePendingNone'));
+        } else {
+          setOpsStatus(
+            Number(data.requestErrors || 0) > 0 ? 'error' : 'ok',
+            t('freezePendingDone', {
+              messages: Number(data.messages || 0),
+              downloaded: Number(data.downloaded || 0),
+              failed: Number(data.failed || 0),
+              skipped: Number(data.skipped || 0),
+              requestErrors: Number(data.requestErrors || 0),
+            }),
+          );
+        }
         await loadMessages();
         await loadStats();
       } finally {

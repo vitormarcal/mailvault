@@ -682,6 +682,38 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `POST freeze-pending uses current list query and freezes backend-side candidates`() {
+        insert("id-4", "/tmp/4.eml", 5000, 40, "2024-03-01T10:00:00Z", 1709287200, "Needs freeze", "Dana <dana@x.com>", "<4@x>")
+        insert("id-5", "/tmp/5.eml", 6000, 50, "2024-03-02T10:00:00Z", 1709373600, "Ignored freeze", "Eva <eva@x.com>", "<5@x>")
+        jdbcTemplate.update(
+            "INSERT INTO message_bodies(message_id, text_plain, html_raw, html_sanitized) VALUES (?, ?, ?, ?)",
+            "id-4",
+            "Body four",
+            """<img src="http://localhost/blocked-4.png" />""",
+            null,
+        )
+        jdbcTemplate.update(
+            "INSERT INTO message_bodies(message_id, text_plain, html_raw, html_sanitized) VALUES (?, ?, ?, ?)",
+            "id-5",
+            "Body five",
+            """<img src="http://localhost/blocked-5.png" />""",
+            null,
+        )
+        jdbcTemplate.update("UPDATE messages SET freeze_ignored = 1 WHERE id = ?", "id-5")
+
+        val response = post("/api/messages/freeze-pending?hasHtml=true&page=0&size=50")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"candidates\":1"))
+        assertEquals(true, body.contains("\"messages\":1"))
+        assertEquals(true, body.contains("\"downloaded\":0"))
+        assertEquals(true, body.contains("\"failed\":0"))
+        assertEquals(true, body.contains("\"skipped\":1"))
+        assertEquals(true, body.contains("\"requestErrors\":0"))
+    }
+
+    @Test
     fun `PUT freeze-ignored toggles state on message`() {
         val enable = put("/api/messages/id-1/freeze-ignored?ignored=true")
         assertEquals(200, enable.statusCode())

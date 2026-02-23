@@ -5,10 +5,12 @@ import dev.marcal.mailvault.api.MessagesListResponse
 import dev.marcal.mailvault.api.HtmlRenderResponse
 import dev.marcal.mailvault.api.AttachmentResponse
 import dev.marcal.mailvault.api.AssetFreezeResponse
+import dev.marcal.mailvault.api.FreezePendingResponse
 import dev.marcal.mailvault.api.MessageNeighborResponse
 import dev.marcal.mailvault.api.MessageFreezeIgnoredResponse
 import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentService
+import dev.marcal.mailvault.service.FreezePendingService
 import dev.marcal.mailvault.service.HtmlRenderService
 import dev.marcal.mailvault.service.MessageQueryService
 import org.springframework.http.HttpHeaders
@@ -29,6 +31,7 @@ class MessagesController(
     private val htmlRenderService: HtmlRenderService,
     private val attachmentService: AttachmentService,
     private val assetFreezeService: AssetFreezeService,
+    private val freezePendingService: FreezePendingService,
 ) {
     @GetMapping
     fun list(
@@ -67,6 +70,26 @@ class MessagesController(
 
     @PostMapping("/{id}/freeze-assets")
     fun freezeAssets(@PathVariable id: String): AssetFreezeResponse = assetFreezeService.freeze(id)
+
+    @PostMapping("/freeze-pending")
+    fun freezePending(
+        @RequestParam query: String?,
+        @RequestParam(required = false) year: Int?,
+        @RequestParam(required = false) hasAttachments: Boolean?,
+        @RequestParam(required = false) hasHtml: Boolean?,
+        @RequestParam(required = false) hasFrozenImages: Boolean?,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "40") size: Int,
+    ): FreezePendingResponse =
+        freezePendingService.freezePending(
+            query = query,
+            page = page,
+            size = size,
+            year = year,
+            hasAttachments = hasAttachments,
+            hasHtml = hasHtml,
+            hasFrozenImages = hasFrozenImages,
+        )
 
     @PutMapping("/{id}/freeze-ignored")
     fun setFreezeIgnored(

@@ -13,3 +13,12 @@ data class AssetFreezeFailureSummary(
     val reason: String,
     val count: Int,
 )
+
+data class FreezePendingResponse(
+    val candidates: Int,
+    val messages: Int,
+    val downloaded: Int,
+    val failed: Int,
+    val skipped: Int,
+    val requestErrors: Int,
+)
