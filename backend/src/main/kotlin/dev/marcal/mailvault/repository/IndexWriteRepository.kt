@@ -12,7 +12,10 @@ import org.springframework.stereotype.Repository
 class IndexWriteRepository(
     private val jdbcTemplate: JdbcTemplate,
 ) {
-    fun putMeta(key: String, value: String) {
+    fun putMeta(
+        key: String,
+        value: String,
+    ) {
         jdbcTemplate.update(
             """
             INSERT INTO app_meta (key, value)
@@ -117,7 +120,10 @@ class IndexWriteRepository(
         )
     }
 
-    fun replaceAttachments(messageId: String, attachments: List<AttachmentUpsert>) {
+    fun replaceAttachments(
+        messageId: String,
+        attachments: List<AttachmentUpsert>,
+    ) {
         jdbcTemplate.update("DELETE FROM attachments WHERE message_id = ?", messageId)
         attachments.forEach { attachment ->
             jdbcTemplate.update(

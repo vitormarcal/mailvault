@@ -1,9 +1,9 @@
 package dev.marcal.mailvault.service
 
+import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.domain.AttachmentUpsert
 import dev.marcal.mailvault.domain.MessageBodyUpsert
 import dev.marcal.mailvault.domain.MessageUpsert
-import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.IndexWriteRepository
 import org.slf4j.LoggerFactory
@@ -186,7 +186,10 @@ class IndexerService(
         }
     }
 
-    private fun shouldScheduleFreeze(messageId: String, htmlRaw: String?): Boolean {
+    private fun shouldScheduleFreeze(
+        messageId: String,
+        htmlRaw: String?,
+    ): Boolean {
         if (htmlRaw.isNullOrBlank() || !REMOTE_IMG_SRC_REGEX.containsMatchIn(htmlRaw)) {
             return false
         }
@@ -288,7 +291,8 @@ class IndexerService(
     }
 
     private fun attachmentMessageDir(messageId: String): Path =
-        Path.of(mailVaultProperties.storageDir)
+        Path
+            .of(mailVaultProperties.storageDir)
             .toAbsolutePath()
             .normalize()
             .resolve("attachments")

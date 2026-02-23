@@ -25,22 +25,23 @@ class SecurityConfig {
             .csrf { it.disable() }
             .authorizeHttpRequests {
                 it
-                    .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/login", "/login.html").permitAll()
-                    .requestMatchers(setupBootstrapRequestMatcher).permitAll()
-                    .anyRequest().authenticated()
-            }
-            .formLogin {
+                    .requestMatchers(HttpMethod.GET, "/api/health")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/login", "/login.html")
+                    .permitAll()
+                    .requestMatchers(setupBootstrapRequestMatcher)
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated()
+            }.formLogin {
                 it
                     .loginPage("/login")
                     .defaultSuccessUrl("/", true)
                     .permitAll()
-            }
-            .headers {
+            }.headers {
                 it.contentTypeOptions(Customizer.withDefaults())
                 it.frameOptions { options -> options.deny() }
-            }
-            .build()
+            }.build()
 
     @Bean
     fun setupBootstrapRequestMatcher(authBootstrapService: AuthBootstrapService): RequestMatcher =
@@ -52,13 +53,15 @@ class SecurityConfig {
     @Bean
     fun userDetailsService(authBootstrapService: AuthBootstrapService): UserDetailsService =
         UserDetailsService { username ->
-            val credentials = authBootstrapService.credentials()
-                ?: throw UsernameNotFoundException("No credentials configured yet")
+            val credentials =
+                authBootstrapService.credentials()
+                    ?: throw UsernameNotFoundException("No credentials configured yet")
             if (credentials.username != username) {
                 throw UsernameNotFoundException("Invalid username")
             }
 
-            User.withUsername(credentials.username)
+            User
+                .withUsername(credentials.username)
                 .password(credentials.passwordHash)
                 .roles("USER")
                 .build()

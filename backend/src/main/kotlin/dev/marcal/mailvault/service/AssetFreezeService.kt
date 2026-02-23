@@ -1,7 +1,7 @@
 package dev.marcal.mailvault.service
 
-import dev.marcal.mailvault.api.AssetFreezeResponse
 import dev.marcal.mailvault.api.AssetFreezeFailureSummary
+import dev.marcal.mailvault.api.AssetFreezeResponse
 import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.domain.AssetStatus
 import dev.marcal.mailvault.domain.AssetUpsert
@@ -33,7 +33,8 @@ class AssetFreezeService(
 ) {
     private val logger = LoggerFactory.getLogger(AssetFreezeService::class.java)
     private val httpClient: HttpClient =
-        HttpClient.newBuilder()
+        HttpClient
+            .newBuilder()
             .followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(mailVaultProperties.assetConnectTimeoutSeconds))
             .build()
@@ -46,8 +47,9 @@ class AssetFreezeService(
         var failed = 0
         var skipped = 0
         try {
-            val html = messageHtmlRepository.findByMessageId(messageId)
-                ?: throw ResourceNotFoundException("message not found")
+            val html =
+                messageHtmlRepository.findByMessageId(messageId)
+                    ?: throw ResourceNotFoundException("message not found")
             val htmlRaw =
                 html.htmlRaw ?: run {
                     logger.info("Freeze skipped messageId={} reason=no html", messageId)
@@ -128,8 +130,7 @@ class AssetFreezeService(
                             reason = parts.getOrElse(1) { "erro no download" },
                             count = count,
                         )
-                    }
-                    .sortedWith(compareByDescending<AssetFreezeFailureSummary> { it.count }.thenBy { it.host })
+                    }.sortedWith(compareByDescending<AssetFreezeFailureSummary> { it.count }.thenBy { it.host })
 
             return AssetFreezeResponse(
                 totalFound = totalFound,
@@ -165,12 +166,12 @@ class AssetFreezeService(
     }
 
     private fun extractRemoteImageUrls(html: String): List<String> =
-        IMG_SRC_REGEX.findAll(html)
+        IMG_SRC_REGEX
+            .findAll(html)
             .mapNotNull { match ->
                 val raw = match.groups[2]?.value?.trim() ?: return@mapNotNull null
                 normalizeRemoteUrl(raw)
-            }
-            .distinct()
+            }.distinct()
             .toList()
 
     private fun normalizeRemoteUrl(raw: String): String? {
@@ -193,7 +194,11 @@ class AssetFreezeService(
         return normalized.toString()
     }
 
-    private fun downloadAsset(messageId: String, url: String, currentTotalBytes: Long): AssetUpsert {
+    private fun downloadAsset(
+        messageId: String,
+        url: String,
+        currentTotalBytes: Long,
+    ): AssetUpsert {
         val idBase = "$messageId|$url"
 
         val guarded = runCatching { validateRemoteUri(url) }
@@ -214,8 +219,9 @@ class AssetFreezeService(
                 return persistSkipped(messageId, url, "content-type is not image")
             }
 
-            val bytes = readLimitedBytes(response.body(), mailVaultProperties.maxAssetBytes)
-                ?: return persistSkipped(messageId, url, "asset exceeded max bytes")
+            val bytes =
+                readLimitedBytes(response.body(), mailVaultProperties.maxAssetBytes)
+                    ?: return persistSkipped(messageId, url, "asset exceeded max bytes")
 
             if (currentTotalBytes + bytes.size > mailVaultProperties.totalMaxBytesPerMessage) {
                 return persistSkipped(messageId, url, "total max bytes per message exceeded")
@@ -261,7 +267,8 @@ class AssetFreezeService(
         repeat(MAX_REDIRECTS + 1) { hop ->
             validateRemoteUri(current.toString())
             val request =
-                HttpRequest.newBuilder()
+                HttpRequest
+                    .newBuilder()
                     .uri(current)
                     .timeout(Duration.ofSeconds(mailVaultProperties.assetReadTimeoutSeconds))
                     .GET()
@@ -278,19 +285,25 @@ class AssetFreezeService(
                 throw IllegalArgumentException("too many redirects")
             }
 
-            val location = response.headers().firstValue("Location").orElseThrow {
-                IllegalArgumentException("redirect without location")
-            }
-            val locationUri = runCatching { URI(location) }.getOrElse {
-                throw IllegalArgumentException("invalid redirect location")
-            }
+            val location =
+                response.headers().firstValue("Location").orElseThrow {
+                    IllegalArgumentException("redirect without location")
+                }
+            val locationUri =
+                runCatching { URI(location) }.getOrElse {
+                    throw IllegalArgumentException("invalid redirect location")
+                }
             current = current.resolve(locationUri)
         }
 
         throw IllegalArgumentException("too many redirects")
     }
 
-    private fun persistSkipped(messageId: String, url: String, reason: String): AssetUpsert {
+    private fun persistSkipped(
+        messageId: String,
+        url: String,
+        reason: String,
+    ): AssetUpsert {
         val upsert =
             AssetUpsert(
                 id = sha256Hex("$messageId|$url"),
@@ -308,7 +321,11 @@ class AssetFreezeService(
         return upsert
     }
 
-    private fun persistFailed(messageId: String, url: String, reason: String): AssetUpsert {
+    private fun persistFailed(
+        messageId: String,
+        url: String,
+        reason: String,
+    ): AssetUpsert {
         val upsert =
             AssetUpsert(
                 id = sha256Hex("$messageId|$url"),
@@ -367,7 +384,11 @@ class AssetFreezeService(
             }
 
             if (address is Inet6Address) {
-                val first = address.address.firstOrNull()?.toInt()?.and(0xFF) ?: 0
+                val first =
+                    address.address
+                        .firstOrNull()
+                        ?.toInt()
+                        ?.and(0xFF) ?: 0
                 if ((first and 0xFE) == 0xFC) {
                     throw IllegalArgumentException("ipv6 unique local address is blocked")
                 }
@@ -382,7 +403,10 @@ class AssetFreezeService(
         }
     }
 
-    private fun readLimitedBytes(input: java.io.InputStream, limit: Long): ByteArray? {
+    private fun readLimitedBytes(
+        input: java.io.InputStream,
+        limit: Long,
+    ): ByteArray? {
         input.use { stream ->
             val out = ByteArrayOutputStream()
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
@@ -403,7 +427,8 @@ class AssetFreezeService(
     }
 
     private fun assetDir(messageId: String): Path =
-        Path.of(mailVaultProperties.storageDir)
+        Path
+            .of(mailVaultProperties.storageDir)
             .toAbsolutePath()
             .normalize()
             .resolve("assets")

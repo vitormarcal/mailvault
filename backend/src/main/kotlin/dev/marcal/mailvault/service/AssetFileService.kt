@@ -12,17 +12,26 @@ class AssetFileService(
     private val assetRepository: AssetRepository,
     private val mailVaultProperties: MailVaultProperties,
 ) {
-    fun resolveDownloadedAsset(messageId: String, filename: String): AssetFile {
+    fun resolveDownloadedAsset(
+        messageId: String,
+        filename: String,
+    ): AssetFile {
         val sha = filename.substringBefore('.').lowercase()
         if (sha.length != 64 || !sha.matches(HEX_64_REGEX)) {
             throw ResourceNotFoundException("asset not found")
         }
 
-        val asset = assetRepository.findDownloadedByMessageAndSha(messageId, sha)
-            ?: throw ResourceNotFoundException("asset not found")
+        val asset =
+            assetRepository.findDownloadedByMessageAndSha(messageId, sha)
+                ?: throw ResourceNotFoundException("asset not found")
         val storagePath = asset.storagePath ?: throw ResourceNotFoundException("asset file not found")
         val filePath = Path.of(storagePath).toAbsolutePath().normalize()
-        val assetsBaseDir = Path.of(mailVaultProperties.storageDir).toAbsolutePath().normalize().resolve("assets")
+        val assetsBaseDir =
+            Path
+                .of(mailVaultProperties.storageDir)
+                .toAbsolutePath()
+                .normalize()
+                .resolve("assets")
         if (!filePath.startsWith(assetsBaseDir)) {
             throw ResourceNotFoundException("asset file not found")
         }

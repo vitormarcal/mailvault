@@ -1,16 +1,16 @@
 package dev.marcal.mailvault.web
 
+import dev.marcal.mailvault.config.MailVaultProperties
+import dev.marcal.mailvault.repository.AssetRepository
+import dev.marcal.mailvault.repository.IndexWriteRepository
+import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.service.AssetFreezeService
+import dev.marcal.mailvault.service.AttachmentStorageService
+import dev.marcal.mailvault.service.HtmlRenderService
+import dev.marcal.mailvault.service.HtmlSanitizerService
 import dev.marcal.mailvault.service.IndexResult
 import dev.marcal.mailvault.service.IndexerService
 import dev.marcal.mailvault.service.MessageParseService
-import dev.marcal.mailvault.service.AttachmentStorageService
-import dev.marcal.mailvault.service.AssetFreezeService
-import dev.marcal.mailvault.service.HtmlRenderService
-import dev.marcal.mailvault.service.HtmlSanitizerService
-import dev.marcal.mailvault.repository.IndexWriteRepository
-import dev.marcal.mailvault.repository.AssetRepository
-import dev.marcal.mailvault.repository.MessageHtmlRepository
-import dev.marcal.mailvault.config.MailVaultProperties
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -34,10 +34,11 @@ class IndexControllerTest {
         Files.createDirectories(emailsDir)
 
         val dbPath = tempDir.resolve("index-controller-test.db").toAbsolutePath().normalize()
-        val dataSource = DriverManagerDataSource().apply {
-            setDriverClassName("org.sqlite.JDBC")
-            url = "jdbc:sqlite:$dbPath"
-        }
+        val dataSource =
+            DriverManagerDataSource().apply {
+                setDriverClassName("org.sqlite.JDBC")
+                url = "jdbc:sqlite:$dbPath"
+            }
         jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """
