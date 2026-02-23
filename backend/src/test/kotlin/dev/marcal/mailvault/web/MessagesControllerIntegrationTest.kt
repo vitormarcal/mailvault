@@ -15,6 +15,7 @@ import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
 
@@ -153,6 +154,44 @@ class MessagesControllerIntegrationTest {
             "2026-02-22T10:00:00Z",
             null,
         )
+
+        jdbcTemplate.update("DELETE FROM app_meta WHERE key IN ('auth.user', 'auth.passwordHash')")
+        bootstrapAuth()
+    }
+
+    @Test
+    fun `GET health is public without authentication`() {
+        val response = getWithoutAuth("/api/health")
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("\"status\":\"ok\""))
+    }
+
+    @Test
+    fun `GET root requires authentication`() {
+        val response = getWithoutAuth("/")
+        assertEquals(401, response.statusCode())
+    }
+
+    @Test
+    fun `GET root returns setup page when credentials are missing`() {
+        jdbcTemplate.update("DELETE FROM app_meta WHERE key IN ('auth.user', 'auth.passwordHash')")
+
+        val response = getWithoutAuth("/")
+
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("Initial setup"))
+    }
+
+    @Test
+    fun `GET assets requires authentication`() {
+        val response = getWithoutAuth("/assets/id-1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png")
+        assertEquals(401, response.statusCode())
+    }
+
+    @Test
+    fun `GET attachment download requires authentication`() {
+        val response = getWithoutAuth("/api/attachments/att-file-1/download")
+        assertEquals(401, response.statusCode())
     }
 
     @Test
@@ -582,6 +621,16 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
+                .header("Authorization", basicAuthHeaderValue)
+                .GET()
+                .build()
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    }
+
+    private fun getWithoutAuth(path: String): HttpResponse<String> {
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:$port$path"))
                 .GET()
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -591,7 +640,18 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
+                .header("Authorization", basicAuthHeaderValue)
                 .POST(HttpRequest.BodyPublishers.noBody())
+                .build()
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    }
+
+    private fun postJsonWithoutAuth(path: String, json: String): HttpResponse<String> {
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:$port$path"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     }
@@ -600,6 +660,7 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
+                .header("Authorization", basicAuthHeaderValue)
                 .header("Content-Type", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build()
@@ -610,6 +671,7 @@ class MessagesControllerIntegrationTest {
         val request =
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
+                .header("Authorization", basicAuthHeaderValue)
                 .GET()
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -651,7 +713,20 @@ class MessagesControllerIntegrationTest {
         )
     }
 
+    private fun bootstrapAuth() {
+        val response =
+            postJsonWithoutAuth(
+                "/api/setup/bootstrap",
+                """{"username":"$authUser","password":"$authPassword"}""",
+            )
+        assertEquals(201, response.statusCode())
+    }
+
     companion object {
+        private const val authUser = "test-user"
+        private const val authPassword = "test-pass"
+        private val basicAuthHeaderValue =
+            "Basic " + Base64.getEncoder().encodeToString("$authUser:$authPassword".toByteArray(StandardCharsets.UTF_8))
         private val dbPath =
             Path.of(
                 System.getProperty("java.io.tmpdir"),

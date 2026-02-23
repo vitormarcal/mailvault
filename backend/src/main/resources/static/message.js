@@ -169,6 +169,10 @@ function currentLocale() {
   return currentState.language === 'pt-BR' ? 'pt-BR' : 'en-US';
 }
 
+function apiFetch(input, init = {}) {
+  return fetch(input, { credentials: 'same-origin', ...init });
+}
+
 function applyStaticTexts() {
   document.documentElement.lang = currentState.language;
   document.title = t('pageTitle');
@@ -196,7 +200,7 @@ function applyStaticTexts() {
 
 async function loadLanguagePreference() {
   try {
-    const response = await fetch('/api/ui/language');
+    const response = await apiFetch('/api/ui/language');
     if (!response.ok) {
       currentState.language = 'en';
       return;
@@ -213,7 +217,7 @@ async function saveLanguagePreference(language) {
   applyStaticTexts();
   await loadMessage();
   try {
-    await fetch('/api/ui/language', {
+    await apiFetch('/api/ui/language', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ language: currentState.language }),
@@ -348,7 +352,7 @@ function applyTab(tab) {
 }
 
 async function loadRenderedHtml(id) {
-  const response = await fetch(`/api/messages/${encodeURIComponent(id)}/render`);
+  const response = await apiFetch(`/api/messages/${encodeURIComponent(id)}/render`);
   if (!response.ok) {
     return '';
   }
@@ -358,7 +362,7 @@ async function loadRenderedHtml(id) {
 
 async function loadAttachments(id) {
   attachmentsEl.innerHTML = `<li>${t('loadingAttachments')}</li>`;
-  const response = await fetch(`/api/messages/${encodeURIComponent(id)}/attachments`);
+  const response = await apiFetch(`/api/messages/${encodeURIComponent(id)}/attachments`);
   if (!response.ok) {
     attachmentsEl.innerHTML = `<li>${t('attachmentsLoadFailed')}</li>`;
     return;
@@ -391,8 +395,8 @@ async function loadNeighbors(id) {
   updateNeighborButtons();
 
   const [prevResponse, nextResponse] = await Promise.all([
-    fetch(`/api/messages/${encodeURIComponent(id)}/prev`),
-    fetch(`/api/messages/${encodeURIComponent(id)}/next`),
+    apiFetch(`/api/messages/${encodeURIComponent(id)}/prev`),
+    apiFetch(`/api/messages/${encodeURIComponent(id)}/next`),
   ]);
 
   if (prevResponse.ok) {
@@ -422,7 +426,7 @@ async function loadMessage() {
   panelPlainEl.hidden = true;
   emptyBodyEl.hidden = false;
 
-  const response = await fetch(`/api/messages/${encodeURIComponent(id)}`);
+  const response = await apiFetch(`/api/messages/${encodeURIComponent(id)}`);
   if (!response.ok) {
     subjectEl.textContent = t('notFound');
     textEl.textContent = '';
@@ -478,7 +482,7 @@ reindexBtn.addEventListener('click', async () => {
   setStatus('info', t('reindexRunning'));
 
   try {
-    const response = await fetch('/api/index', { method: 'POST' });
+    const response = await apiFetch('/api/index', { method: 'POST' });
     if (!response.ok) {
       setStatus('error', t('reindexFailed'));
       return;
@@ -503,7 +507,7 @@ freezeBtn.addEventListener('click', async () => {
   setStatus('info', t('freezeRunning'));
 
   try {
-    const response = await fetch(`/api/messages/${encodeURIComponent(id)}/freeze-assets`, { method: 'POST' });
+    const response = await apiFetch(`/api/messages/${encodeURIComponent(id)}/freeze-assets`, { method: 'POST' });
     if (!response.ok) {
       setStatus('error', t('freezeFailed'));
       return;

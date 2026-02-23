@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MailVault Setup</title>
+  <style>
+    :root {
+      --bg: #f7f4ef;
+      --panel: #fffdf8;
+      --line: #d8cab3;
+      --ink: #1f1b16;
+      --muted: #5f584b;
+      --accent: #176d5b;
+      --accent-strong: #0e4f41;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+      color: var(--ink);
+      background: linear-gradient(140deg, #f7f4ef, #ede5d8);
+    }
+    .card {
+      width: min(480px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 14px 28px rgba(30, 24, 13, 0.08);
+    }
+    h1 { margin: 0 0 8px; font-size: 1.6rem; }
+    p { margin: 0 0 18px; color: var(--muted); }
+    label { display: block; margin: 12px 0 5px; font-weight: 700; }
+    input {
+      width: 100%;
+      border: 1px solid #ccbda8;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
+    input:focus {
+      outline: 2px solid rgba(23, 109, 91, 0.2);
+      border-color: var(--accent);
+    }
+    button {
+      margin-top: 16px;
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font: inherit;
+      color: #fff;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-strong); }
+    button:disabled { opacity: 0.7; cursor: wait; }
+    .status { min-height: 22px; margin-top: 12px; font-size: 0.94rem; }
+    .status.error { color: #7b2a2a; }
+    .status.ok { color: #276f4d; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Initial setup</h1>
+    <p>Create the first MailVault account. After this step, all routes require HTTP Basic authentication.</p>
+
+    <form id="setupForm">
+      <label for="username">Username</label>
+      <input id="username" name="username" autocomplete="username" required />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" required />
+
+      <button id="submitBtn" type="submit">Create account</button>
+      <div id="status" class="status"></div>
+    </form>
+  </main>
+
+  <script>
+    const setupForm = document.getElementById('setupForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusEl = document.getElementById('status');
+
+    function setStatus(kind, message) {
+      statusEl.className = `status ${kind}`;
+      statusEl.textContent = message;
+    }
+
+    async function loadStatus() {
+      const response = await fetch('/api/setup/status');
+      if (!response.ok) {
+        return;
+      }
+      const data = await response.json();
+      if (data.configured) {
+        window.location.replace('/');
+      }
+    }
+
+    setupForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      submitBtn.disabled = true;
+      setStatus('', 'Creating account...');
+
+      const payload = {
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+      };
+
+      try {
+        const response = await fetch('/api/setup/bootstrap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => null);
+          setStatus('error', error?.message || 'Failed to create account.');
+          return;
+        }
+
+        setStatus('ok', 'Account created. Opening login prompt...');
+        window.location.replace('/');
+      } catch (_) {
+        setStatus('error', 'Network error while creating account.');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    loadStatus();
+  </script>
+</body>
+</html>

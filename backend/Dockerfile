@@ -26,6 +26,7 @@ WORKDIR /app
 COPY --from=builder /app/backend/build/libs/*.jar server.jar
 
 # Configurações da aplicação
+# As credenciais de acesso são criadas no primeiro acesso em / (setup inicial).
 VOLUME /config
 EXPOSE 8080
 

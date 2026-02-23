@@ -840,9 +840,13 @@
       languageSelect.value = state.language;
     }
 
+    function apiFetch(input, init = {}) {
+      return fetch(input, { credentials: 'same-origin', ...init });
+    }
+
     async function loadLanguagePreference() {
       try {
-        const response = await fetch('/api/ui/language');
+        const response = await apiFetch('/api/ui/language');
         if (!response.ok) {
           state.language = 'en';
           return;
@@ -862,7 +866,7 @@
       renderMeta();
       renderItems(state.items, null);
       try {
-        await fetch('/api/ui/language', {
+        await apiFetch('/api/ui/language', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ language: normalized }),
@@ -1042,7 +1046,7 @@
       }
 
       try {
-        const response = await fetch(`/api/messages?${params.toString()}`);
+        const response = await apiFetch(`/api/messages?${params.toString()}`);
         if (!response.ok) {
           state.loading = false;
           state.items = [];
@@ -1165,7 +1169,7 @@
 
     async function loadStats() {
       try {
-        const response = await fetch('/api/stats');
+        const response = await apiFetch('/api/stats');
         if (!response.ok) {
           setStatsFallback();
           return;
@@ -1200,7 +1204,7 @@
       setIndexRunning(true);
       setOpsStatus('info', t('opInProgress', { action: actionLabel }));
       try {
-        const response = await fetch('/api/index', { method: 'POST' });
+        const response = await apiFetch('/api/index', { method: 'POST' });
         if (!response.ok) {
           setOpsStatus('error', t('opFailed', { action: actionLabel }));
           return;
@@ -1225,14 +1229,14 @@
       setIndexRunning(true);
       setOpsStatus('info', t('maintenanceRunning'));
       try {
-        const cleanupRes = await fetch('/api/maintenance/cleanup', { method: 'POST' });
+        const cleanupRes = await apiFetch('/api/maintenance/cleanup', { method: 'POST' });
         if (!cleanupRes.ok) {
           setOpsStatus('error', t('maintenanceCleanupFailed'));
           return;
         }
         const cleanup = await cleanupRes.json();
 
-        const vacuumRes = await fetch('/api/maintenance/vacuum', { method: 'POST' });
+        const vacuumRes = await apiFetch('/api/maintenance/vacuum', { method: 'POST' });
         if (!vacuumRes.ok) {
           setOpsStatus('error', t('maintenanceVacuumFailed'));
           return;
@@ -1282,7 +1286,7 @@
         for (const item of candidates) {
           setOpsStatus('info', t('freezePendingProgress', { current: processed + 1, total: candidates.length }));
           try {
-            const response = await fetch(`/api/messages/${encodeURIComponent(item.id)}/freeze-assets`, { method: 'POST' });
+            const response = await apiFetch(`/api/messages/${encodeURIComponent(item.id)}/freeze-assets`, { method: 'POST' });
             if (!response.ok) {
               requestErrors += 1;
             } else {
