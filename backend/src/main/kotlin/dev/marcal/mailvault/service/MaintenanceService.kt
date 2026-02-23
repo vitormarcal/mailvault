@@ -25,16 +25,18 @@ class MaintenanceService(
         val assetsRoot = storageRoot.resolve("assets")
 
         val knownAttachmentPaths =
-            jdbcTemplate.query(
-                "SELECT storage_path FROM attachments WHERE storage_path IS NOT NULL AND TRIM(storage_path) <> ''",
-            ) { rs, _ -> rs.getString("storage_path") }
+            jdbcTemplate
+                .query(
+                    "SELECT storage_path FROM attachments WHERE storage_path IS NOT NULL AND TRIM(storage_path) <> ''",
+                ) { rs, _ -> rs.getString("storage_path") }
                 .map { Path.of(it).toAbsolutePath().normalize() }
                 .toSet()
 
         val knownAssetPaths =
-            jdbcTemplate.query(
-                "SELECT storage_path FROM assets WHERE storage_path IS NOT NULL AND TRIM(storage_path) <> ''",
-            ) { rs, _ -> rs.getString("storage_path") }
+            jdbcTemplate
+                .query(
+                    "SELECT storage_path FROM assets WHERE storage_path IS NOT NULL AND TRIM(storage_path) <> ''",
+                ) { rs, _ -> rs.getString("storage_path") }
                 .map { Path.of(it).toAbsolutePath().normalize() }
                 .toSet()
 
@@ -124,7 +126,10 @@ class MaintenanceService(
         )
     }
 
-    private fun removeOrphanFiles(root: Path, knownPaths: Set<Path>): Int {
+    private fun removeOrphanFiles(
+        root: Path,
+        knownPaths: Set<Path>,
+    ): Int {
         if (!Files.exists(root) || !root.isDirectory()) {
             return 0
         }
@@ -148,7 +153,8 @@ class MaintenanceService(
             return 0
         }
         var removed = 0
-        Files.walk(root)
+        Files
+            .walk(root)
             .sorted(Comparator.reverseOrder())
             .forEach { path ->
                 if (path == root || !Files.isDirectory(path)) {
@@ -187,7 +193,8 @@ class MaintenanceService(
             return 0
         }
         var removed = 0
-        Files.walk(root)
+        Files
+            .walk(root)
             .sorted(Comparator.reverseOrder())
             .forEach { path ->
                 if (path == root || !Files.isDirectory(path)) {
@@ -201,8 +208,7 @@ class MaintenanceService(
         return removed
     }
 
-    private fun countRows(table: String): Int =
-        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM $table", Int::class.java) ?: 0
+    private fun countRows(table: String): Int = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM $table", Int::class.java) ?: 0
 
     private fun removeMissingMessageRows(): Int {
         val messageRows =

@@ -24,10 +24,11 @@ class AuthControllerTest {
     @BeforeEach
     fun setUp() {
         val dbPath = tempDir.resolve("auth-controller-test.db").toAbsolutePath().normalize()
-        val dataSource = DriverManagerDataSource().apply {
-            setDriverClassName("org.sqlite.JDBC")
-            url = "jdbc:sqlite:$dbPath"
-        }
+        val dataSource =
+            DriverManagerDataSource().apply {
+                setDriverClassName("org.sqlite.JDBC")
+                url = "jdbc:sqlite:$dbPath"
+            }
         val jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """

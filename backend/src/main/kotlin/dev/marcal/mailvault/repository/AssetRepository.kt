@@ -40,7 +40,10 @@ class AssetRepository(
         )
     }
 
-    fun findDownloadedByMessageAndOriginalUrl(messageId: String, originalUrl: String): AssetRecord? =
+    fun findDownloadedByMessageAndOriginalUrl(
+        messageId: String,
+        originalUrl: String,
+    ): AssetRecord? =
         try {
             jdbcTemplate.queryForObject(
                 """
@@ -57,7 +60,10 @@ class AssetRepository(
             null
         }
 
-    fun findDownloadedByMessageAndFilename(messageId: String, filename: String): AssetRecord? =
+    fun findDownloadedByMessageAndFilename(
+        messageId: String,
+        filename: String,
+    ): AssetRecord? =
         try {
             jdbcTemplate.queryForObject(
                 """
@@ -77,7 +83,10 @@ class AssetRepository(
             null
         }
 
-    fun findDownloadedByMessageAndSha(messageId: String, sha256: String): AssetRecord? =
+    fun findDownloadedByMessageAndSha(
+        messageId: String,
+        sha256: String,
+    ): AssetRecord? =
         try {
             jdbcTemplate.queryForObject(
                 """
@@ -95,15 +104,17 @@ class AssetRepository(
         }
 
     fun hasDownloadedByMessageId(messageId: String): Boolean =
-        (jdbcTemplate.queryForObject(
-            """
-            SELECT COUNT(*)
-            FROM assets
-            WHERE message_id = ? AND status = 'DOWNLOADED'
-            """.trimIndent(),
-            Int::class.java,
-            messageId,
-        ) ?: 0) > 0
+        (
+            jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM assets
+                WHERE message_id = ? AND status = 'DOWNLOADED'
+                """.trimIndent(),
+                Int::class.java,
+                messageId,
+            ) ?: 0
+        ) > 0
 
     private fun rsToAsset(rs: java.sql.ResultSet): AssetRecord =
         AssetRecord(

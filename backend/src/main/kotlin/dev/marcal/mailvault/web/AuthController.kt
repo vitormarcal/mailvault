@@ -14,7 +14,9 @@ class AuthController(
     private val authBootstrapService: AuthBootstrapService,
 ) {
     @PutMapping("/password")
-    fun changePassword(@RequestBody request: ChangePasswordRequest): ChangePasswordResponse {
+    fun changePassword(
+        @RequestBody request: ChangePasswordRequest,
+    ): ChangePasswordResponse {
         authBootstrapService.changePassword(
             currentPassword = request.currentPassword,
             newPassword = request.newPassword,

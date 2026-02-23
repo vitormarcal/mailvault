@@ -12,11 +12,12 @@ class SafeNavigationService {
             throw ValidationException("url is required")
         }
 
-        val uri = try {
-            URI(trimmed)
-        } catch (_: Exception) {
-            throw ValidationException("invalid url")
-        }
+        val uri =
+            try {
+                URI(trimmed)
+            } catch (_: Exception) {
+                throw ValidationException("invalid url")
+            }
 
         val scheme = uri.scheme?.lowercase() ?: throw ValidationException("invalid url scheme")
         if (scheme != "http" && scheme != "https") {

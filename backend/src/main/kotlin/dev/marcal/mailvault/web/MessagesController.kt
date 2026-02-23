@@ -1,13 +1,13 @@
 package dev.marcal.mailvault.web
 
-import dev.marcal.mailvault.api.MessageDetailResponse
-import dev.marcal.mailvault.api.MessagesListResponse
-import dev.marcal.mailvault.api.HtmlRenderResponse
-import dev.marcal.mailvault.api.AttachmentResponse
 import dev.marcal.mailvault.api.AssetFreezeResponse
+import dev.marcal.mailvault.api.AttachmentResponse
 import dev.marcal.mailvault.api.FreezePendingResponse
-import dev.marcal.mailvault.api.MessageNeighborResponse
+import dev.marcal.mailvault.api.HtmlRenderResponse
+import dev.marcal.mailvault.api.MessageDetailResponse
 import dev.marcal.mailvault.api.MessageFreezeIgnoredResponse
+import dev.marcal.mailvault.api.MessageNeighborResponse
+import dev.marcal.mailvault.api.MessagesListResponse
 import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentService
 import dev.marcal.mailvault.service.FreezePendingService
@@ -54,22 +54,34 @@ class MessagesController(
         )
 
     @GetMapping("/{id}")
-    fun detail(@PathVariable id: String): MessageDetailResponse = messageQueryService.detail(id)
+    fun detail(
+        @PathVariable id: String,
+    ): MessageDetailResponse = messageQueryService.detail(id)
 
     @GetMapping("/{id}/prev")
-    fun prev(@PathVariable id: String): MessageNeighborResponse = messageQueryService.prev(id)
+    fun prev(
+        @PathVariable id: String,
+    ): MessageNeighborResponse = messageQueryService.prev(id)
 
     @GetMapping("/{id}/next")
-    fun next(@PathVariable id: String): MessageNeighborResponse = messageQueryService.next(id)
+    fun next(
+        @PathVariable id: String,
+    ): MessageNeighborResponse = messageQueryService.next(id)
 
     @GetMapping("/{id}/render")
-    fun render(@PathVariable id: String): HtmlRenderResponse = HtmlRenderResponse(html = htmlRenderService.render(id))
+    fun render(
+        @PathVariable id: String,
+    ): HtmlRenderResponse = HtmlRenderResponse(html = htmlRenderService.render(id))
 
     @GetMapping("/{id}/attachments")
-    fun attachments(@PathVariable id: String): List<AttachmentResponse> = attachmentService.listByMessage(id)
+    fun attachments(
+        @PathVariable id: String,
+    ): List<AttachmentResponse> = attachmentService.listByMessage(id)
 
     @PostMapping("/{id}/freeze-assets")
-    fun freezeAssets(@PathVariable id: String): AssetFreezeResponse = assetFreezeService.freeze(id)
+    fun freezeAssets(
+        @PathVariable id: String,
+    ): AssetFreezeResponse = assetFreezeService.freeze(id)
 
     @PostMapping("/freeze-pending")
     fun freezePending(
@@ -109,7 +121,8 @@ class MessagesController(
 
         val dispositionName = file.filename?.ifBlank { "inline" } ?: "inline"
 
-        return ResponseEntity.ok()
+        return ResponseEntity
+            .ok()
             .contentType(mediaType)
             .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"$dispositionName\"")
             .header("X-Content-Type-Options", "nosniff")

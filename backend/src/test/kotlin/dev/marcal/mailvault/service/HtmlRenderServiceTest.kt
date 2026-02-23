@@ -1,7 +1,7 @@
 package dev.marcal.mailvault.service
 
-import dev.marcal.mailvault.repository.MessageHtmlRepository
 import dev.marcal.mailvault.repository.AssetRepository
+import dev.marcal.mailvault.repository.MessageHtmlRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -21,10 +21,11 @@ class HtmlRenderServiceTest {
     @BeforeEach
     fun setUp() {
         val dbPath = tempDir.resolve("html-render-test.db").toAbsolutePath().normalize()
-        val dataSource = DriverManagerDataSource().apply {
-            setDriverClassName("org.sqlite.JDBC")
-            url = "jdbc:sqlite:$dbPath"
-        }
+        val dataSource =
+            DriverManagerDataSource().apply {
+                setDriverClassName("org.sqlite.JDBC")
+                url = "jdbc:sqlite:$dbPath"
+            }
         jdbcTemplate = JdbcTemplate(dataSource)
 
         jdbcTemplate.execute(
@@ -86,7 +87,14 @@ class HtmlRenderServiceTest {
             INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, subject, from_raw, message_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
-            "m1", "/tmp/1.eml", 1L, 1L, null, "s", "f", "<m1@x>",
+            "m1",
+            "/tmp/1.eml",
+            1L,
+            1L,
+            null,
+            "s",
+            "f",
+            "<m1@x>",
         )
         jdbcTemplate.update(
             """
@@ -114,11 +122,12 @@ class HtmlRenderServiceTest {
         assertTrue(rendered.contains("data-original-src=\"https://example.com/remote.png\""))
         assertEquals(false, rendered.contains("<script", ignoreCase = true))
 
-        val cached = jdbcTemplate.queryForObject(
-            "SELECT html_sanitized FROM message_bodies WHERE message_id = ?",
-            String::class.java,
-            "m1",
-        )
+        val cached =
+            jdbcTemplate.queryForObject(
+                "SELECT html_sanitized FROM message_bodies WHERE message_id = ?",
+                String::class.java,
+                "m1",
+            )
         assertEquals(rendered, cached)
     }
 
@@ -129,7 +138,14 @@ class HtmlRenderServiceTest {
             INSERT INTO messages(id, file_path, file_mtime_epoch, file_size, date_raw, subject, from_raw, message_id)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent(),
-            "m2", "/tmp/2.eml", 1L, 1L, null, "s", "f", "<m2@x>",
+            "m2",
+            "/tmp/2.eml",
+            1L,
+            1L,
+            null,
+            "s",
+            "f",
+            "<m2@x>",
         )
         jdbcTemplate.update(
             """

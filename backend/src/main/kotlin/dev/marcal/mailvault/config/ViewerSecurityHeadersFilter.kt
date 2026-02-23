@@ -32,6 +32,5 @@ class ViewerSecurityHeadersFilter : OncePerRequestFilter() {
         filterChain.doFilter(request, response)
     }
 
-    private fun shouldApplyViewerHeaders(uri: String): Boolean =
-        uri == "/message.html" || uri.startsWith("/messages/")
+    private fun shouldApplyViewerHeaders(uri: String): Boolean = uri == "/message.html" || uri.startsWith("/messages/")
 }

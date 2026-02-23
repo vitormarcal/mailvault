@@ -22,7 +22,10 @@ class AuthBootstrapService(
     }
 
     @Synchronized
-    fun bootstrap(username: String?, password: String?) {
+    fun bootstrap(
+        username: String?,
+        password: String?,
+    ) {
         if (isConfigured()) {
             throw ValidationException("Credentials already configured")
         }
@@ -44,7 +47,10 @@ class AuthBootstrapService(
     }
 
     @Synchronized
-    fun changePassword(currentPassword: String?, newPassword: String?) {
+    fun changePassword(
+        currentPassword: String?,
+        newPassword: String?,
+    ) {
         val credentials = credentials() ?: throw ValidationException("Credentials not configured")
         val current = currentPassword.orEmpty()
         val next = newPassword.orEmpty()

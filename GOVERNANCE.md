@@ -116,6 +116,11 @@ Load via @ConfigurationProperties.
 - Not generate critical warnings
 - Have clear separation of responsibilities
 
+16) Mandatory finalization step
+- After completing any code change, always run `./gradlew ktlintFormat`
+- If this step reveals issues, fix them automatically before finishing the task
+- Only finish when formatting is applied and related issues are resolved
+
 Now confirm understanding of these rules and wait for the next feature prompt.
 
 Additional mandatory rule for any new MailVault feature:

@@ -9,5 +9,5 @@ import org.springframework.boot.runApplication
 class MailVaultApplication
 
 fun main(args: Array<String>) {
-	runApplication<MailVaultApplication>(*args)
+    runApplication<MailVaultApplication>(*args)
 }
