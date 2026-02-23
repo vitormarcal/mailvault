@@ -2,17 +2,17 @@ spring:
   application:
     name: ${SPRING_APPLICATION_NAME:Mail Vault}
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:sqlite:./data/mailvault.db}
+    url: ${SPRING_DATASOURCE_URL:jdbc:sqlite:/app/db/mailvault.db}
     driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.sqlite.JDBC}
   flyway:
     enabled: ${SPRING_FLYWAY_ENABLED:true}
-    url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:sqlite:./data/mailvault.db}}
+    url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:sqlite:/app/db/mailvault.db}}
     driver-class-name: ${SPRING_FLYWAY_DRIVER_CLASS_NAME:${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.sqlite.JDBC}}
     locations: ${SPRING_FLYWAY_LOCATIONS:classpath:db/migration}
 
 mailvault:
-  rootEmailsDir: ${MAILVAULT_INDEX_ROOT_DIR:./data/emails}
-  storageDir: ${MAILVAULT_STORAGE_DIR:./data/storage}
+  rootEmailsDir: ${MAILVAULT_INDEX_ROOT_DIR:/app/emails}
+  storageDir: ${MAILVAULT_STORAGE_DIR:/app/storage}
   maxAssetsPerMessage: ${MAILVAULT_MAX_ASSETS_PER_MESSAGE:50}
   maxAssetBytes: ${MAILVAULT_MAX_ASSET_BYTES:10485760}
   totalMaxBytesPerMessage: ${MAILVAULT_TOTAL_MAX_BYTES_PER_MESSAGE:52428800}
