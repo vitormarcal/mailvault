@@ -51,6 +51,7 @@ class MessagesControllerTest {
                 from_display TEXT,
                 from_email TEXT,
                 from_name TEXT,
+                freeze_ignored INTEGER NOT NULL DEFAULT 0,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -152,5 +153,26 @@ class MessagesControllerTest {
     fun `returns not found when id does not exist`() {
         val ex = assertFailsWith<ResourceNotFoundException> { controller.detail("missing") }
         assertEquals("message not found", ex.message)
+    }
+
+    @Test
+    fun `toggles freeze ignored flag`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m-1",
+            "/tmp/m-1.eml",
+            1L,
+            1L,
+        )
+
+        val enabled = controller.setFreezeIgnored("m-1", true)
+        val disabled = controller.setFreezeIgnored("m-1", false)
+
+        assertEquals("m-1", enabled.id)
+        assertEquals(true, enabled.freezeIgnored)
+        assertEquals(false, disabled.freezeIgnored)
     }
 }

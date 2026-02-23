@@ -636,6 +636,29 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `PUT freeze-ignored toggles state on message`() {
+        val enable = put("/api/messages/id-1/freeze-ignored?ignored=true")
+        assertEquals(200, enable.statusCode())
+        assertEquals(true, enable.body().contains("\"id\":\"id-1\""))
+        assertEquals(true, enable.body().contains("\"freezeIgnored\":true"))
+
+        val detailAfterEnable = get("/api/messages/id-1")
+        assertEquals(200, detailAfterEnable.statusCode())
+        assertEquals(true, detailAfterEnable.body().contains("\"freezeIgnored\":true"))
+
+        val disable = put("/api/messages/id-1/freeze-ignored?ignored=false")
+        assertEquals(200, disable.statusCode())
+        assertEquals(true, disable.body().contains("\"freezeIgnored\":false"))
+    }
+
+    @Test
+    fun `PUT freeze-ignored returns not found for unknown message`() {
+        val response = put("/api/messages/missing/freeze-ignored?ignored=true")
+        assertEquals(404, response.statusCode())
+        assertEquals(true, response.body().contains("\"error\":\"NOT_FOUND\""))
+    }
+
+    @Test
     fun `GET go redirects for safe schemes and blocks unsafe ones`() {
         val safe = get("/go?url=https://example.com")
         assertEquals(302, safe.statusCode())
@@ -669,6 +692,15 @@ class MessagesControllerIntegrationTest {
             HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
                 .POST(HttpRequest.BodyPublishers.noBody())
+                .build()
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    }
+
+    private fun put(path: String): HttpResponse<String> {
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:$port$path"))
+                .PUT(HttpRequest.BodyPublishers.noBody())
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     }

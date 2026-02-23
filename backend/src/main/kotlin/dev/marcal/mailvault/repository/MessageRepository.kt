@@ -126,6 +126,7 @@ class MessageRepository(
                             WHEN mb.html_raw IS NOT NULL AND TRIM(mb.html_raw) <> '' THEN 1
                             ELSE 0
                         END AS has_html,
+                        m.freeze_ignored,
                         m.from_raw,
                         m.from_display,
                         m.file_mtime_epoch
@@ -165,6 +166,7 @@ class MessageRepository(
                     COALESCE(ac.attachments_count, 0) AS attachments_count,
                     COALESCE(sc.frozen_assets_count, 0) AS frozen_assets_count,
                     COALESCE(sc.assets_failed_count, 0) AS assets_failed_count,
+                    p.freeze_ignored,
                     p.from_raw,
                     p.from_display,
                     p.file_mtime_epoch
@@ -185,6 +187,7 @@ class MessageRepository(
                         attachmentsCount = rs.getInt("attachments_count"),
                         frozenAssetsCount = rs.getInt("frozen_assets_count"),
                         assetsFailedCount = rs.getInt("assets_failed_count"),
+                        freezeIgnored = rs.getInt("freeze_ignored") == 1,
                         fromRaw = rs.getString("from_raw"),
                         fromDisplay = rs.getString("from_display"),
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
@@ -204,7 +207,8 @@ class MessageRepository(
                        mb.text_plain,
                        (SELECT COUNT(*) FROM attachments a WHERE a.message_id = m.id) AS attachments_count,
                        (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'DOWNLOADED') AS frozen_assets_count,
-                       (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'FAILED') AS assets_failed_count
+                       (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'FAILED') AS assets_failed_count,
+                       m.freeze_ignored
                 FROM messages m
                 LEFT JOIN message_bodies mb ON mb.message_id = m.id
                 WHERE m.id = ?
@@ -226,6 +230,7 @@ class MessageRepository(
                         attachmentsCount = rs.getInt("attachments_count"),
                         frozenAssetsCount = rs.getInt("frozen_assets_count"),
                         assetsFailedCount = rs.getInt("assets_failed_count"),
+                        freezeIgnored = rs.getInt("freeze_ignored") == 1,
                         messageId = rs.getString("message_id"),
                         textPlain = rs.getString("text_plain"),
                     )
@@ -235,6 +240,16 @@ class MessageRepository(
         } catch (_: EmptyResultDataAccessException) {
             null
         }
+
+    fun setFreezeIgnored(
+        id: String,
+        ignored: Boolean,
+    ): Boolean =
+        jdbcTemplate.update(
+            "UPDATE messages SET freeze_ignored = ? WHERE id = ?",
+            if (ignored) 1 else 0,
+            id,
+        ) > 0
 
     private fun readNullableLong(
         rs: java.sql.ResultSet,

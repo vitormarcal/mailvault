@@ -41,12 +41,14 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Attachments list: `GET /api/messages/{id}/attachments`
 - Attachment download: `GET /api/attachments/{attachmentId}/download`
 - Remote image freeze: `POST /api/messages/{id}/freeze-assets`
+- Toggle freeze ignore per message: `PUT /api/messages/{id}/freeze-ignored?ignored=true|false`
 - Serve frozen assets: `GET /assets/{messageId}/{filename}`
 
 In `GET /api/messages/{id}`, in addition to basic metadata, the response also includes:
 - `attachmentsCount`
 - `frozenAssetsCount`
 - `assetsFailedCount`
+- `freezeIgnored`
 - `messageSizeBytes`
 - `filePath` (plain text for copy)
 
@@ -83,6 +85,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 
 - With `MAILVAULT_FREEZE_ON_INDEX=true`, new/updated messages may trigger remote-image freeze automatically at the end of indexing.
 - The process is best-effort: network/SSRF failures do not fail indexing.
+- Messages marked with `freezeIgnored=true` are skipped by auto-freeze and by the UI action **Freeze pending**.
 - Limits:
   - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY`: automatic freeze parallelism.
 - To avoid repeated work, messages that already have `DOWNLOADED` assets are skipped during auto-freeze.
@@ -96,6 +99,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 - `V9__fts_rebuild_with_body.sql`: rebuilds `messages_fts` with `subject`, `from_raw`, and `text_plain`; adds sync triggers on `messages` and `message_bodies`
 - `V10__html_text_fts.sql`: adds `html_text` to `message_bodies` and rebuilds `messages_fts` to index extracted HTML text as well
 - `V11__message_display_headers.sql`: adds `subject_display`, `from_display`, `from_email`, and `from_name` to `messages` to show decoded RFC 2047 headers
+- `V12__messages_freeze_ignored.sql`: adds `freeze_ignored` to `messages` to allow marking/unmarking messages that should be ignored by freeze routines
 
 ## Search and filters (`GET /api/messages`)
 

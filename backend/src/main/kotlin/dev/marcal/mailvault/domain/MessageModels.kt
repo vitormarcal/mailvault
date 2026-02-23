@@ -11,6 +11,7 @@ data class MessageSummary(
     val attachmentsCount: Int,
     val frozenAssetsCount: Int,
     val assetsFailedCount: Int,
+    val freezeIgnored: Boolean,
     val fromRaw: String?,
     val fromDisplay: String?,
     val fileMtimeEpoch: Long,
@@ -32,6 +33,7 @@ data class MessageDetail(
     val attachmentsCount: Int,
     val frozenAssetsCount: Int,
     val assetsFailedCount: Int,
+    val freezeIgnored: Boolean,
     val messageId: String?,
     val textPlain: String?,
 )
@@ -47,6 +49,7 @@ data class ExistingMessage(
     val fileSize: Long,
     val hasBodyContent: Boolean,
     val hasDateEpoch: Boolean,
+    val freezeIgnored: Boolean,
 )
 
 data class MessageUpsert(

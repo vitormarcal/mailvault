@@ -81,7 +81,7 @@ class IndexerService(
                             existing.hasBodyContent &&
                             existing.hasDateEpoch
                         ) {
-                            if (mailVaultProperties.freezeOnIndex) {
+                            if (mailVaultProperties.freezeOnIndex && !existing.freezeIgnored) {
                                 freezeCandidates += existing.id
                             }
                             skipped++
@@ -131,6 +131,7 @@ class IndexerService(
 
                             if (
                                 mailVaultProperties.freezeOnIndex &&
+                                !(existing?.freezeIgnored ?: false) &&
                                 shouldScheduleFreeze(messageId, parsed.htmlRaw)
                             ) {
                                 freezeCandidates += messageId

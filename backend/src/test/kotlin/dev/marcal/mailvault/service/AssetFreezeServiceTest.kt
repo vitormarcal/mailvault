@@ -41,6 +41,7 @@ class AssetFreezeServiceTest {
                 from_display TEXT,
                 from_email TEXT,
                 from_name TEXT,
+                freeze_ignored INTEGER NOT NULL DEFAULT 0,
                 message_id TEXT
             )
             """.trimIndent(),

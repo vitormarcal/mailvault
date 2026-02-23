@@ -56,6 +56,7 @@ class IndexerServiceTest {
                 from_display TEXT,
                 from_email TEXT,
                 from_name TEXT,
+                freeze_ignored INTEGER NOT NULL DEFAULT 0,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -565,6 +566,47 @@ class IndexerServiceTest {
             Int::class.java,
         )
         assertEquals(1, skippedAssets)
+    }
+
+    @Test
+    fun `freeze on index skips unchanged message marked as freeze ignored`() {
+        val eml = rootDir.resolve("already-indexed-ignored.eml")
+        Files.writeString(
+            eml,
+            """
+            From: Freeze <freeze@x.com>
+            Date: Sat, 21 Feb 2026 20:00:00 -0300
+            Subject: Existing ignored
+            Message-ID: <freeze-existing-ignored@x>
+            MIME-Version: 1.0
+            Content-Type: text/html; charset=UTF-8
+
+            <html><body><img src="http://localhost/private-existing-ignored.png"></body></html>
+            """.trimIndent(),
+        )
+
+        val first = service.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), first)
+        jdbcTemplate.update("UPDATE messages SET freeze_ignored = 1 WHERE message_id = ?", "<freeze-existing-ignored@x>")
+
+        service =
+            createIndexerService(
+                MailVaultProperties(
+                    rootEmailsDir = rootDir.toString(),
+                    storageDir = storageDir.toString(),
+                    freezeOnIndex = true,
+                    freezeOnIndexConcurrency = 2,
+                ),
+            )
+
+        val second = service.index()
+        assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 1), second)
+
+        val skippedAssets = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
+            Int::class.java,
+        )
+        assertEquals(0, skippedAssets)
     }
 
     private fun sha256Hex(value: String): String {

@@ -33,6 +33,7 @@ class IndexWriteRepository(
                     m.id,
                     m.file_mtime_epoch,
                     m.file_size,
+                    COALESCE(m.freeze_ignored, 0) AS freeze_ignored,
                     CASE
                         WHEN m.date_epoch IS NOT NULL THEN 1
                         ELSE 0
@@ -52,6 +53,7 @@ class IndexWriteRepository(
                         fileSize = rs.getLong("file_size"),
                         hasBodyContent = rs.getInt("has_body_content") == 1,
                         hasDateEpoch = rs.getInt("has_date_epoch") == 1,
+                        freezeIgnored = rs.getInt("freeze_ignored") == 1,
                     )
                 },
                 filePath,

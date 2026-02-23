@@ -383,6 +383,27 @@
       color: #8a2f2f;
     }
 
+    .mini-badge.muted {
+      border-color: #b7b0a3;
+      background: #f4f2ec;
+      color: #6a6254;
+    }
+
+    .inline-action {
+      border: 1px solid #ccbda8;
+      background: #fff;
+      color: #4a4031;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: .74rem;
+      line-height: 1.2;
+      cursor: pointer;
+    }
+
+    .inline-action:hover {
+      background: #f4eee2;
+    }
+
     .item-snippet {
       color: #6a604f;
       font-size: .9rem;
@@ -635,6 +656,13 @@
         badgeAttachments: 'Attachments: {count}',
         badgeFrozen: 'Frozen',
         badgeFailure: 'Failed: {count}',
+        badgeFreezeIgnored: 'Freeze ignored',
+        freezeIgnoreAction: 'Ignore freeze',
+        freezeUnignoreAction: 'Unignore freeze',
+        freezeIgnoreDone: 'Message marked to ignore freeze.',
+        freezeUnignoreDone: 'Message removed from freeze ignore.',
+        freezeIgnoreFailed: 'Failed to update freeze ignore flag.',
+        freezeIgnoreNetworkFailed: 'Network failure while updating freeze ignore flag.',
         chipSearch: 'Search: {value}',
         chipYear: 'Year: {value}',
         chipYes: 'yes',
@@ -715,6 +743,13 @@
         badgeAttachments: 'Anexos: {count}',
         badgeFrozen: 'Congelado',
         badgeFailure: 'Falha: {count}',
+        badgeFreezeIgnored: 'Freeze ignorado',
+        freezeIgnoreAction: 'Ignorar freeze',
+        freezeUnignoreAction: 'Desfazer ignorar freeze',
+        freezeIgnoreDone: 'Mensagem marcada para ignorar freeze.',
+        freezeUnignoreDone: 'Mensagem removida da lista de ignorados.',
+        freezeIgnoreFailed: 'Falha ao atualizar ignorar freeze.',
+        freezeIgnoreNetworkFailed: 'Falha de rede ao atualizar ignorar freeze.',
         chipSearch: 'Busca: {value}',
         chipYear: 'Ano: {value}',
         chipYes: 'sim',
@@ -988,6 +1023,7 @@
         const attachmentsCount = Number(item.attachmentsCount || 0);
         const frozenAssetsCount = Number(item.frozenAssetsCount || 0);
         const assetsFailedCount = Number(item.assetsFailedCount || 0);
+        const freezeIgnored = Boolean(item.freezeIgnored);
         if (item.hasHtml) {
           badges.push(`<span class="mini-badge">${escapeHtml(t('badgeHtml'))}</span>`);
         }
@@ -999,6 +1035,9 @@
         }
         if (assetsFailedCount > 0) {
           badges.push(`<span class="mini-badge danger">${escapeHtml(t('badgeFailure', { count: assetsFailedCount }))}</span>`);
+        }
+        if (freezeIgnored) {
+          badges.push(`<span class="mini-badge muted">${escapeHtml(t('badgeFreezeIgnored'))}</span>`);
         }
         const detailParams = new URLSearchParams();
         if (window.location.search) {
@@ -1014,6 +1053,7 @@
             <div class="item-head">
               <a class="item-subject" href="/messages/${encodeURIComponent(item.id)}${detailSuffix ? `?${detailSuffix}` : ''}">${highlightedSubject}</a>
               <span class="item-badges">${badges.join('')}</span>
+              ${item.hasHtml ? `<button type="button" class="inline-action" data-action="toggle-freeze-ignored" data-id="${escapeHtml(item.id)}" data-next-ignored="${freezeIgnored ? 'false' : 'true'}">${escapeHtml(freezeIgnored ? t('freezeUnignoreAction') : t('freezeIgnoreAction'))}</button>` : ''}
             </div>
             <div class="item-snippet">${highlightedSnippet}</div>
           </li>`;
@@ -1261,7 +1301,7 @@
 
     async function runFreezePending() {
       const candidates = (state.items || []).filter((item) =>
-        item.hasHtml && Number(item.frozenAssetsCount || 0) <= 0);
+        item.hasHtml && !item.freezeIgnored && Number(item.frozenAssetsCount || 0) <= 0);
 
       if (!candidates.length) {
         setOpsStatus('info', t('freezePendingNone'));
@@ -1384,6 +1424,41 @@
 
     freezePendingBtn.addEventListener('click', () => {
       runFreezePending();
+    });
+
+    results.addEventListener('click', async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+      const button = target.closest('[data-action="toggle-freeze-ignored"]');
+      if (!(button instanceof HTMLElement)) {
+        return;
+      }
+      event.preventDefault();
+      const id = button.getAttribute('data-id');
+      const nextIgnored = button.getAttribute('data-next-ignored') === 'true';
+      if (!id) {
+        return;
+      }
+
+      button.setAttribute('disabled', 'disabled');
+      try {
+        const response = await apiFetch(`/api/messages/${encodeURIComponent(id)}/freeze-ignored?ignored=${nextIgnored}`, { method: 'PUT' });
+        if (!response.ok) {
+          setOpsStatus('error', t('freezeIgnoreFailed'));
+          return;
+        }
+        const data = await response.json();
+        state.items = (state.items || []).map((item) =>
+          item.id === id ? { ...item, freezeIgnored: Boolean(data.freezeIgnored) } : item);
+        renderItems(state.items, null);
+        setOpsStatus('ok', data.freezeIgnored ? t('freezeIgnoreDone') : t('freezeUnignoreDone'));
+      } catch (_) {
+        setOpsStatus('error', t('freezeIgnoreNetworkFailed'));
+      } finally {
+        button.removeAttribute('disabled');
+      }
     });
 
     prevBtn.addEventListener('click', () => {

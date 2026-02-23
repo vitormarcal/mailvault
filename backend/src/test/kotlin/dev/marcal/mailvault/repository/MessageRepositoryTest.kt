@@ -43,6 +43,7 @@ class MessageRepositoryTest {
                 from_display TEXT,
                 from_email TEXT,
                 from_name TEXT,
+                freeze_ignored INTEGER NOT NULL DEFAULT 0,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -360,8 +361,24 @@ class MessageRepositoryTest {
         assertEquals(0, found.attachmentsCount)
         assertEquals(0, found.frozenAssetsCount)
         assertEquals(0, found.assetsFailedCount)
+        assertEquals(false, found.freezeIgnored)
         assertEquals("Body A", found.textPlain)
         assertNull(missing)
+    }
+
+    @Test
+    fun `setFreezeIgnored updates message flag reflected in list and detail`() {
+        val updated = repository.setFreezeIgnored("b", true)
+        val missing = repository.setFreezeIgnored("missing", true)
+
+        val listed = list(query = null, page = 0, size = 50).items.first { it.id == "b" }
+        val detailed = repository.findById("b")
+
+        assertEquals(true, updated)
+        assertEquals(false, missing)
+        assertEquals(true, listed.freezeIgnored)
+        assertNotNull(detailed)
+        assertEquals(true, detailed.freezeIgnored)
     }
 
     @Test

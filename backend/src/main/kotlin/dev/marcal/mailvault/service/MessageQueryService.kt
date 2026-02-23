@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.service
 
 import dev.marcal.mailvault.api.MessageDetailResponse
+import dev.marcal.mailvault.api.MessageFreezeIgnoredResponse
 import dev.marcal.mailvault.api.MessageNeighborResponse
 import dev.marcal.mailvault.api.MessageSummaryResponse
 import dev.marcal.mailvault.api.MessagesListResponse
@@ -59,6 +60,7 @@ class MessageQueryService(
                     attachmentsCount = it.attachmentsCount,
                     frozenAssetsCount = it.frozenAssetsCount,
                     assetsFailedCount = it.assetsFailedCount,
+                    freezeIgnored = it.freezeIgnored,
                     fromRaw = it.fromRaw,
                     fromDisplay = it.fromDisplay,
                     fileMtimeEpoch = it.fileMtimeEpoch,
@@ -86,9 +88,20 @@ class MessageQueryService(
             attachmentsCount = message.attachmentsCount,
             frozenAssetsCount = message.frozenAssetsCount,
             assetsFailedCount = message.assetsFailedCount,
+            freezeIgnored = message.freezeIgnored,
             messageId = message.messageId,
             textPlain = message.textPlain,
         )
+    }
+
+    fun setFreezeIgnored(
+        id: String,
+        ignored: Boolean,
+    ): MessageFreezeIgnoredResponse {
+        if (!messageRepository.setFreezeIgnored(id, ignored)) {
+            throw ResourceNotFoundException("message not found")
+        }
+        return MessageFreezeIgnoredResponse(id = id, freezeIgnored = ignored)
     }
 
     fun prev(id: String): MessageNeighborResponse {

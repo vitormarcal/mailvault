@@ -6,6 +6,7 @@ import dev.marcal.mailvault.api.HtmlRenderResponse
 import dev.marcal.mailvault.api.AttachmentResponse
 import dev.marcal.mailvault.api.AssetFreezeResponse
 import dev.marcal.mailvault.api.MessageNeighborResponse
+import dev.marcal.mailvault.api.MessageFreezeIgnoredResponse
 import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentService
 import dev.marcal.mailvault.service.HtmlRenderService
@@ -16,6 +17,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
@@ -65,6 +67,12 @@ class MessagesController(
 
     @PostMapping("/{id}/freeze-assets")
     fun freezeAssets(@PathVariable id: String): AssetFreezeResponse = assetFreezeService.freeze(id)
+
+    @PutMapping("/{id}/freeze-ignored")
+    fun setFreezeIgnored(
+        @PathVariable id: String,
+        @RequestParam ignored: Boolean,
+    ): MessageFreezeIgnoredResponse = messageQueryService.setFreezeIgnored(id, ignored)
 
     @GetMapping("/{id}/cid/{cid}")
     fun cid(

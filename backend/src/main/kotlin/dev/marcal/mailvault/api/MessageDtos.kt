@@ -11,6 +11,7 @@ data class MessageSummaryResponse(
     val attachmentsCount: Int,
     val frozenAssetsCount: Int,
     val assetsFailedCount: Int,
+    val freezeIgnored: Boolean,
     val fromRaw: String?,
     val fromDisplay: String?,
     val fileMtimeEpoch: Long,
@@ -40,8 +41,14 @@ data class MessageDetailResponse(
     val attachmentsCount: Int,
     val frozenAssetsCount: Int,
     val assetsFailedCount: Int,
+    val freezeIgnored: Boolean,
     val messageId: String?,
     val textPlain: String?,
+)
+
+data class MessageFreezeIgnoredResponse(
+    val id: String,
+    val freezeIgnored: Boolean,
 )
 
 data class MessageNeighborResponse(
