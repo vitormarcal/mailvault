@@ -205,7 +205,7 @@ class MessagesControllerIntegrationTest {
         val bootstrapResponse =
             postJsonWithoutAuth(
                 "/api/setup/bootstrap",
-                """{"username":"$authUser","password":"$authPassword","language":"pt-BR"}""",
+                """{"username":"$AUTH_USER","password":"$AUTH_PASSWORD","language":"pt-BR"}""",
             )
         assertEquals(201, bootstrapResponse.statusCode())
 
@@ -508,7 +508,7 @@ class MessagesControllerIntegrationTest {
 
         val authUserStored = jdbcTemplate.queryForObject("SELECT value FROM app_meta WHERE key = 'auth.user'", String::class.java)
         val languageStored = jdbcTemplate.queryForObject("SELECT value FROM app_meta WHERE key = 'ui.language'", String::class.java)
-        assertEquals(authUser, authUserStored)
+        assertEquals(AUTH_USER, authUserStored)
         assertEquals("pt-BR", languageStored)
 
         assertEquals(false, Files.exists(attachmentPath))
