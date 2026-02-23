@@ -45,6 +45,15 @@
       color: var(--ink);
       background: #fff;
     }
+    select {
+      width: 100%;
+      border: 1px solid #ccbda8;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+    }
     input:focus {
       outline: 2px solid rgba(23, 109, 91, 0.2);
       border-color: var(--accent);
@@ -78,6 +87,12 @@
 
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="new-password" required />
+
+      <label for="language">Language</label>
+      <select id="language" name="language">
+        <option value="en">English</option>
+        <option value="pt-BR">Portugues (Brasil)</option>
+      </select>
 
       <button id="submitBtn" type="submit">Create account</button>
       <div id="status" class="status"></div>
@@ -113,6 +128,7 @@
       const payload = {
         username: document.getElementById('username').value,
         password: document.getElementById('password').value,
+        language: document.getElementById('language').value,
       };
 
       try {

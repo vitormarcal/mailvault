@@ -190,6 +190,24 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `setup bootstrap persists selected language`() {
+        clearCookies()
+        jdbcTemplate.update("DELETE FROM app_meta WHERE key IN ('auth.user', 'auth.passwordHash', 'ui.language')")
+
+        val bootstrapResponse =
+            postJsonWithoutAuth(
+                "/api/setup/bootstrap",
+                """{"username":"$authUser","password":"$authPassword","language":"pt-BR"}""",
+            )
+        assertEquals(201, bootstrapResponse.statusCode())
+
+        login()
+        val languageResponse = get("/api/ui/language")
+        assertEquals(200, languageResponse.statusCode())
+        assertEquals(true, languageResponse.body().contains("\"language\":\"pt-BR\""))
+    }
+
+    @Test
     fun `GET assets requires authentication`() {
         clearCookies()
         val response = getWithoutAuth("/assets/id-1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png")

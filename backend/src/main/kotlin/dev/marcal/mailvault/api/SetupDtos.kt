@@ -7,4 +7,5 @@ data class SetupStatusResponse(
 data class SetupBootstrapRequest(
     val username: String?,
     val password: String?,
+    val language: String?,
 )
