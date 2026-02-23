@@ -51,6 +51,8 @@ class IndexerService(
         var updated = 0
         var skipped = 0
         val freezeCandidates = mutableListOf<String>()
+        val startedDirectories = mutableSetOf<Path>()
+        val indexedEmlCountByDirectory = mutableMapOf<Path, Int>()
         var indexError: Exception? = null
 
         try {
@@ -60,6 +62,13 @@ class IndexerService(
                     .filter { Files.isRegularFile(it) }
                     .filter { it.fileName.toString().endsWith(".eml", ignoreCase = true) }
                     .forEach { filePath ->
+                        val directoryPath = (filePath.parent ?: rootPath).toAbsolutePath().normalize()
+                        if (startedDirectories.add(directoryPath)) {
+                            logger.info("Indexing directory path={}", directoryPath)
+                        }
+                        indexedEmlCountByDirectory[directoryPath] =
+                            (indexedEmlCountByDirectory[directoryPath] ?: 0) + 1
+
                         val normalizedPath = filePath.toAbsolutePath().normalize().toString()
                         val mtime = Files.getLastModifiedTime(filePath).toMillis()
                         val size = Files.size(filePath)
@@ -131,6 +140,16 @@ class IndexerService(
                         }
                     }
             }
+
+            indexedEmlCountByDirectory.entries
+                .sortedBy { it.key.toString() }
+                .forEach { (directoryPath, indexedEmlCount) ->
+                    logger.info(
+                        "Directory index complete path={} emlIndexed={}",
+                        directoryPath,
+                        indexedEmlCount,
+                    )
+                }
 
             runAutoFreezeIfEnabled(freezeCandidates)
 
