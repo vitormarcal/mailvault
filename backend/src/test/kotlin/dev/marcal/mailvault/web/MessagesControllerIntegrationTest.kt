@@ -447,6 +447,52 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `POST maintenance reset indexed data deletes index tables keeps app meta and vacuums`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO app_meta(key, value)
+            VALUES ('ui.language', 'pt-BR')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """.trimIndent(),
+        )
+
+        val attachmentPath = storageDir.resolve("attachments").resolve("id-1").resolve("cid-bytes")
+        val assetPath =
+            storageDir.resolve("assets")
+                .resolve("id-1")
+                .resolve("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png")
+        assertEquals(true, Files.exists(attachmentPath))
+        assertEquals(true, Files.exists(assetPath))
+
+        val response = post("/api/maintenance/reset-indexed-data")
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"removedMessages\":3"))
+        assertEquals(true, body.contains("\"removedMessageBodies\":1"))
+        assertEquals(true, body.contains("\"removedAttachmentsRows\":3"))
+        assertEquals(true, body.contains("\"removedAssetsRows\":2"))
+        assertEquals(true, body.contains("\"vacuumDurationMs\""))
+        assertEquals(true, body.contains("\"totalDurationMs\""))
+
+        val messages = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM messages", Int::class.java) ?: -1
+        val bodies = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM message_bodies", Int::class.java) ?: -1
+        val attachments = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM attachments", Int::class.java) ?: -1
+        val assets = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM assets", Int::class.java) ?: -1
+        assertEquals(0, messages)
+        assertEquals(0, bodies)
+        assertEquals(0, attachments)
+        assertEquals(0, assets)
+
+        val authUserStored = jdbcTemplate.queryForObject("SELECT value FROM app_meta WHERE key = 'auth.user'", String::class.java)
+        val languageStored = jdbcTemplate.queryForObject("SELECT value FROM app_meta WHERE key = 'ui.language'", String::class.java)
+        assertEquals(authUser, authUserStored)
+        assertEquals("pt-BR", languageStored)
+
+        assertEquals(false, Files.exists(attachmentPath))
+        assertEquals(false, Files.exists(assetPath))
+    }
+
+    @Test
     fun `GET stats returns counters and lastIndexAt when available`() {
         jdbcTemplate.update(
             """

@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.api.CleanupResponse
+import dev.marcal.mailvault.api.ResetIndexedDataResponse
 import dev.marcal.mailvault.api.VacuumResponse
 import dev.marcal.mailvault.service.MaintenanceService
 import org.springframework.web.bind.annotation.PostMapping
@@ -17,4 +18,7 @@ class MaintenanceController(
 
     @PostMapping("/vacuum")
     fun vacuum(): VacuumResponse = maintenanceService.vacuum()
+
+    @PostMapping("/reset-indexed-data")
+    fun resetIndexedData(): ResetIndexedDataResponse = maintenanceService.resetIndexedData()
 }

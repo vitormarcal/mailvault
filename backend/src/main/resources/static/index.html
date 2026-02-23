@@ -532,6 +532,7 @@
           <button id="reindexBtn" type="button" class="btn-ghost">Reindex (full)</button>
           <button id="freezePendingBtn" type="button" class="btn-ghost">Freeze pending</button>
           <button id="maintenanceBtn" type="button" class="btn-ghost">Maintenance (cleanup/vacuum)</button>
+          <button id="resetIndexedDataBtn" type="button" class="btn-ghost">Reset indexed data (destructive)</button>
         </div>
         <span id="indexStatus" class="ops-status"></span>
       </div>
@@ -572,6 +573,7 @@
     const reindexBtn = document.getElementById('reindexBtn');
     const freezePendingBtn = document.getElementById('freezePendingBtn');
     const maintenanceBtn = document.getElementById('maintenanceBtn');
+    const resetIndexedDataBtn = document.getElementById('resetIndexedDataBtn');
     const indexStatus = document.getElementById('indexStatus');
     const pageInfo = document.getElementById('pageInfo');
     const prevBtn = document.getElementById('prevBtn');
@@ -636,6 +638,7 @@
         reindexBtn: 'Reindex (full)',
         freezePendingBtn: 'Freeze pending',
         maintenanceBtn: 'Maintenance (cleanup/vacuum)',
+        resetIndexedDataBtn: 'Reset indexed data (destructive)',
         prevBtn: 'Previous',
         nextBtn: 'Next',
         searchHint: 'Tip: press <span class="kbd">/</span> to focus search',
@@ -683,6 +686,14 @@
         maintenanceVacuumFailed: 'Cleanup finished, but VACUUM failed.',
         maintenanceDone: 'Maintenance finished: removedFiles={removedFiles}, removedMessages={removedMessages}, vacuumMs={vacuumMs}',
         maintenanceNetworkFailed: 'Network failure while running maintenance.',
+        resetIndexedDataConfirm1: 'This action is destructive and irreversible. It will delete indexed messages, message bodies, attachments, and assets, then run VACUUM. Continue?',
+        resetIndexedDataPrompt: 'Type {token} to confirm destructive reset:',
+        resetIndexedDataCancelled: 'Destructive reset canceled.',
+        resetIndexedDataRunning: 'Resetting indexed data and compacting database...',
+        resetIndexedDataDone: 'Reset finished: messages={messages}, bodies={bodies}, attachmentRows={attachmentsRows}, assetRows={assetsRows}, attachmentFiles={attachmentFiles}, assetFiles={assetFiles}, vacuumMs={vacuumMs}',
+        resetIndexedDataFailed: 'Failed to reset indexed data.',
+        resetIndexedDataNetworkFailed: 'Network failure while resetting indexed data.',
+        resetIndexedDataToken: 'RESET',
         freezePendingNone: 'No pending freeze messages on this page.',
         freezePendingConfirm: 'Freeze remote images for {count} pending message(s) on current page?',
         freezePendingProgress: 'Freezing pending... {current}/{total}',
@@ -723,6 +734,7 @@
         reindexBtn: 'Reindexar (completo)',
         freezePendingBtn: 'Congelar pendentes',
         maintenanceBtn: 'Manutencao (limpeza/vacuum)',
+        resetIndexedDataBtn: 'Zerar dados indexados (destrutivo)',
         prevBtn: 'Anterior',
         nextBtn: 'Proxima',
         searchHint: 'Dica: pressione <span class="kbd">/</span> para focar a busca',
@@ -770,6 +782,14 @@
         maintenanceVacuumFailed: 'Limpeza concluida, mas VACUUM falhou.',
         maintenanceDone: 'Manutencao concluida: arquivosRemovidos={removedFiles}, mensagensRemovidas={removedMessages}, vacuumMs={vacuumMs}',
         maintenanceNetworkFailed: 'Falha de rede ao executar manutencao.',
+        resetIndexedDataConfirm1: 'Esta acao e destrutiva e irreversivel. Vai apagar mensagens indexadas, corpos, anexos e assets, e executar VACUUM. Deseja continuar?',
+        resetIndexedDataPrompt: 'Digite {token} para confirmar o reset destrutivo:',
+        resetIndexedDataCancelled: 'Reset destrutivo cancelado.',
+        resetIndexedDataRunning: 'Zerando dados indexados e compactando banco...',
+        resetIndexedDataDone: 'Reset concluido: mensagens={messages}, corpos={bodies}, linhasAnexos={attachmentsRows}, linhasAssets={assetsRows}, arquivosAnexos={attachmentFiles}, arquivosAssets={assetFiles}, vacuumMs={vacuumMs}',
+        resetIndexedDataFailed: 'Falha ao zerar dados indexados.',
+        resetIndexedDataNetworkFailed: 'Falha de rede ao zerar dados indexados.',
+        resetIndexedDataToken: 'RESET',
         freezePendingNone: 'Nenhuma mensagem pendente de freeze nesta pagina.',
         freezePendingConfirm: 'Congelar imagens em {count} mensagem(ns) pendente(s) da pagina atual?',
         freezePendingProgress: 'Congelando pendentes... {current}/{total}',
@@ -869,6 +889,7 @@
       reindexBtn.textContent = t('reindexBtn');
       freezePendingBtn.textContent = t('freezePendingBtn');
       maintenanceBtn.textContent = t('maintenanceBtn');
+      resetIndexedDataBtn.textContent = t('resetIndexedDataBtn');
       searchHint.innerHTML = t('searchHint');
       prevBtn.textContent = t('prevBtn') || 'Previous';
       nextBtn.textContent = t('nextBtn') || 'Next';
@@ -1233,6 +1254,7 @@
       reindexBtn.disabled = running;
       freezePendingBtn.disabled = running;
       maintenanceBtn.disabled = running;
+      resetIndexedDataBtn.disabled = running;
     }
 
     function setOpsStatus(kind, message) {
@@ -1294,6 +1316,49 @@
         loadStats();
       } catch (_) {
         setOpsStatus('error', t('maintenanceNetworkFailed'));
+      } finally {
+        setIndexRunning(false);
+      }
+    }
+
+    async function runResetIndexedData() {
+      const confirmed = window.confirm(t('resetIndexedDataConfirm1'));
+      if (!confirmed) {
+        setOpsStatus('info', t('resetIndexedDataCancelled'));
+        return;
+      }
+      const token = t('resetIndexedDataToken');
+      const typed = window.prompt(t('resetIndexedDataPrompt', { token }), '');
+      if ((typed || '').trim() !== token) {
+        setOpsStatus('info', t('resetIndexedDataCancelled'));
+        return;
+      }
+
+      setIndexRunning(true);
+      setOpsStatus('info', t('resetIndexedDataRunning'));
+      try {
+        const response = await apiFetch('/api/maintenance/reset-indexed-data', { method: 'POST' });
+        if (!response.ok) {
+          setOpsStatus('error', t('resetIndexedDataFailed'));
+          return;
+        }
+        const data = await response.json();
+        setOpsStatus(
+          'ok',
+          t('resetIndexedDataDone', {
+            messages: data.removedMessages,
+            bodies: data.removedMessageBodies,
+            attachmentsRows: data.removedAttachmentsRows,
+            assetsRows: data.removedAssetsRows,
+            attachmentFiles: data.removedAttachmentFiles,
+            assetFiles: data.removedAssetFiles,
+            vacuumMs: data.vacuumDurationMs,
+          }),
+        );
+        applyAndLoad({ page: 0 });
+        loadStats();
+      } catch (_) {
+        setOpsStatus('error', t('resetIndexedDataNetworkFailed'));
       } finally {
         setIndexRunning(false);
       }
@@ -1420,6 +1485,10 @@
         return;
       }
       runMaintenance();
+    });
+
+    resetIndexedDataBtn.addEventListener('click', () => {
+      runResetIndexedData();
     });
 
     freezePendingBtn.addEventListener('click', () => {

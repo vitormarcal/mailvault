@@ -32,6 +32,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Usage statistics: `GET /api/stats`
 - Maintenance cleanup: `POST /api/maintenance/cleanup`
 - SQLite compaction: `POST /api/maintenance/vacuum`
+- Destructive reset of indexed data + vacuum: `POST /api/maintenance/reset-indexed-data`
 - Message detail: `GET /messages/{id}`
 - Detail navigation: `GET /api/messages/{id}/prev` and `GET /api/messages/{id}/next`
 - Manual reindex from detail: **Reindex** button (calls `POST /api/index`)
@@ -136,3 +137,9 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 - `POST /api/maintenance/vacuum`:
   - runs SQLite `VACUUM` to reclaim space
   - may be expensive and temporarily block DB access
+- `POST /api/maintenance/reset-indexed-data`:
+  - destructive operation for indexed data only
+  - deletes rows from `messages`, `message_bodies`, `attachments`, and `assets`
+  - removes stored files under `storage/attachments` and `storage/assets`
+  - preserves `app_meta` entries (including auth credentials and UI settings)
+  - runs `VACUUM` at the end

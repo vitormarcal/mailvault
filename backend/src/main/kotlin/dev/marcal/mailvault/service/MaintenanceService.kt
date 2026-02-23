@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.service
 
 import dev.marcal.mailvault.api.CleanupResponse
+import dev.marcal.mailvault.api.ResetIndexedDataResponse
 import dev.marcal.mailvault.api.VacuumResponse
 import dev.marcal.mailvault.config.MailVaultProperties
 import org.slf4j.LoggerFactory
@@ -69,6 +70,60 @@ class MaintenanceService(
         return VacuumResponse(ok = true, durationMs = durationMs)
     }
 
+    fun resetIndexedData(): ResetIndexedDataResponse {
+        val totalStartedAt = System.nanoTime()
+        val storageRoot = Path.of(mailVaultProperties.storageDir).toAbsolutePath().normalize()
+        val attachmentsRoot = storageRoot.resolve("attachments")
+        val assetsRoot = storageRoot.resolve("assets")
+
+        val removedMessages = countRows("messages")
+        val removedMessageBodies = countRows("message_bodies")
+        val removedAttachmentsRows = countRows("attachments")
+        val removedAssetsRows = countRows("assets")
+
+        jdbcTemplate.update("DELETE FROM assets")
+        jdbcTemplate.update("DELETE FROM attachments")
+        jdbcTemplate.update("DELETE FROM message_bodies")
+        jdbcTemplate.update("DELETE FROM messages")
+
+        val removedAttachmentFiles = removeAllFiles(attachmentsRoot)
+        val removedAssetFiles = removeAllFiles(assetsRoot)
+        val removedAttachmentDirs = removeAllSubdirectories(attachmentsRoot)
+        val removedAssetDirs = removeAllSubdirectories(assetsRoot)
+
+        val vacuumStartedAt = System.nanoTime()
+        jdbcTemplate.execute("VACUUM")
+        val vacuumDurationMs = (System.nanoTime() - vacuumStartedAt) / 1_000_000
+        val totalDurationMs = (System.nanoTime() - totalStartedAt) / 1_000_000
+
+        logger.warn(
+            "Maintenance reset-indexed-data completed removedMessages={} removedMessageBodies={} removedAttachmentsRows={} removedAssetsRows={} removedAttachmentFiles={} removedAssetFiles={} removedAttachmentDirs={} removedAssetDirs={} vacuumDurationMs={} totalDurationMs={}",
+            removedMessages,
+            removedMessageBodies,
+            removedAttachmentsRows,
+            removedAssetsRows,
+            removedAttachmentFiles,
+            removedAssetFiles,
+            removedAttachmentDirs,
+            removedAssetDirs,
+            vacuumDurationMs,
+            totalDurationMs,
+        )
+
+        return ResetIndexedDataResponse(
+            removedMessages = removedMessages,
+            removedMessageBodies = removedMessageBodies,
+            removedAttachmentsRows = removedAttachmentsRows,
+            removedAssetsRows = removedAssetsRows,
+            removedAttachmentFiles = removedAttachmentFiles,
+            removedAssetFiles = removedAssetFiles,
+            removedAttachmentDirs = removedAttachmentDirs,
+            removedAssetDirs = removedAssetDirs,
+            vacuumDurationMs = vacuumDurationMs,
+            totalDurationMs = totalDurationMs,
+        )
+    }
+
     private fun removeOrphanFiles(root: Path, knownPaths: Set<Path>): Int {
         if (!Files.exists(root) || !root.isDirectory()) {
             return 0
@@ -110,6 +165,44 @@ class MaintenanceService(
             }
         return removed
     }
+
+    private fun removeAllFiles(root: Path): Int {
+        if (!Files.exists(root) || !root.isDirectory()) {
+            return 0
+        }
+        var removed = 0
+        Files.walk(root).use { stream ->
+            stream.filter { Files.isRegularFile(it) }.forEach { file ->
+                runCatching {
+                    Files.deleteIfExists(file)
+                    removed++
+                }
+            }
+        }
+        return removed
+    }
+
+    private fun removeAllSubdirectories(root: Path): Int {
+        if (!Files.exists(root) || !root.isDirectory()) {
+            return 0
+        }
+        var removed = 0
+        Files.walk(root)
+            .sorted(Comparator.reverseOrder())
+            .forEach { path ->
+                if (path == root || !Files.isDirectory(path)) {
+                    return@forEach
+                }
+                runCatching {
+                    Files.deleteIfExists(path)
+                    removed++
+                }
+            }
+        return removed
+    }
+
+    private fun countRows(table: String): Int =
+        jdbcTemplate.queryForObject("SELECT COUNT(*) FROM $table", Int::class.java) ?: 0
 
     private fun removeMissingMessageRows(): Int {
         val messageRows =
