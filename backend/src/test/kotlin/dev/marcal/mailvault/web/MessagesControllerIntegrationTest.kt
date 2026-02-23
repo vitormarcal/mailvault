@@ -282,6 +282,7 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"attachmentsCount\":3"))
         assertEquals(true, body.contains("\"frozenAssetsCount\":2"))
         assertEquals(true, body.contains("\"assetsFailedCount\":0"))
+        assertEquals(true, body.contains("\"securitySkippedCount\":0"))
     }
 
     @Test
@@ -348,6 +349,34 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET messages returns security skipped count when present`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO assets(id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error, security_blocked)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """.trimIndent(),
+            "asset-skipped-sec-1",
+            "id-1",
+            "https://example.com/blocked.png",
+            null,
+            null,
+            null,
+            null,
+            "SKIPPED",
+            null,
+            "private/local address is blocked",
+            1,
+        )
+
+        val response = get("/api/messages?query=%22Body%20one%22&page=0&size=50")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"id\":\"id-1\""))
+        assertEquals(true, body.contains("\"securitySkippedCount\":1"))
+    }
+
+    @Test
     fun `GET message by id returns detail`() {
         val response = get("/api/messages/id-1")
 
@@ -364,6 +393,7 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"attachmentsCount\":3"))
         assertEquals(true, body.contains("\"frozenAssetsCount\":2"))
         assertEquals(true, body.contains("\"assetsFailedCount\":0"))
+        assertEquals(true, body.contains("\"securitySkippedCount\":0"))
         assertEquals(true, body.contains("\"messageSizeBytes\":10"))
         assertEquals(true, body.contains("\"textPlain\":\"Body one\""))
     }

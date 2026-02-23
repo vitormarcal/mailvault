@@ -662,6 +662,7 @@
         badgeAttachments: 'Attachments: {count}',
         badgeFrozen: 'Frozen',
         badgeFailure: 'Failed: {count}',
+        badgeSecuritySkipped: 'Security blocked: {count}',
         badgeFreezeIgnored: 'Freeze ignored',
         freezeIgnoreAction: 'Ignore freeze',
         freezeUnignoreAction: 'Unignore freeze',
@@ -760,6 +761,7 @@
         badgeAttachments: 'Anexos: {count}',
         badgeFrozen: 'Congelado',
         badgeFailure: 'Falha: {count}',
+        badgeSecuritySkipped: 'Bloqueado por seguranca: {count}',
         badgeFreezeIgnored: 'Freeze ignorado',
         freezeIgnoreAction: 'Ignorar freeze',
         freezeUnignoreAction: 'Desfazer ignorar freeze',
@@ -1051,6 +1053,7 @@
         const attachmentsCount = Number(item.attachmentsCount || 0);
         const frozenAssetsCount = Number(item.frozenAssetsCount || 0);
         const assetsFailedCount = Number(item.assetsFailedCount || 0);
+        const securitySkippedCount = Number(item.securitySkippedCount || 0);
         const freezeIgnored = Boolean(item.freezeIgnored);
         if (item.hasHtml) {
           badges.push(`<span class="mini-badge">${escapeHtml(t('badgeHtml'))}</span>`);
@@ -1063,6 +1066,9 @@
         }
         if (assetsFailedCount > 0) {
           badges.push(`<span class="mini-badge danger">${escapeHtml(t('badgeFailure', { count: assetsFailedCount }))}</span>`);
+        }
+        if (securitySkippedCount > 0) {
+          badges.push(`<span class="mini-badge danger">${escapeHtml(t('badgeSecuritySkipped', { count: securitySkippedCount }))}</span>`);
         }
         if (freezeIgnored) {
           badges.push(`<span class="mini-badge muted">${escapeHtml(t('badgeFreezeIgnored'))}</span>`);

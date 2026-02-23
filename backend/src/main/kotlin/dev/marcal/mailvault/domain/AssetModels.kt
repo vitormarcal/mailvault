@@ -17,6 +17,7 @@ data class AssetRecord(
     val status: AssetStatus,
     val downloadedAt: String?,
     val error: String?,
+    val securityBlocked: Boolean,
 )
 
 data class AssetUpsert(
@@ -30,4 +31,5 @@ data class AssetUpsert(
     val status: AssetStatus,
     val downloadedAt: String?,
     val error: String?,
+    val securityBlocked: Boolean = false,
 )

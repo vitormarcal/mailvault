@@ -52,6 +52,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 - `attachmentsCount`
 - `frozenAssetsCount`
 - `assetsFailedCount`
+- `securitySkippedCount` (assets skipped by security guard)
 - `freezeIgnored`
 - `messageSizeBytes`
 - `filePath` (plain text for copy)
@@ -105,6 +106,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 - `V10__html_text_fts.sql`: adds `html_text` to `message_bodies` and rebuilds `messages_fts` to index extracted HTML text as well
 - `V11__message_display_headers.sql`: adds `subject_display`, `from_display`, `from_email`, and `from_name` to `messages` to show decoded RFC 2047 headers
 - `V12__messages_freeze_ignored.sql`: adds `freeze_ignored` to `messages` to allow marking/unmarking messages that should be ignored by freeze routines
+- `V13__assets_security_blocked.sql`: adds `security_blocked` to `assets` to distinguish security-skipped assets from other skipped reasons
 
 ## Search and filters (`GET /api/messages`)
 

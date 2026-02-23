@@ -1,0 +1,1 @@
+ALTER TABLE assets ADD COLUMN security_blocked INTEGER NOT NULL DEFAULT 0;

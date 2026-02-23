@@ -15,8 +15,8 @@ class AssetRepository(
         jdbcTemplate.update(
             """
             INSERT INTO assets (
-                id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error, security_blocked
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(message_id, original_url) DO UPDATE SET
                 id = excluded.id,
                 storage_path = excluded.storage_path,
@@ -25,7 +25,8 @@ class AssetRepository(
                 sha256 = excluded.sha256,
                 status = excluded.status,
                 downloaded_at = excluded.downloaded_at,
-                error = excluded.error
+                error = excluded.error,
+                security_blocked = excluded.security_blocked
             """.trimIndent(),
             asset.id,
             asset.messageId,
@@ -37,6 +38,7 @@ class AssetRepository(
             asset.status.name,
             asset.downloadedAt,
             asset.error,
+            if (asset.securityBlocked) 1 else 0,
         )
     }
 
@@ -47,7 +49,7 @@ class AssetRepository(
         try {
             jdbcTemplate.queryForObject(
                 """
-                SELECT id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error
+                SELECT id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error, security_blocked
                 FROM assets
                 WHERE message_id = ? AND original_url = ? AND status = 'DOWNLOADED'
                 LIMIT 1
@@ -67,7 +69,7 @@ class AssetRepository(
         try {
             jdbcTemplate.queryForObject(
                 """
-                SELECT id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error
+                SELECT id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error, security_blocked
                 FROM assets
                 WHERE message_id = ?
                   AND status = 'DOWNLOADED'
@@ -90,7 +92,7 @@ class AssetRepository(
         try {
             jdbcTemplate.queryForObject(
                 """
-                SELECT id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error
+                SELECT id, message_id, original_url, storage_path, content_type, size, sha256, status, downloaded_at, error, security_blocked
                 FROM assets
                 WHERE message_id = ? AND sha256 = ? AND status = 'DOWNLOADED'
                 LIMIT 1
@@ -128,5 +130,6 @@ class AssetRepository(
             status = AssetStatus.valueOf(rs.getString("status")),
             downloadedAt = rs.getString("downloaded_at"),
             error = rs.getString("error"),
+            securityBlocked = rs.getInt("security_blocked") == 1,
         )
 }

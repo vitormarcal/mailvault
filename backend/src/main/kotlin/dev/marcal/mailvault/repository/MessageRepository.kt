@@ -151,7 +151,8 @@ class MessageRepository(
                     SELECT
                         s.message_id,
                         SUM(CASE WHEN s.status = 'DOWNLOADED' THEN 1 ELSE 0 END) AS frozen_assets_count,
-                        SUM(CASE WHEN s.status = 'FAILED' THEN 1 ELSE 0 END) AS assets_failed_count
+                        SUM(CASE WHEN s.status = 'FAILED' THEN 1 ELSE 0 END) AS assets_failed_count,
+                        SUM(CASE WHEN s.status = 'SKIPPED' AND s.security_blocked = 1 THEN 1 ELSE 0 END) AS security_skipped_count
                     FROM assets s
                     GROUP BY s.message_id
                 )
@@ -166,6 +167,7 @@ class MessageRepository(
                     COALESCE(ac.attachments_count, 0) AS attachments_count,
                     COALESCE(sc.frozen_assets_count, 0) AS frozen_assets_count,
                     COALESCE(sc.assets_failed_count, 0) AS assets_failed_count,
+                    COALESCE(sc.security_skipped_count, 0) AS security_skipped_count,
                     p.freeze_ignored,
                     p.from_raw,
                     p.from_display,
@@ -187,6 +189,7 @@ class MessageRepository(
                         attachmentsCount = rs.getInt("attachments_count"),
                         frozenAssetsCount = rs.getInt("frozen_assets_count"),
                         assetsFailedCount = rs.getInt("assets_failed_count"),
+                        securitySkippedCount = rs.getInt("security_skipped_count"),
                         freezeIgnored = rs.getInt("freeze_ignored") == 1,
                         fromRaw = rs.getString("from_raw"),
                         fromDisplay = rs.getString("from_display"),
@@ -208,6 +211,7 @@ class MessageRepository(
                        (SELECT COUNT(*) FROM attachments a WHERE a.message_id = m.id) AS attachments_count,
                        (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'DOWNLOADED') AS frozen_assets_count,
                        (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'FAILED') AS assets_failed_count,
+                       (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'SKIPPED' AND s.security_blocked = 1) AS security_skipped_count,
                        m.freeze_ignored
                 FROM messages m
                 LEFT JOIN message_bodies mb ON mb.message_id = m.id
@@ -230,6 +234,7 @@ class MessageRepository(
                         attachmentsCount = rs.getInt("attachments_count"),
                         frozenAssetsCount = rs.getInt("frozen_assets_count"),
                         assetsFailedCount = rs.getInt("assets_failed_count"),
+                        securitySkippedCount = rs.getInt("security_skipped_count"),
                         freezeIgnored = rs.getInt("freeze_ignored") == 1,
                         messageId = rs.getString("message_id"),
                         textPlain = rs.getString("text_plain"),

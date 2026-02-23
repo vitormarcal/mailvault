@@ -72,6 +72,7 @@ class HtmlRenderServiceTest {
                 status TEXT NOT NULL,
                 downloaded_at TEXT,
                 error TEXT,
+                security_blocked INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(message_id, original_url)
             )
             """.trimIndent(),

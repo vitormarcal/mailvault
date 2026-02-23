@@ -62,7 +62,7 @@ const I18N = {
     plainText: 'Plain text',
     emptyBody: 'This message has no text/plain or html body.',
     statusTitle: 'Email status',
-    statusImages: 'Images: frozen {frozen}, failed {failed}',
+    statusImages: 'Images: frozen {frozen}, failed {failed}, security blocked {securityBlocked}',
     statusAttachments: 'Attachments: {count}',
     statusSize: 'Size: {size}',
     fileLabel: 'File:',
@@ -115,7 +115,7 @@ const I18N = {
     plainText: 'Texto puro',
     emptyBody: 'Esta mensagem nao possui corpo em text/plain ou html disponivel.',
     statusTitle: 'Status do email',
-    statusImages: 'Imagens: congeladas {frozen}, falhas {failed}',
+    statusImages: 'Imagens: congeladas {frozen}, falhas {failed}, bloqueadas por seguranca {securityBlocked}',
     statusAttachments: 'Anexos: {count}',
     statusSize: 'Tamanho: {size}',
     fileLabel: 'Arquivo:',
@@ -432,7 +432,7 @@ async function loadMessage() {
     textEl.textContent = '';
     htmlContainerEl.innerHTML = '';
     attachmentsEl.innerHTML = `<li>${t('noAttachments')}</li>`;
-    statusImagesEl.textContent = t('statusImages', { frozen: '-', failed: '-' });
+    statusImagesEl.textContent = t('statusImages', { frozen: '-', failed: '-', securityBlocked: '-' });
     statusAttachmentsEl.textContent = t('statusAttachments', { count: '-' });
     statusSizeEl.textContent = t('statusSize', { size: t('sizeUnknown') });
     statusFilePathEl.textContent = t('pathUnknown');
@@ -451,6 +451,7 @@ async function loadMessage() {
   statusImagesEl.textContent = t('statusImages', {
     frozen: Number(data.frozenAssetsCount || 0),
     failed: Number(data.assetsFailedCount || 0),
+    securityBlocked: Number(data.securitySkippedCount || 0),
   });
   statusAttachmentsEl.textContent = t('statusAttachments', { count: Number(data.attachmentsCount || 0) });
   statusSizeEl.textContent = t('statusSize', { size: formatBytes(data.messageSizeBytes ?? data.fileSize) });

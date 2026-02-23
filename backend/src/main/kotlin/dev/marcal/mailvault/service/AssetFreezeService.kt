@@ -221,7 +221,12 @@ class AssetFreezeService(
 
         val guarded = runCatching { validateRemoteUri(url) }
         if (guarded.isFailure) {
-            return persistSkipped(messageId, url, guarded.exceptionOrNull()?.message ?: "blocked by ssrf guard")
+            return persistSkipped(
+                messageId = messageId,
+                url = url,
+                reason = guarded.exceptionOrNull()?.message ?: "blocked by ssrf guard",
+                securityBlocked = true,
+            )
         }
 
         return try {
@@ -265,6 +270,7 @@ class AssetFreezeService(
                     status = AssetStatus.DOWNLOADED,
                     downloadedAt = OffsetDateTime.now().toString(),
                     error = null,
+                    securityBlocked = false,
                 )
             assetRepository.upsert(upsert)
             upsert
@@ -321,6 +327,7 @@ class AssetFreezeService(
         messageId: String,
         url: String,
         reason: String,
+        securityBlocked: Boolean = false,
     ): AssetUpsert {
         val upsert =
             AssetUpsert(
@@ -334,6 +341,7 @@ class AssetFreezeService(
                 status = AssetStatus.SKIPPED,
                 downloadedAt = null,
                 error = reason,
+                securityBlocked = securityBlocked,
             )
         assetRepository.upsert(upsert)
         return upsert
@@ -356,6 +364,7 @@ class AssetFreezeService(
                 status = AssetStatus.FAILED,
                 downloadedAt = null,
                 error = reason,
+                securityBlocked = false,
             )
         assetRepository.upsert(upsert)
         return upsert

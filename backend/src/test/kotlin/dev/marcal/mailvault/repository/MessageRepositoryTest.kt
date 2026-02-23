@@ -86,7 +86,8 @@ class MessageRepositoryTest {
                 sha256 TEXT,
                 status TEXT NOT NULL,
                 downloaded_at TEXT,
-                error TEXT
+                error TEXT,
+                security_blocked INTEGER NOT NULL DEFAULT 0
             )
             """.trimIndent(),
         )
