@@ -48,25 +48,24 @@ class MessageQueryService(
             page = page,
             size = size,
             total = result.total,
-            items =
-                result.items.map {
-                    MessageSummaryResponse(
-                        id = it.id,
-                        dateRaw = it.dateRaw,
-                        dateEpoch = it.dateEpoch,
-                        subject = it.subject,
-                        subjectDisplay = it.subjectDisplay,
-                        snippet = buildSnippet(it.snippetSource),
-                        hasHtml = it.hasHtml,
-                        attachmentsCount = it.attachmentsCount,
-                        frozenAssetsCount = it.frozenAssetsCount,
-                        assetsFailedCount = it.assetsFailedCount,
-                        freezeIgnored = it.freezeIgnored,
-                        fromRaw = it.fromRaw,
-                        fromDisplay = it.fromDisplay,
-                        fileMtimeEpoch = it.fileMtimeEpoch,
-                    )
-                },
+            items = result.items.map {
+                MessageSummaryResponse(
+                    id = it.id,
+                    dateRaw = it.dateRaw,
+                    dateEpoch = it.dateEpoch,
+                    subject = it.subject,
+                    subjectDisplay = it.subjectDisplay,
+                    snippet = buildSnippet(it.snippetSource),
+                    hasHtml = it.hasHtml,
+                    attachmentsCount = it.attachmentsCount,
+                    frozenAssetsCount = it.frozenAssetsCount,
+                    assetsFailedCount = it.assetsFailedCount,
+                    freezeIgnored = it.freezeIgnored,
+                    fromRaw = it.fromRaw,
+                    fromDisplay = it.fromDisplay,
+                    fileMtimeEpoch = it.fileMtimeEpoch,
+                )
+            },
         )
     }
 
@@ -124,8 +123,7 @@ class MessageQueryService(
             return null
         }
         val normalized =
-            Jsoup
-                .parse(raw)
+            Jsoup.parse(raw)
                 .text()
                 .replace(WHITESPACE_REGEX, " ")
                 .trim()

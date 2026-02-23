@@ -1,7 +1,7 @@
 package dev.marcal.mailvault.service
 
-import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.util.ResourceNotFoundException
 import org.springframework.stereotype.Service
 import java.net.URI
@@ -16,9 +16,8 @@ class HtmlRenderService(
     private val htmlSanitizerService: HtmlSanitizerService,
 ) {
     fun render(messageId: String): String {
-        val html =
-            messageHtmlRepository.findByMessageId(messageId)
-                ?: throw ResourceNotFoundException("message not found")
+        val html = messageHtmlRepository.findByMessageId(messageId)
+            ?: throw ResourceNotFoundException("message not found")
 
         if (!html.htmlSanitized.isNullOrBlank()) {
             return html.htmlSanitized
@@ -35,24 +34,20 @@ class HtmlRenderService(
         return finalized
     }
 
-    private fun rewriteHtml(
-        rawHtml: String,
-        messageId: String,
-    ): String {
-        val withLinks =
-            ANCHOR_HREF_REGEX.replace(rawHtml) { match ->
-                val prefix = match.groups[1]?.value ?: ""
-                val quote = match.groups[2]?.value ?: "\""
-                val href = match.groups[3]?.value ?: ""
-                val rewrittenHref = "/go?url=${urlEncode(href)}"
-                val rel =
-                    if (REL_ATTR_REGEX.containsMatchIn(prefix)) {
-                        ""
-                    } else {
-                        " rel=${quote}noopener noreferrer$quote"
-                    }
-                "<a$prefix data-safe-href=$quote$rewrittenHref$quote$rel"
-            }
+    private fun rewriteHtml(rawHtml: String, messageId: String): String {
+        val withLinks = ANCHOR_HREF_REGEX.replace(rawHtml) { match ->
+            val prefix = match.groups[1]?.value ?: ""
+            val quote = match.groups[2]?.value ?: "\""
+            val href = match.groups[3]?.value ?: ""
+            val rewrittenHref = "/go?url=${urlEncode(href)}"
+            val rel =
+                if (REL_ATTR_REGEX.containsMatchIn(prefix)) {
+                    ""
+                } else {
+                    " rel=${quote}noopener noreferrer${quote}"
+                }
+            "<a$prefix data-safe-href=$quote$rewrittenHref$quote$rel"
+        }
 
         return IMG_SRC_REGEX.replace(withLinks) { match ->
             val prefix = match.groups[1]?.value ?: ""
@@ -61,13 +56,7 @@ class HtmlRenderService(
             val rewrittenSrc =
                 when {
                     src.startsWith("cid:", ignoreCase = true) -> {
-                        val cid =
-                            src
-                                .removePrefix("cid:")
-                                .removePrefix("CID:")
-                                .trim()
-                                .removePrefix("<")
-                                .removeSuffix(">")
+                        val cid = src.removePrefix("cid:").removePrefix("CID:").trim().removePrefix("<").removeSuffix(">")
                         "/api/messages/$messageId/cid/$cid"
                     }
 

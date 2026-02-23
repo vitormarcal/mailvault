@@ -23,9 +23,7 @@ class SetupController(
 
     @PostMapping("/bootstrap")
     @ResponseStatus(HttpStatus.CREATED)
-    fun bootstrap(
-        @RequestBody request: SetupBootstrapRequest,
-    ): SetupStatusResponse {
+    fun bootstrap(@RequestBody request: SetupBootstrapRequest): SetupStatusResponse {
         authBootstrapService.bootstrap(
             username = request.username,
             password = request.password,

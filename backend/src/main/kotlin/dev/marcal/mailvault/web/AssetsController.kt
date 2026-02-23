@@ -24,8 +24,7 @@ class AssetsController(
             runCatching { MediaType.parseMediaType(file.contentType) }
                 .getOrElse { MediaType.APPLICATION_OCTET_STREAM }
 
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .contentType(mediaType)
             .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePublic())
             .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"${file.filename}\"")

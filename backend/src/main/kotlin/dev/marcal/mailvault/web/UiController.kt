@@ -34,9 +34,7 @@ class UiController(
         }
 
     @GetMapping("/messages/{id}")
-    fun message(
-        @PathVariable id: String,
-    ): String =
+    fun message(@PathVariable id: String): String =
         if (authBootstrapService.isConfigured()) {
             "forward:/message.html"
         } else {

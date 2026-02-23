@@ -14,33 +14,24 @@ class AttachmentService(
     private val attachmentRepository: AttachmentRepository,
     private val mailVaultProperties: MailVaultProperties,
 ) {
-    fun listByMessage(messageId: String): List<AttachmentResponse> = attachmentRepository.listByMessageId(messageId).map { it.toResponse() }
+    fun listByMessage(messageId: String): List<AttachmentResponse> =
+        attachmentRepository.listByMessageId(messageId).map { it.toResponse() }
 
-    fun resolveInlineCid(
-        messageId: String,
-        cid: String,
-    ): AttachmentFile {
-        val attachment =
-            attachmentRepository.findInlineByMessageAndCid(messageId, cid)
-                ?: throw ResourceNotFoundException("inline attachment not found")
+    fun resolveInlineCid(messageId: String, cid: String): AttachmentFile {
+        val attachment = attachmentRepository.findInlineByMessageAndCid(messageId, cid)
+            ?: throw ResourceNotFoundException("inline attachment not found")
         return loadAttachmentFile(attachment)
     }
 
     fun resolveDownload(attachmentId: String): AttachmentFile {
-        val attachment =
-            attachmentRepository.findById(attachmentId)
-                ?: throw ResourceNotFoundException("attachment not found")
+        val attachment = attachmentRepository.findById(attachmentId)
+            ?: throw ResourceNotFoundException("attachment not found")
         return loadAttachmentFile(attachment)
     }
 
     private fun loadAttachmentFile(attachment: AttachmentRecord): AttachmentFile {
         val filePath = Path.of(attachment.storagePath).toAbsolutePath().normalize()
-        val attachmentsBaseDir =
-            Path
-                .of(mailVaultProperties.storageDir)
-                .toAbsolutePath()
-                .normalize()
-                .resolve("attachments")
+        val attachmentsBaseDir = Path.of(mailVaultProperties.storageDir).toAbsolutePath().normalize().resolve("attachments")
         if (!filePath.startsWith(attachmentsBaseDir)) {
             throw ResourceNotFoundException("attachment file not found")
         }

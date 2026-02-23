@@ -1,15 +1,15 @@
 package dev.marcal.mailvault.web
 
-import dev.marcal.mailvault.config.MailVaultProperties
-import dev.marcal.mailvault.repository.AssetRepository
-import dev.marcal.mailvault.repository.AttachmentRepository
-import dev.marcal.mailvault.repository.MessageHtmlRepository
 import dev.marcal.mailvault.repository.MessageRepository
+import dev.marcal.mailvault.repository.AttachmentRepository
+import dev.marcal.mailvault.repository.AssetRepository
+import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentService
-import dev.marcal.mailvault.service.FreezePendingService
 import dev.marcal.mailvault.service.HtmlRenderService
 import dev.marcal.mailvault.service.HtmlSanitizerService
+import dev.marcal.mailvault.service.FreezePendingService
 import dev.marcal.mailvault.service.MessageQueryService
 import dev.marcal.mailvault.util.ResourceNotFoundException
 import dev.marcal.mailvault.util.ValidationException
@@ -32,11 +32,10 @@ class MessagesControllerTest {
     @BeforeEach
     fun setUp() {
         val dbPath = tempDir.resolve("messages-controller-test.db").toAbsolutePath().normalize()
-        val dataSource =
-            DriverManagerDataSource().apply {
-                setDriverClassName("org.sqlite.JDBC")
-                url = "jdbc:sqlite:$dbPath"
-            }
+        val dataSource = DriverManagerDataSource().apply {
+            setDriverClassName("org.sqlite.JDBC")
+            url = "jdbc:sqlite:$dbPath"
+        }
         jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """
@@ -112,12 +111,12 @@ class MessagesControllerTest {
                 htmlRenderService,
             )
         controller =
-            MessagesController(
-                MessageQueryService(messageRepository),
-                htmlRenderService,
-                AttachmentService(AttachmentRepository(jdbcTemplate), MailVaultProperties(storageDir = tempDir.toString())),
-                assetFreezeService,
-                FreezePendingService(messageRepository, assetFreezeService),
+                MessagesController(
+                    MessageQueryService(messageRepository),
+                    htmlRenderService,
+                    AttachmentService(AttachmentRepository(jdbcTemplate), MailVaultProperties(storageDir = tempDir.toString())),
+                    assetFreezeService,
+                    FreezePendingService(messageRepository, assetFreezeService),
             )
     }
 

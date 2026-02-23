@@ -316,12 +316,7 @@ class MessageRepository(
         }
 
     private fun toSafeFtsExpression(query: String): String {
-        val terms =
-            SAFE_TERM_REGEX
-                .findAll(query)
-                .map { it.value.trim() }
-                .filter { it.isNotEmpty() }
-                .toList()
+        val terms = SAFE_TERM_REGEX.findAll(query).map { it.value.trim() }.filter { it.isNotEmpty() }.toList()
         if (terms.isEmpty()) {
             return quoteFtsTerm(query)
         }

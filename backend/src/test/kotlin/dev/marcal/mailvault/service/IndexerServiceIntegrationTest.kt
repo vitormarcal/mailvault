@@ -28,15 +28,13 @@ class IndexerServiceIntegrationTest {
         jdbcTemplate.update("DELETE FROM message_bodies")
         jdbcTemplate.update("DELETE FROM messages")
         if (Files.exists(indexRootDir)) {
-            Files
-                .walk(indexRootDir)
+            Files.walk(indexRootDir)
                 .sorted(Comparator.reverseOrder())
                 .forEach(Files::delete)
         }
         Files.createDirectories(indexRootDir)
         if (Files.exists(storageRootDir)) {
-            Files
-                .walk(storageRootDir)
+            Files.walk(storageRootDir)
                 .sorted(Comparator.reverseOrder())
                 .forEach(Files::delete)
         }
@@ -45,11 +43,10 @@ class IndexerServiceIntegrationTest {
 
     @Test
     fun `migrations are applied and messages table exists`() {
-        val count =
-            jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
-                Int::class.java,
-            )
+        val count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM flyway_schema_history WHERE success = 1",
+            Int::class.java,
+        )
         assertNotNull(count)
         assertEquals(true, count >= 6)
     }
@@ -110,12 +107,11 @@ class IndexerServiceIntegrationTest {
         val first = indexerService.index()
         assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), first)
 
-        val initialSubject =
-            jdbcTemplate.queryForObject(
-                "SELECT subject FROM messages WHERE file_path = ?",
-                String::class.java,
-                emlPath.toAbsolutePath().normalize().toString(),
-            )
+        val initialSubject = jdbcTemplate.queryForObject(
+            "SELECT subject FROM messages WHERE file_path = ?",
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
         assertEquals("First line second line", initialSubject)
 
         Thread.sleep(5)
@@ -134,12 +130,11 @@ class IndexerServiceIntegrationTest {
         val second = indexerService.index()
         assertEquals(IndexResult(inserted = 0, updated = 1, skipped = 0), second)
 
-        val updatedSubject =
-            jdbcTemplate.queryForObject(
-                "SELECT subject FROM messages WHERE file_path = ?",
-                String::class.java,
-                emlPath.toAbsolutePath().normalize().toString(),
-            )
+        val updatedSubject = jdbcTemplate.queryForObject(
+            "SELECT subject FROM messages WHERE file_path = ?",
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
         assertEquals("Updated subject", updatedSubject)
     }
 
@@ -160,12 +155,11 @@ class IndexerServiceIntegrationTest {
         )
 
         indexerService.index()
-        val firstCount =
-            jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM messages_fts WHERE messages_fts MATCH ?",
-                Int::class.java,
-                "reddittoken",
-            )
+        val firstCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM messages_fts WHERE messages_fts MATCH ?",
+            Int::class.java,
+            "reddittoken",
+        )
         assertEquals(1, firstCount)
 
         Thread.sleep(5)
@@ -182,12 +176,11 @@ class IndexerServiceIntegrationTest {
         )
 
         indexerService.index()
-        val secondCount =
-            jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM messages_fts WHERE messages_fts MATCH ?",
-                Int::class.java,
-                "reddittoken",
-            )
+        val secondCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM messages_fts WHERE messages_fts MATCH ?",
+            Int::class.java,
+            "reddittoken",
+        )
         assertEquals(0, secondCount)
     }
 
@@ -208,17 +201,16 @@ class IndexerServiceIntegrationTest {
 
         indexerService.index()
 
-        val textPlain =
-            jdbcTemplate.queryForObject(
-                """
-                SELECT mb.text_plain
-                FROM message_bodies mb
-                JOIN messages m ON m.id = mb.message_id
-                WHERE m.file_path = ?
-                """.trimIndent(),
-                String::class.java,
-                emlPath.toAbsolutePath().normalize().toString(),
-            )
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
         assertEquals("Line one\nLine two", textPlain?.trim())
     }
 
@@ -249,30 +241,28 @@ class IndexerServiceIntegrationTest {
         val result = indexerService.index()
         assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), result)
 
-        val textPlain =
-            jdbcTemplate.queryForObject(
-                """
-                SELECT mb.text_plain
-                FROM message_bodies mb
-                JOIN messages m ON m.id = mb.message_id
-                WHERE m.file_path = ?
-                """.trimIndent(),
-                String::class.java,
-                emlPath.toAbsolutePath().normalize().toString(),
-            )
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
         assertEquals("Hello part", textPlain?.trim())
 
-        val htmlRaw =
-            jdbcTemplate.queryForObject(
-                """
-                SELECT mb.html_raw
-                FROM message_bodies mb
-                JOIN messages m ON m.id = mb.message_id
-                WHERE m.file_path = ?
-                """.trimIndent(),
-                String::class.java,
-                emlPath.toAbsolutePath().normalize().toString(),
-            )
+        val htmlRaw = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.html_raw
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            emlPath.toAbsolutePath().normalize().toString(),
+        )
         assertEquals(true, htmlRaw?.contains("Hello part") == true)
     }
 
@@ -309,18 +299,16 @@ class IndexerServiceIntegrationTest {
         val attachmentCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM attachments", Int::class.java)
         assertEquals(1, attachmentCount)
 
-        val inlineCid =
-            jdbcTemplate.queryForObject(
-                "SELECT inline_cid FROM attachments LIMIT 1",
-                String::class.java,
-            )
+        val inlineCid = jdbcTemplate.queryForObject(
+            "SELECT inline_cid FROM attachments LIMIT 1",
+            String::class.java,
+        )
         assertEquals("img-42", inlineCid)
 
-        val storagePath =
-            jdbcTemplate.queryForObject(
-                "SELECT storage_path FROM attachments LIMIT 1",
-                String::class.java,
-            )
+        val storagePath = jdbcTemplate.queryForObject(
+            "SELECT storage_path FROM attachments LIMIT 1",
+            String::class.java,
+        )
         assertEquals(true, Files.exists(Path.of(storagePath)))
     }
 
@@ -340,16 +328,14 @@ class IndexerServiceIntegrationTest {
 
         indexerService.index()
 
-        val lastIndexAt =
-            jdbcTemplate.queryForObject(
-                "SELECT value FROM app_meta WHERE key = 'lastIndexAt'",
-                String::class.java,
-            )
-        val duration =
-            jdbcTemplate.queryForObject(
-                "SELECT value FROM app_meta WHERE key = 'lastIndexDurationMs'",
-                String::class.java,
-            )
+        val lastIndexAt = jdbcTemplate.queryForObject(
+            "SELECT value FROM app_meta WHERE key = 'lastIndexAt'",
+            String::class.java,
+        )
+        val duration = jdbcTemplate.queryForObject(
+            "SELECT value FROM app_meta WHERE key = 'lastIndexDurationMs'",
+            String::class.java,
+        )
 
         assertEquals(true, !lastIndexAt.isNullOrBlank())
         assertEquals(true, (duration?.toLongOrNull() ?: -1L) >= 0L)
@@ -357,26 +343,20 @@ class IndexerServiceIntegrationTest {
 
     companion object {
         private val dbPath =
-            Path
-                .of(
-                    System.getProperty("java.io.tmpdir"),
-                    "mailvault-test-${UUID.randomUUID()}.db",
-                ).toAbsolutePath()
-                .normalize()
+            Path.of(
+                System.getProperty("java.io.tmpdir"),
+                "mailvault-test-${UUID.randomUUID()}.db",
+            ).toAbsolutePath().normalize()
         private val indexRootDir =
-            Path
-                .of(
-                    System.getProperty("java.io.tmpdir"),
-                    "mailvault-index-test-${UUID.randomUUID()}",
-                ).toAbsolutePath()
-                .normalize()
+            Path.of(
+                System.getProperty("java.io.tmpdir"),
+                "mailvault-index-test-${UUID.randomUUID()}",
+            ).toAbsolutePath().normalize()
         private val storageRootDir =
-            Path
-                .of(
-                    System.getProperty("java.io.tmpdir"),
-                    "mailvault-storage-test-${UUID.randomUUID()}",
-                ).toAbsolutePath()
-                .normalize()
+            Path.of(
+                System.getProperty("java.io.tmpdir"),
+                "mailvault-storage-test-${UUID.randomUUID()}",
+            ).toAbsolutePath().normalize()
 
         @JvmStatic
         @DynamicPropertySource

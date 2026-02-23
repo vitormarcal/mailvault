@@ -22,10 +22,7 @@ class AuthBootstrapService(
     }
 
     @Synchronized
-    fun bootstrap(
-        username: String?,
-        password: String?,
-    ) {
+    fun bootstrap(username: String?, password: String?) {
         if (isConfigured()) {
             throw ValidationException("Credentials already configured")
         }

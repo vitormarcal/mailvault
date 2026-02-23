@@ -21,11 +21,10 @@ class SecurityConfigTest {
     @BeforeEach
     fun setUp() {
         val dbPath = tempDir.resolve("security-config-test.db").toAbsolutePath().normalize()
-        val dataSource =
-            DriverManagerDataSource().apply {
-                setDriverClassName("org.sqlite.JDBC")
-                url = "jdbc:sqlite:$dbPath"
-            }
+        val dataSource = DriverManagerDataSource().apply {
+            setDriverClassName("org.sqlite.JDBC")
+            url = "jdbc:sqlite:$dbPath"
+        }
         jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """
@@ -58,10 +57,7 @@ class SecurityConfigTest {
     private class MockRequest(
         private val method: String,
         private val uri: String,
-    ) : jakarta.servlet.http.HttpServletRequestWrapper(
-            org.springframework.mock.web
-                .MockHttpServletRequest(),
-        ) {
+    ) : jakarta.servlet.http.HttpServletRequestWrapper(org.springframework.mock.web.MockHttpServletRequest()) {
         override fun getMethod(): String = method
 
         override fun getRequestURI(): String = uri

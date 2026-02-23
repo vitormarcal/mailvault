@@ -56,10 +56,7 @@ class AttachmentRepository(
             null
         }
 
-    fun findInlineByMessageAndCid(
-        messageId: String,
-        cid: String,
-    ): AttachmentRecord? {
+    fun findInlineByMessageAndCid(messageId: String, cid: String): AttachmentRecord? {
         val normalized = cid.trim().removePrefix("<").removeSuffix(">")
         return try {
             jdbcTemplate.queryForObject(

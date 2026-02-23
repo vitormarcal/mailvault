@@ -19,10 +19,7 @@ class AppMetaRepository(
             null
         }
 
-    fun put(
-        key: String,
-        value: String,
-    ) {
+    fun put(key: String, value: String) {
         jdbcTemplate.update(
             """
             INSERT INTO app_meta (key, value)

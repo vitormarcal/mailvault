@@ -34,15 +34,11 @@ class GlobalExceptionHandler {
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(ex: Exception): ResponseEntity<ErrorResponse> {
         logger.error("Unexpected error", ex)
-        return ResponseEntity
-            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(error("INTERNAL_ERROR", "Unexpected server error"))
     }
 
-    private fun error(
-        code: String,
-        message: String,
-    ): ErrorResponse =
+    private fun error(code: String, message: String): ErrorResponse =
         ErrorResponse(
             error = code,
             message = message,

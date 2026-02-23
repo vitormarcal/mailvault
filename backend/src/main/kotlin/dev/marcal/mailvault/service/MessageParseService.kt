@@ -76,10 +76,7 @@ class MessageParseService {
         )
     }
 
-    private fun parseDateEpochUtc(
-        mimeMessage: MimeMessage,
-        dateRaw: String?,
-    ): Long? {
+    private fun parseDateEpochUtc(mimeMessage: MimeMessage, dateRaw: String?): Long? {
         val sentDate = mimeMessage.sentDate
         if (sentDate != null) {
             return sentDate.toInstant().toEpochMilli()
@@ -102,10 +99,7 @@ class MessageParseService {
         return extracted.ifBlank { null }
     }
 
-    private fun parsePart(
-        part: Part,
-        accumulator: ParseAccumulator,
-    ) {
+    private fun parsePart(part: Part, accumulator: ParseAccumulator) {
         if (part.isMimeType("multipart/*")) {
             val multipart = part.content as Multipart
             for (index in 0 until multipart.count) {
@@ -136,10 +130,7 @@ class MessageParseService {
         }
     }
 
-    private fun parseBodyPart(
-        part: BodyPart,
-        accumulator: ParseAccumulator,
-    ) {
+    private fun parseBodyPart(part: BodyPart, accumulator: ParseAccumulator) {
         if (part.isMimeType("multipart/*") || part.isMimeType("message/rfc822")) {
             parsePart(part, accumulator)
             return
@@ -219,18 +210,12 @@ class MessageParseService {
         return contentId.trim().removePrefix("<").removeSuffix(">")
     }
 
-    private fun firstHeader(
-        part: Part,
-        headerName: String,
-    ): String? {
+    private fun firstHeader(part: Part, headerName: String): String? {
         val headers = part.getHeader(headerName) ?: return null
         return headers.firstOrNull()
     }
 
-    private fun appendText(
-        current: String?,
-        next: String?,
-    ): String? {
+    private fun appendText(current: String?, next: String?): String? {
         if (next.isNullOrBlank()) {
             return current
         }

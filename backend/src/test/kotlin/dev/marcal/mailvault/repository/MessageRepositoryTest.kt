@@ -20,11 +20,10 @@ class MessageRepositoryTest {
     @BeforeEach
     fun setUp() {
         val dbPath = tempDir.resolve("messages-test.db").toAbsolutePath().normalize()
-        val dataSource =
-            DriverManagerDataSource().apply {
-                setDriverClassName("org.sqlite.JDBC")
-                url = "jdbc:sqlite:$dbPath"
-            }
+        val dataSource = DriverManagerDataSource().apply {
+            setDriverClassName("org.sqlite.JDBC")
+            url = "jdbc:sqlite:$dbPath"
+        }
 
         jdbcTemplate = JdbcTemplate(dataSource)
         repository = MessageRepository(jdbcTemplate)
@@ -259,13 +258,7 @@ class MessageRepositoryTest {
     @Test
     fun `list supports combined filters with query`() {
         jdbcTemplate.update("UPDATE messages SET date_epoch = ? WHERE id = ?", 1706781600L, "b")
-        jdbcTemplate.update(
-            "INSERT INTO message_bodies(message_id, text_plain, html_raw, html_text) VALUES (?, ?, ?, ?)",
-            "b",
-            "budget plan",
-            "<p>budget plan</p>",
-            "budget plan",
-        )
+        jdbcTemplate.update("INSERT INTO message_bodies(message_id, text_plain, html_raw, html_text) VALUES (?, ?, ?, ?)", "b", "budget plan", "<p>budget plan</p>", "budget plan")
         jdbcTemplate.update(
             """
             INSERT INTO attachments(id, message_id, filename, content_type, size, inline_cid, storage_path, sha256)
@@ -325,12 +318,7 @@ class MessageRepositoryTest {
 
     @Test
     fun `list query finds content from html_text`() {
-        jdbcTemplate.update(
-            "INSERT INTO message_bodies(message_id, html_raw, html_text) VALUES (?, ?, ?)",
-            "c",
-            "<p>Only html phrase</p>",
-            "Only html phrase",
-        )
+        jdbcTemplate.update("INSERT INTO message_bodies(message_id, html_raw, html_text) VALUES (?, ?, ?)", "c", "<p>Only html phrase</p>", "Only html phrase")
 
         val result = list(query = "\"Only html phrase\"", page = 0, size = 50)
         assertEquals(1, result.total)

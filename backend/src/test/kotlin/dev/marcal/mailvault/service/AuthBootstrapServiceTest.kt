@@ -22,11 +22,10 @@ class AuthBootstrapServiceTest {
     @BeforeEach
     fun setUp() {
         val dbPath = tempDir.resolve("auth-bootstrap-test.db").toAbsolutePath().normalize()
-        val dataSource =
-            DriverManagerDataSource().apply {
-                setDriverClassName("org.sqlite.JDBC")
-                url = "jdbc:sqlite:$dbPath"
-            }
+        val dataSource = DriverManagerDataSource().apply {
+            setDriverClassName("org.sqlite.JDBC")
+            url = "jdbc:sqlite:$dbPath"
+        }
         jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """

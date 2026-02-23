@@ -18,7 +18,6 @@ class UiLanguageController(
     fun getLanguage(): UiLanguageResponse = UiLanguageResponse(language = uiLanguageService.getLanguage())
 
     @PutMapping("/language")
-    fun setLanguage(
-        @RequestBody request: UiLanguageRequest,
-    ): UiLanguageResponse = UiLanguageResponse(language = uiLanguageService.setLanguage(request.language))
+    fun setLanguage(@RequestBody request: UiLanguageRequest): UiLanguageResponse =
+        UiLanguageResponse(language = uiLanguageService.setLanguage(request.language))
 }

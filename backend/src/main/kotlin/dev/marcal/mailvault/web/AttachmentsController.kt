@@ -16,9 +16,7 @@ class AttachmentsController(
     private val attachmentService: AttachmentService,
 ) {
     @GetMapping("/{attachmentId}/download")
-    fun download(
-        @PathVariable attachmentId: String,
-    ): ResponseEntity<ByteArray> {
+    fun download(@PathVariable attachmentId: String): ResponseEntity<ByteArray> {
         val file = attachmentService.resolveDownload(attachmentId)
         val mediaType =
             runCatching { MediaType.parseMediaType(file.contentType) }
@@ -26,8 +24,7 @@ class AttachmentsController(
 
         val dispositionName = file.filename?.ifBlank { "attachment" } ?: "attachment"
 
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .contentType(mediaType)
             .cacheControl(CacheControl.noStore().cachePrivate())
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$dispositionName\"")

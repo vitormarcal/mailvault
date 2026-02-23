@@ -10,13 +10,12 @@ class HtmlSanitizerServiceTest {
 
     @Test
     fun `removes dangerous tags and handlers`() {
-        val input =
-            """
+        val input = """
             <div onclick=\"evil()\">safe</div>
             <script>alert('x')</script>
             <img src=\"https://example.com/a.png\" onerror=\"evil()\" />
             <a href=\"javascript:alert(1)\">bad</a>
-            """.trimIndent()
+        """.trimIndent()
 
         val sanitized = service.sanitize(input)
 

@@ -1,14 +1,14 @@
 package dev.marcal.mailvault.service
 
-import dev.marcal.mailvault.config.MailVaultProperties
-import dev.marcal.mailvault.repository.AssetRepository
-import dev.marcal.mailvault.repository.IndexWriteRepository
-import dev.marcal.mailvault.repository.MessageHtmlRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
+import dev.marcal.mailvault.repository.IndexWriteRepository
+import dev.marcal.mailvault.repository.AssetRepository
+import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.config.MailVaultProperties
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
@@ -28,11 +28,10 @@ class IndexerServiceTest {
     @BeforeEach
     fun setUp() {
         val dbPath = tempDir.resolve("indexer-unit-test.db").toAbsolutePath().normalize()
-        val dataSource =
-            DriverManagerDataSource().apply {
-                setDriverClassName("org.sqlite.JDBC")
-                url = "jdbc:sqlite:$dbPath"
-            }
+        val dataSource = DriverManagerDataSource().apply {
+            setDriverClassName("org.sqlite.JDBC")
+            url = "jdbc:sqlite:$dbPath"
+        }
         jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """
@@ -202,36 +201,32 @@ class IndexerServiceTest {
 
         service.index()
 
-        val subjectDisplay =
-            jdbcTemplate.queryForObject(
-                "SELECT subject_display FROM messages WHERE file_path = ?",
-                String::class.java,
-                eml.toAbsolutePath().normalize().toString(),
-            )
-        val fromDisplay =
-            jdbcTemplate.queryForObject(
-                "SELECT from_display FROM messages WHERE file_path = ?",
-                String::class.java,
-                eml.toAbsolutePath().normalize().toString(),
-            )
-        val fromEmail =
-            jdbcTemplate.queryForObject(
-                "SELECT from_email FROM messages WHERE file_path = ?",
-                String::class.java,
-                eml.toAbsolutePath().normalize().toString(),
-            )
+        val subjectDisplay = jdbcTemplate.queryForObject(
+            "SELECT subject_display FROM messages WHERE file_path = ?",
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+        val fromDisplay = jdbcTemplate.queryForObject(
+            "SELECT from_display FROM messages WHERE file_path = ?",
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
+        val fromEmail = jdbcTemplate.queryForObject(
+            "SELECT from_email FROM messages WHERE file_path = ?",
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
 
-        val textPlain =
-            jdbcTemplate.queryForObject(
-                """
-                SELECT mb.text_plain
-                FROM message_bodies mb
-                JOIN messages m ON m.id = mb.message_id
-                WHERE m.file_path = ?
-                """.trimIndent(),
-                String::class.java,
-                eml.toAbsolutePath().normalize().toString(),
-            )
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
         assertEquals("Plain", subjectDisplay)
         assertEquals("A <a@x.com>", fromDisplay)
         assertEquals("a@x.com", fromEmail)
@@ -281,60 +276,55 @@ class IndexerServiceTest {
         val result = service.index()
         assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), result)
 
-        val textPlain =
-            jdbcTemplate.queryForObject(
-                """
-                SELECT mb.text_plain
-                FROM message_bodies mb
-                JOIN messages m ON m.id = mb.message_id
-                WHERE m.file_path = ?
-                """.trimIndent(),
-                String::class.java,
-                eml.toAbsolutePath().normalize().toString(),
-            )
+        val textPlain = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.text_plain
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
         assertEquals("Plain part", textPlain?.trim())
 
-        val htmlRaw =
-            jdbcTemplate.queryForObject(
-                """
-                SELECT mb.html_raw
-                FROM message_bodies mb
-                JOIN messages m ON m.id = mb.message_id
-                WHERE m.file_path = ?
-                """.trimIndent(),
-                String::class.java,
-                eml.toAbsolutePath().normalize().toString(),
-            )
+        val htmlRaw = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.html_raw
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
         assertEquals(true, htmlRaw?.contains("Hello HTML") == true)
 
-        val htmlText =
-            jdbcTemplate.queryForObject(
-                """
-                SELECT mb.html_text
-                FROM message_bodies mb
-                JOIN messages m ON m.id = mb.message_id
-                WHERE m.file_path = ?
-                """.trimIndent(),
-                String::class.java,
-                eml.toAbsolutePath().normalize().toString(),
-            )
+        val htmlText = jdbcTemplate.queryForObject(
+            """
+            SELECT mb.html_text
+            FROM message_bodies mb
+            JOIN messages m ON m.id = mb.message_id
+            WHERE m.file_path = ?
+            """.trimIndent(),
+            String::class.java,
+            eml.toAbsolutePath().normalize().toString(),
+        )
         assertEquals("Hello HTML", htmlText?.trim())
 
         val attachmentCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM attachments", Int::class.java)
         assertEquals(2, attachmentCount)
 
-        val inlineCid =
-            jdbcTemplate.queryForObject(
-                "SELECT inline_cid FROM attachments WHERE filename = 'pixel.png'",
-                String::class.java,
-            )
+        val inlineCid = jdbcTemplate.queryForObject(
+            "SELECT inline_cid FROM attachments WHERE filename = 'pixel.png'",
+            String::class.java,
+        )
         assertEquals("img-1", inlineCid)
 
-        val storagePath =
-            jdbcTemplate.queryForObject(
-                "SELECT storage_path FROM attachments WHERE filename = 'note.txt'",
-                String::class.java,
-            )
+        val storagePath = jdbcTemplate.queryForObject(
+            "SELECT storage_path FROM attachments WHERE filename = 'note.txt'",
+            String::class.java,
+        )
         assertNotNull(storagePath)
         assertEquals(true, Files.exists(Path.of(storagePath)))
     }
@@ -386,12 +376,11 @@ class IndexerServiceTest {
         val result = service.index()
         assertEquals(IndexResult(inserted = 0, updated = 1, skipped = 0), result)
 
-        val textPlain =
-            jdbcTemplate.queryForObject(
-                "SELECT text_plain FROM message_bodies WHERE message_id = ?",
-                String::class.java,
-                messageId,
-            )
+        val textPlain = jdbcTemplate.queryForObject(
+            "SELECT text_plain FROM message_bodies WHERE message_id = ?",
+            String::class.java,
+            messageId,
+        )
         assertEquals("Corpo legado", textPlain?.trim())
     }
 
@@ -530,11 +519,10 @@ class IndexerServiceTest {
         val result = service.index()
         assertEquals(IndexResult(inserted = 2, updated = 0, skipped = 0), result)
 
-        val skippedAssets =
-            jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
-                Int::class.java,
-            )
+        val skippedAssets = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
+            Int::class.java,
+        )
         assertEquals(2, skippedAssets)
     }
 
@@ -573,11 +561,10 @@ class IndexerServiceTest {
         val second = service.index()
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 1), second)
 
-        val skippedAssets =
-            jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
-                Int::class.java,
-            )
+        val skippedAssets = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
+            Int::class.java,
+        )
         assertEquals(1, skippedAssets)
     }
 
@@ -615,11 +602,10 @@ class IndexerServiceTest {
         val second = service.index()
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 1), second)
 
-        val skippedAssets =
-            jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
-                Int::class.java,
-            )
+        val skippedAssets = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
+            Int::class.java,
+        )
         assertEquals(0, skippedAssets)
     }
 

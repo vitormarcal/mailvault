@@ -31,10 +31,7 @@ class MessageHtmlRepository(
             null
         }
 
-    fun updateHtmlSanitized(
-        messageId: String,
-        htmlSanitized: String?,
-    ) {
+    fun updateHtmlSanitized(messageId: String, htmlSanitized: String?) {
         jdbcTemplate.update(
             """
             UPDATE message_bodies
