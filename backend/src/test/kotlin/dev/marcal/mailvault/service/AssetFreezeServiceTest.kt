@@ -3,6 +3,7 @@ package dev.marcal.mailvault.service
 import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.repository.MessageRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -43,6 +44,7 @@ class AssetFreezeServiceTest {
                 from_email TEXT,
                 from_name TEXT,
                 freeze_ignored INTEGER NOT NULL DEFAULT 0,
+                freeze_last_reason TEXT,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -79,6 +81,7 @@ class AssetFreezeServiceTest {
 
         val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
         val assetRepository = AssetRepository(jdbcTemplate)
+        val messageRepository = MessageRepository(jdbcTemplate)
         val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
         val storageDir = tempDir.resolve("storage")
         Files.createDirectories(storageDir)
@@ -86,6 +89,7 @@ class AssetFreezeServiceTest {
             AssetFreezeService(
                 messageHtmlRepository = messageHtmlRepository,
                 assetRepository = assetRepository,
+                messageRepository = messageRepository,
                 mailVaultProperties = MailVaultProperties(storageDir = storageDir.toString()),
                 htmlRenderService = htmlRenderService,
             )

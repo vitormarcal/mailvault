@@ -664,6 +664,7 @@
         badgeFailure: 'Failed: {count}',
         badgeSecuritySkipped: 'Security blocked: {count}',
         badgeFreezeIgnored: 'Freeze ignored',
+        badgeFreezeNote: 'Freeze note',
         freezeIgnoreAction: 'Ignore freeze',
         freezeUnignoreAction: 'Unignore freeze',
         freezeIgnoreDone: 'Message marked to ignore freeze.',
@@ -763,6 +764,7 @@
         badgeFailure: 'Falha: {count}',
         badgeSecuritySkipped: 'Bloqueado por seguranca: {count}',
         badgeFreezeIgnored: 'Freeze ignorado',
+        badgeFreezeNote: 'Nota do freeze',
         freezeIgnoreAction: 'Ignorar freeze',
         freezeUnignoreAction: 'Desfazer ignorar freeze',
         freezeIgnoreDone: 'Mensagem marcada para ignorar freeze.',
@@ -1055,6 +1057,7 @@
         const assetsFailedCount = Number(item.assetsFailedCount || 0);
         const securitySkippedCount = Number(item.securitySkippedCount || 0);
         const freezeIgnored = Boolean(item.freezeIgnored);
+        const freezeLastReason = (item.freezeLastReason || '').trim();
         if (item.hasHtml) {
           badges.push(`<span class="mini-badge">${escapeHtml(t('badgeHtml'))}</span>`);
         }
@@ -1072,6 +1075,9 @@
         }
         if (freezeIgnored) {
           badges.push(`<span class="mini-badge muted">${escapeHtml(t('badgeFreezeIgnored'))}</span>`);
+        }
+        if (freezeLastReason) {
+          badges.push(`<span class="mini-badge muted" title="${escapeHtml(freezeLastReason)}">${escapeHtml(t('badgeFreezeNote'))}</span>`);
         }
         const detailParams = new URLSearchParams();
         if (window.location.search) {

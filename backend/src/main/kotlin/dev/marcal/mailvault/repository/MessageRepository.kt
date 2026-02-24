@@ -127,6 +127,7 @@ class MessageRepository(
                             ELSE 0
                         END AS has_html,
                         m.freeze_ignored,
+                        m.freeze_last_reason,
                         m.from_raw,
                         m.from_display,
                         m.file_mtime_epoch
@@ -169,6 +170,7 @@ class MessageRepository(
                     COALESCE(sc.assets_failed_count, 0) AS assets_failed_count,
                     COALESCE(sc.security_skipped_count, 0) AS security_skipped_count,
                     p.freeze_ignored,
+                    p.freeze_last_reason,
                     p.from_raw,
                     p.from_display,
                     p.file_mtime_epoch
@@ -191,6 +193,7 @@ class MessageRepository(
                         assetsFailedCount = rs.getInt("assets_failed_count"),
                         securitySkippedCount = rs.getInt("security_skipped_count"),
                         freezeIgnored = rs.getInt("freeze_ignored") == 1,
+                        freezeLastReason = rs.getString("freeze_last_reason"),
                         fromRaw = rs.getString("from_raw"),
                         fromDisplay = rs.getString("from_display"),
                         fileMtimeEpoch = rs.getLong("file_mtime_epoch"),
@@ -212,7 +215,8 @@ class MessageRepository(
                        (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'DOWNLOADED') AS frozen_assets_count,
                        (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'FAILED') AS assets_failed_count,
                        (SELECT COUNT(*) FROM assets s WHERE s.message_id = m.id AND s.status = 'SKIPPED' AND s.security_blocked = 1) AS security_skipped_count,
-                       m.freeze_ignored
+                       m.freeze_ignored,
+                       m.freeze_last_reason
                 FROM messages m
                 LEFT JOIN message_bodies mb ON mb.message_id = m.id
                 WHERE m.id = ?
@@ -236,6 +240,7 @@ class MessageRepository(
                         assetsFailedCount = rs.getInt("assets_failed_count"),
                         securitySkippedCount = rs.getInt("security_skipped_count"),
                         freezeIgnored = rs.getInt("freeze_ignored") == 1,
+                        freezeLastReason = rs.getString("freeze_last_reason"),
                         messageId = rs.getString("message_id"),
                         textPlain = rs.getString("text_plain"),
                     )
@@ -253,6 +258,28 @@ class MessageRepository(
         jdbcTemplate.update(
             "UPDATE messages SET freeze_ignored = ? WHERE id = ?",
             if (ignored) 1 else 0,
+            id,
+        ) > 0
+
+    fun setFreezeLastReason(
+        id: String,
+        reason: String?,
+    ): Boolean =
+        jdbcTemplate.update(
+            "UPDATE messages SET freeze_last_reason = ? WHERE id = ?",
+            reason,
+            id,
+        ) > 0
+
+    fun setFreezeIgnoredAndLastReason(
+        id: String,
+        ignored: Boolean,
+        reason: String?,
+    ): Boolean =
+        jdbcTemplate.update(
+            "UPDATE messages SET freeze_ignored = ?, freeze_last_reason = ? WHERE id = ?",
+            if (ignored) 1 else 0,
+            reason,
             id,
         ) > 0
 

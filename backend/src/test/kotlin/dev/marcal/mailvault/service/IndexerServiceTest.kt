@@ -4,6 +4,7 @@ import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.IndexWriteRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.repository.MessageRepository
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -58,6 +59,7 @@ class IndexerServiceTest {
                 from_email TEXT,
                 from_name TEXT,
                 freeze_ignored INTEGER NOT NULL DEFAULT 0,
+                freeze_last_reason TEXT,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -632,8 +634,10 @@ class IndexerServiceTest {
     private fun createIndexerService(properties: MailVaultProperties): IndexerService {
         val assetRepository = AssetRepository(jdbcTemplate)
         val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
+        val messageRepository = MessageRepository(jdbcTemplate)
         val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
-        val assetFreezeService = AssetFreezeService(messageHtmlRepository, assetRepository, properties, htmlRenderService)
+        val assetFreezeService =
+            AssetFreezeService(messageHtmlRepository, assetRepository, messageRepository, properties, htmlRenderService)
         return IndexerService(
             IndexWriteRepository(jdbcTemplate),
             MessageParseService(),

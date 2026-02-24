@@ -13,6 +13,7 @@ data class MessageSummary(
     val assetsFailedCount: Int,
     val securitySkippedCount: Int,
     val freezeIgnored: Boolean,
+    val freezeLastReason: String?,
     val fromRaw: String?,
     val fromDisplay: String?,
     val fileMtimeEpoch: Long,
@@ -36,6 +37,7 @@ data class MessageDetail(
     val assetsFailedCount: Int,
     val securitySkippedCount: Int,
     val freezeIgnored: Boolean,
+    val freezeLastReason: String?,
     val messageId: String?,
     val textPlain: String?,
 )

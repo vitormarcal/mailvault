@@ -45,6 +45,7 @@ class MessageRepositoryTest {
                 from_email TEXT,
                 from_name TEXT,
                 freeze_ignored INTEGER NOT NULL DEFAULT 0,
+                freeze_last_reason TEXT,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -375,6 +376,7 @@ class MessageRepositoryTest {
         assertEquals(0, found.frozenAssetsCount)
         assertEquals(0, found.assetsFailedCount)
         assertEquals(false, found.freezeIgnored)
+        assertNull(found.freezeLastReason)
         assertEquals("Body A", found.textPlain)
         assertNull(missing)
     }
@@ -390,8 +392,10 @@ class MessageRepositoryTest {
         assertEquals(true, updated)
         assertEquals(false, missing)
         assertEquals(true, listed.freezeIgnored)
+        assertNull(listed.freezeLastReason)
         assertNotNull(detailed)
         assertEquals(true, detailed.freezeIgnored)
+        assertNull(detailed.freezeLastReason)
     }
 
     @Test

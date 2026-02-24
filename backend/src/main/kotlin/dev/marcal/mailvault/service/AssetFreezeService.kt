@@ -7,6 +7,7 @@ import dev.marcal.mailvault.domain.AssetStatus
 import dev.marcal.mailvault.domain.AssetUpsert
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.repository.MessageRepository
 import dev.marcal.mailvault.util.ResourceNotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -28,6 +29,7 @@ import java.time.OffsetDateTime
 class AssetFreezeService(
     private val messageHtmlRepository: MessageHtmlRepository,
     private val assetRepository: AssetRepository,
+    private val messageRepository: MessageRepository,
     private val mailVaultProperties: MailVaultProperties,
     private val htmlRenderService: HtmlRenderService,
 ) {
@@ -47,12 +49,14 @@ class AssetFreezeService(
         var failed = 0
         var skipped = 0
         try {
-            val html =
-                messageHtmlRepository.findByMessageId(messageId)
-                    ?: throw ResourceNotFoundException("message not found")
+            if (messageRepository.findById(messageId) == null) {
+                throw ResourceNotFoundException("message not found")
+            }
+            val html = messageHtmlRepository.findByMessageId(messageId)
             val htmlRaw =
-                html.htmlRaw ?: run {
+                html?.htmlRaw?.takeIf { it.isNotBlank() } ?: run {
                     logger.info("Freeze skipped messageId={} reason=no html", messageId)
+                    messageRepository.setFreezeLastReason(messageId, "Skipped: message has no HTML body")
                     return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
                 }
 
@@ -60,16 +64,23 @@ class AssetFreezeService(
             totalFound = urls.size
             if (urls.isEmpty()) {
                 logger.info("Freeze skipped messageId={} reason=no remote images", messageId)
+                messageRepository.setFreezeIgnoredAndLastReason(
+                    id = messageId,
+                    ignored = true,
+                    reason = "Skipped: no remote images found (auto-ignored)",
+                )
                 return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
             }
 
             var totalBytes: Long = 0
             val failures = mutableListOf<FreezeFailureEntry>()
+            val skipReasons = mutableMapOf<String, Int>()
 
             val limited = urls.take(mailVaultProperties.maxAssetsPerMessage)
             val overflowCount = urls.size - limited.size
             if (overflowCount > 0) {
                 skipped += overflowCount
+                incrementReason(skipReasons, "max assets per message reached", overflowCount)
                 logger.info(
                     "Freeze skipped messageId={} reason=max assets per message reached totalFound={} maxAssetsPerMessage={} skippedOverflow={}",
                     messageId,
@@ -82,6 +93,7 @@ class AssetFreezeService(
             for (url in limited) {
                 if (assetRepository.findDownloadedByMessageAndOriginalUrl(messageId, url) != null) {
                     skipped++
+                    incrementReason(skipReasons, "already downloaded")
                     logger.info(
                         "Freeze skipped messageId={} host={} reason=already downloaded",
                         messageId,
@@ -91,6 +103,7 @@ class AssetFreezeService(
                 }
 
                 if (totalBytes >= mailVaultProperties.totalMaxBytesPerMessage) {
+                    incrementReason(skipReasons, "total max bytes per message reached")
                     logger.info(
                         "Freeze skipped messageId={} host={} reason=total max bytes per message reached",
                         messageId,
@@ -110,6 +123,7 @@ class AssetFreezeService(
 
                     AssetStatus.SKIPPED -> {
                         skipped++
+                        incrementReason(skipReasons, summarizeReason(result.error))
                         logger.info(
                             "Freeze skipped messageId={} host={} reason={}",
                             messageId,
@@ -150,6 +164,19 @@ class AssetFreezeService(
                         )
                     }.sortedWith(compareByDescending<AssetFreezeFailureSummary> { it.count }.thenBy { it.host })
 
+            val freezeLastReason =
+                when {
+                    downloaded > 0 ->
+                        "Completed: downloaded=$downloaded failed=$failed skipped=$skipped"
+                    failed > 0 ->
+                        "Completed with failures: failed=$failed skipped=$skipped"
+                    skipped > 0 ->
+                        "Skipped: ${formatReasonSummary(skipReasons)}"
+                    else ->
+                        "Completed: no changes"
+                }
+            messageRepository.setFreezeLastReason(messageId, freezeLastReason)
+
             return AssetFreezeResponse(
                 totalFound = totalFound,
                 downloaded = downloaded,
@@ -168,6 +195,12 @@ class AssetFreezeService(
                 summarizeReason(e.message),
                 e,
             )
+            runCatching {
+                messageRepository.setFreezeLastReason(
+                    messageId,
+                    "Failed: ${summarizeReason(e.message)}",
+                )
+            }
             throw e
         } finally {
             val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
@@ -490,6 +523,24 @@ class AssetFreezeService(
                 .replace(URL_REGEX, "[url]")
                 .replace(WHITESPACE_REGEX, " ")
         return if (normalized.length <= 80) normalized else normalized.take(80).trimEnd() + "..."
+    }
+
+    private fun incrementReason(
+        reasonCounts: MutableMap<String, Int>,
+        reason: String,
+        amount: Int = 1,
+    ) {
+        reasonCounts[reason] = (reasonCounts[reason] ?: 0) + amount
+    }
+
+    private fun formatReasonSummary(reasonCounts: Map<String, Int>): String {
+        if (reasonCounts.isEmpty()) {
+            return "no reason captured"
+        }
+        return reasonCounts.entries
+            .sortedByDescending { it.value }
+            .take(3)
+            .joinToString("; ") { "${it.key} (${it.value})" }
     }
 
     private data class FreezeFailureEntry(

@@ -753,6 +753,33 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"failed\":0"))
         assertEquals(true, body.contains("\"skipped\":1"))
         assertEquals(true, body.contains("\"failures\":[]"))
+
+        val detail = get("/api/messages/id-1")
+        assertEquals(200, detail.statusCode())
+        assertEquals(true, detail.body().contains("\"freezeLastReason\":\"Skipped:"))
+    }
+
+    @Test
+    fun `POST freeze-assets marks message as ignored when no remote images`() {
+        jdbcTemplate.update(
+            "UPDATE message_bodies SET html_raw = ?, html_sanitized = NULL WHERE message_id = ?",
+            """<div><p>No image here</p></div>""",
+            "id-1",
+        )
+
+        val response = post("/api/messages/id-1/freeze-assets")
+
+        assertEquals(200, response.statusCode())
+        val body = response.body()
+        assertEquals(true, body.contains("\"totalFound\":0"))
+        assertEquals(true, body.contains("\"downloaded\":0"))
+        assertEquals(true, body.contains("\"failed\":0"))
+        assertEquals(true, body.contains("\"skipped\":0"))
+
+        val detail = get("/api/messages/id-1")
+        assertEquals(200, detail.statusCode())
+        assertEquals(true, detail.body().contains("\"freezeIgnored\":true"))
+        assertEquals(true, detail.body().contains("no remote images found"))
     }
 
     @Test

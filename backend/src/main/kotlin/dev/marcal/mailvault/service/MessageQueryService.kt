@@ -63,6 +63,7 @@ class MessageQueryService(
                         assetsFailedCount = it.assetsFailedCount,
                         securitySkippedCount = it.securitySkippedCount,
                         freezeIgnored = it.freezeIgnored,
+                        freezeLastReason = it.freezeLastReason,
                         fromRaw = it.fromRaw,
                         fromDisplay = it.fromDisplay,
                         fileMtimeEpoch = it.fileMtimeEpoch,
@@ -92,6 +93,7 @@ class MessageQueryService(
             assetsFailedCount = message.assetsFailedCount,
             securitySkippedCount = message.securitySkippedCount,
             freezeIgnored = message.freezeIgnored,
+            freezeLastReason = message.freezeLastReason,
             messageId = message.messageId,
             textPlain = message.textPlain,
         )

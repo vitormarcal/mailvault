@@ -16,6 +16,7 @@ const tabPlainEl = document.getElementById('tabPlain');
 const attachmentsEl = document.getElementById('attachments');
 const statusEl = document.getElementById('status');
 const statusImagesEl = document.getElementById('statusImages');
+const statusFreezeReasonEl = document.getElementById('statusFreezeReason');
 const statusAttachmentsEl = document.getElementById('statusAttachments');
 const statusSizeEl = document.getElementById('statusSize');
 const statusFilePathEl = document.getElementById('statusFilePath');
@@ -63,6 +64,7 @@ const I18N = {
     emptyBody: 'This message has no text/plain or html body.',
     statusTitle: 'Email status',
     statusImages: 'Images: frozen {frozen}, failed {failed}, security blocked {securityBlocked}',
+    statusFreezeReason: 'Freeze reason: {reason}',
     statusAttachments: 'Attachments: {count}',
     statusSize: 'Size: {size}',
     fileLabel: 'File:',
@@ -86,6 +88,7 @@ const I18N = {
     freezeFailed: 'Failed to freeze images.',
     freezeNetworkFailed: 'Network failure while freezing images.',
     freezeDone: '{downloaded} downloaded, {failed} failed, {skipped} skipped (of {total})',
+    freezeIgnoredAction: 'Freeze is ignored for this message.',
     freezeFailuresPrefix: 'Failures',
     freezeButtonLoading: 'Downloading...',
     noPathToCopy: 'No file path to copy.',
@@ -116,6 +119,7 @@ const I18N = {
     emptyBody: 'Esta mensagem nao possui corpo em text/plain ou html disponivel.',
     statusTitle: 'Status do email',
     statusImages: 'Imagens: congeladas {frozen}, falhas {failed}, bloqueadas por seguranca {securityBlocked}',
+    statusFreezeReason: 'Motivo do freeze: {reason}',
     statusAttachments: 'Anexos: {count}',
     statusSize: 'Tamanho: {size}',
     fileLabel: 'Arquivo:',
@@ -139,6 +143,7 @@ const I18N = {
     freezeFailed: 'Falha ao congelar imagens.',
     freezeNetworkFailed: 'Falha de rede ao congelar imagens.',
     freezeDone: '{downloaded} baixadas, {failed} falharam, {skipped} ignoradas (de {total})',
+    freezeIgnoredAction: 'Freeze esta ignorado para esta mensagem.',
     freezeFailuresPrefix: 'Falhas',
     freezeButtonLoading: 'Baixando...',
     noPathToCopy: 'Sem caminho de arquivo para copiar.',
@@ -157,6 +162,7 @@ let currentState = {
   nextId: null,
   activeTab: 'plain',
   language: 'en',
+  freezeIgnored: false,
 };
 
 function t(key, vars = {}) {
@@ -415,6 +421,7 @@ async function loadMessage() {
   clearStatus();
   const id = currentId();
   currentState.messageId = id;
+  currentState.freezeIgnored = false;
   updateBackLink();
 
   subjectEl.textContent = t('loadingMessage');
@@ -433,6 +440,7 @@ async function loadMessage() {
     htmlContainerEl.innerHTML = '';
     attachmentsEl.innerHTML = `<li>${t('noAttachments')}</li>`;
     statusImagesEl.textContent = t('statusImages', { frozen: '-', failed: '-', securityBlocked: '-' });
+    statusFreezeReasonEl.textContent = t('statusFreezeReason', { reason: '-' });
     statusAttachmentsEl.textContent = t('statusAttachments', { count: '-' });
     statusSizeEl.textContent = t('statusSize', { size: t('sizeUnknown') });
     statusFilePathEl.textContent = t('pathUnknown');
@@ -453,9 +461,12 @@ async function loadMessage() {
     failed: Number(data.assetsFailedCount || 0),
     securityBlocked: Number(data.securitySkippedCount || 0),
   });
+  statusFreezeReasonEl.textContent = t('statusFreezeReason', { reason: data.freezeLastReason || '-' });
   statusAttachmentsEl.textContent = t('statusAttachments', { count: Number(data.attachmentsCount || 0) });
   statusSizeEl.textContent = t('statusSize', { size: formatBytes(data.messageSizeBytes ?? data.fileSize) });
   statusFilePathEl.textContent = data.filePath || t('pathUnknown');
+  currentState.freezeIgnored = Boolean(data.freezeIgnored);
+  freezeBtn.disabled = currentState.freezeIgnored;
 
   const renderedHtml = await loadRenderedHtml(id);
   htmlContainerEl.innerHTML = renderedHtml || '';
@@ -503,6 +514,10 @@ reindexBtn.addEventListener('click', async () => {
 });
 
 freezeBtn.addEventListener('click', async () => {
+  if (currentState.freezeIgnored) {
+    setStatus('info', t('freezeIgnoredAction'));
+    return;
+  }
   const id = currentId();
   setFreezeLoading(true);
   setStatus('info', t('freezeRunning'));

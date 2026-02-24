@@ -54,6 +54,7 @@ class MessagesControllerTest {
                 from_email TEXT,
                 from_name TEXT,
                 freeze_ignored INTEGER NOT NULL DEFAULT 0,
+                freeze_last_reason TEXT,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -109,6 +110,7 @@ class MessagesControllerTest {
             AssetFreezeService(
                 messageHtmlRepository,
                 assetRepository,
+                messageRepository,
                 MailVaultProperties(),
                 htmlRenderService,
             )

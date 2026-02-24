@@ -54,6 +54,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 - `assetsFailedCount`
 - `securitySkippedCount` (assets skipped by security guard)
 - `freezeIgnored`
+- `freezeLastReason` (last freeze outcome reason per message)
 - `messageSizeBytes`
 - `filePath` (plain text for copy)
 
@@ -107,6 +108,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 - `V11__message_display_headers.sql`: adds `subject_display`, `from_display`, `from_email`, and `from_name` to `messages` to show decoded RFC 2047 headers
 - `V12__messages_freeze_ignored.sql`: adds `freeze_ignored` to `messages` to allow marking/unmarking messages that should be ignored by freeze routines
 - `V13__assets_security_blocked.sql`: adds `security_blocked` to `assets` to distinguish security-skipped assets from other skipped reasons
+- `V14__messages_freeze_last_reason.sql`: adds `freeze_last_reason` to `messages` to persist the latest freeze outcome reason shown in UI
 
 ## Search and filters (`GET /api/messages`)
 

@@ -4,6 +4,7 @@ import dev.marcal.mailvault.config.MailVaultProperties
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.IndexWriteRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
+import dev.marcal.mailvault.repository.MessageRepository
 import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentStorageService
 import dev.marcal.mailvault.service.HtmlRenderService
@@ -64,6 +65,7 @@ class IndexControllerTest {
                 from_email TEXT,
                 from_name TEXT,
                 freeze_ignored INTEGER NOT NULL DEFAULT 0,
+                freeze_last_reason TEXT,
                 message_id TEXT
             )
             """.trimIndent(),
@@ -126,7 +128,13 @@ class IndexControllerTest {
                     MessageParseService(),
                     AttachmentStorageService(),
                     assetRepository,
-                    AssetFreezeService(messageHtmlRepository, assetRepository, properties, htmlRenderService),
+                    AssetFreezeService(
+                        messageHtmlRepository,
+                        assetRepository,
+                        MessageRepository(jdbcTemplate),
+                        properties,
+                        htmlRenderService,
+                    ),
                     properties,
                 ),
             )
@@ -150,6 +158,7 @@ class IndexControllerTest {
                     AssetFreezeService(
                         MessageHtmlRepository(jdbcTemplate),
                         AssetRepository(jdbcTemplate),
+                        MessageRepository(jdbcTemplate),
                         MailVaultProperties(
                             rootEmailsDir = tempDir.resolve("missing").toString(),
                             storageDir = tempDir.resolve("storage").toString(),
