@@ -9,8 +9,26 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.jdbc.datasource.DriverManagerDataSource
+import java.io.ByteArrayInputStream
+import java.net.Authenticator
+import java.net.CookieHandler
+import java.net.ProxySelector
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpHeaders
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.Duration
+import java.util.Optional
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLParameters
+import javax.net.ssl.SSLSession
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class AssetFreezeServiceTest {
@@ -18,6 +36,7 @@ class AssetFreezeServiceTest {
     lateinit var tempDir: Path
 
     private lateinit var service: AssetFreezeService
+    private lateinit var jdbcTemplate: JdbcTemplate
 
     @BeforeEach
     fun setUp() {
@@ -27,7 +46,7 @@ class AssetFreezeServiceTest {
                 setDriverClassName("org.sqlite.JDBC")
                 url = "jdbc:sqlite:$dbPath"
             }
-        val jdbcTemplate = JdbcTemplate(dataSource)
+        jdbcTemplate = JdbcTemplate(dataSource)
         jdbcTemplate.execute(
             """
             CREATE TABLE IF NOT EXISTS messages (
@@ -78,6 +97,20 @@ class AssetFreezeServiceTest {
             )
             """.trimIndent(),
         )
+        jdbcTemplate.execute(
+            """
+            CREATE TABLE IF NOT EXISTS attachments (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                filename TEXT,
+                content_type TEXT,
+                size INTEGER,
+                inline_cid TEXT,
+                storage_path TEXT NOT NULL,
+                sha256 TEXT NOT NULL
+            )
+            """.trimIndent(),
+        )
 
         val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
         val assetRepository = AssetRepository(jdbcTemplate)
@@ -107,5 +140,141 @@ class AssetFreezeServiceTest {
         assertFailsWith<IllegalArgumentException> {
             service.validateRemoteUri("https://user:pass@example.com/image.png")
         }
+    }
+
+    @Test
+    fun `retries once on 403 and downloads image on second profile`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m-1",
+            "/tmp/m-1.eml",
+            1L,
+            1L,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies(message_id, html_raw)
+            VALUES (?, ?)
+            """.trimIndent(),
+            "m-1",
+            """<img src="https://example.com/image.png" />""",
+        )
+
+        val fakeClient =
+            FakeHttpClient(
+                mutableListOf(
+                    PlannedResponse(status = 403, headers = mapOf("Content-Type" to listOf("text/html")), body = ByteArray(0)),
+                    PlannedResponse(
+                        status = 200,
+                        headers = mapOf("Content-Type" to listOf("image/png")),
+                        body = "PNG".toByteArray(StandardCharsets.UTF_8),
+                    ),
+                ),
+            )
+        service =
+            AssetFreezeService(
+                messageHtmlRepository = MessageHtmlRepository(jdbcTemplate),
+                assetRepository = AssetRepository(jdbcTemplate),
+                messageRepository = MessageRepository(jdbcTemplate),
+                mailVaultProperties = MailVaultProperties(storageDir = tempDir.resolve("storage").toString()),
+                htmlRenderService =
+                    HtmlRenderService(
+                        MessageHtmlRepository(jdbcTemplate),
+                        AssetRepository(jdbcTemplate),
+                        HtmlSanitizerService(),
+                    ),
+                httpClient = fakeClient,
+            )
+
+        val result = service.freeze("m-1")
+
+        assertEquals(1, result.totalFound)
+        assertEquals(1, result.downloaded)
+        assertEquals(0, result.failed)
+        assertEquals(0, result.skipped)
+        assertEquals(2, fakeClient.calls)
+    }
+
+    private data class PlannedResponse(
+        val status: Int,
+        val headers: Map<String, List<String>>,
+        val body: ByteArray,
+    )
+
+    private class FakeHttpClient(
+        private val planned: MutableList<PlannedResponse>,
+    ) : HttpClient() {
+        var calls: Int = 0
+            private set
+
+        override fun cookieHandler(): Optional<CookieHandler> = Optional.empty()
+
+        override fun connectTimeout(): Optional<Duration> = Optional.empty()
+
+        override fun followRedirects(): Redirect = Redirect.NEVER
+
+        override fun proxy(): Optional<ProxySelector> = Optional.empty()
+
+        override fun sslContext(): SSLContext = SSLContext.getDefault()
+
+        override fun sslParameters(): SSLParameters = SSLParameters()
+
+        override fun authenticator(): Optional<Authenticator> = Optional.empty()
+
+        override fun version(): Version = Version.HTTP_1_1
+
+        override fun executor(): Optional<Executor> = Optional.empty()
+
+        override fun <T : Any?> send(
+            request: HttpRequest,
+            responseBodyHandler: HttpResponse.BodyHandler<T>,
+        ): HttpResponse<T> {
+            calls++
+            val next = planned.removeFirst()
+            @Suppress("UNCHECKED_CAST")
+            return FakeHttpResponse(
+                request = request,
+                status = next.status,
+                headers = HttpHeaders.of(next.headers) { _, _ -> true },
+                body = ByteArrayInputStream(next.body) as T,
+            )
+        }
+
+        override fun <T : Any?> sendAsync(
+            request: HttpRequest,
+            responseBodyHandler: HttpResponse.BodyHandler<T>,
+        ): CompletableFuture<HttpResponse<T>> = CompletableFuture.failedFuture(UnsupportedOperationException())
+
+        override fun <T : Any?> sendAsync(
+            request: HttpRequest,
+            responseBodyHandler: HttpResponse.BodyHandler<T>,
+            pushPromiseHandler: HttpResponse.PushPromiseHandler<T>,
+        ): CompletableFuture<HttpResponse<T>> = CompletableFuture.failedFuture(UnsupportedOperationException())
+    }
+
+    private class FakeHttpResponse<T>(
+        private val request: HttpRequest,
+        private val status: Int,
+        private val headers: HttpHeaders,
+        private val body: T,
+    ) : HttpResponse<T> {
+        override fun statusCode(): Int = status
+
+        override fun request(): HttpRequest = request
+
+        override fun previousResponse(): Optional<HttpResponse<T>> = Optional.empty()
+
+        override fun headers(): HttpHeaders = headers
+
+        override fun body(): T = body
+
+        override fun sslSession(): Optional<SSLSession> = Optional.empty()
+
+        override fun uri(): URI = request.uri()
+
+        override fun version(): HttpClient.Version = HttpClient.Version.HTTP_1_1
     }
 }

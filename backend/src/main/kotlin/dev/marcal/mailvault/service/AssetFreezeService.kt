@@ -17,6 +17,7 @@ import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.URI
 import java.net.http.HttpClient
+import java.net.http.HttpHeaders
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
@@ -32,14 +33,14 @@ class AssetFreezeService(
     private val messageRepository: MessageRepository,
     private val mailVaultProperties: MailVaultProperties,
     private val htmlRenderService: HtmlRenderService,
-) {
-    private val logger = LoggerFactory.getLogger(AssetFreezeService::class.java)
     private val httpClient: HttpClient =
         HttpClient
             .newBuilder()
             .followRedirects(HttpClient.Redirect.NEVER)
             .connectTimeout(Duration.ofSeconds(mailVaultProperties.assetConnectTimeoutSeconds))
-            .build()
+            .build(),
+) {
+    private val logger = LoggerFactory.getLogger(AssetFreezeService::class.java)
 
     fun freeze(messageId: String): AssetFreezeResponse {
         val startedAtNs = System.nanoTime()
@@ -263,15 +264,17 @@ class AssetFreezeService(
         }
 
         return try {
-            val response = sendWithManualRedirects(URI(url))
+            val response = sendWithManualRedirects(messageId, URI(url))
             val statusCode = response.statusCode()
             if (statusCode !in 200..299) {
+                response.body().close()
                 return persistFailed(messageId, url, "http status $statusCode")
             }
 
             val contentType = response.headers().firstValue("Content-Type").orElse("")
             val normalizedContentType = contentType.substringBefore(';').trim().lowercase()
             if (!normalizedContentType.startsWith("image/")) {
+                response.body().close()
                 return persistSkipped(messageId, url, "content-type is not image")
             }
 
@@ -318,21 +321,54 @@ class AssetFreezeService(
         }
     }
 
-    private fun sendWithManualRedirects(initialUri: URI): HttpResponse<java.io.InputStream> {
+    private fun sendWithManualRedirects(
+        messageId: String,
+        initialUri: URI,
+    ): HttpResponse<java.io.InputStream> {
+        var lastResponse: HttpResponse<java.io.InputStream>? = null
+        DOWNLOAD_PROFILES.forEachIndexed { profileIndex, profile ->
+            lastResponse?.body()?.close()
+            val response = sendWithManualRedirectsForProfile(messageId, initialUri, profile)
+            if (response.statusCode() == 403 && profileIndex < DOWNLOAD_PROFILES.lastIndex) {
+                logger.info(
+                    "Freeze retry messageId={} host={} reason=http status 403 nextProfile={}",
+                    messageId,
+                    hostFromUrl(initialUri.toString()),
+                    DOWNLOAD_PROFILES[profileIndex + 1].name,
+                )
+                lastResponse = response
+                return@forEachIndexed
+            }
+            return response
+        }
+        return lastResponse ?: throw IllegalStateException("No HTTP response produced")
+    }
+
+    private fun sendWithManualRedirectsForProfile(
+        messageId: String,
+        initialUri: URI,
+        profile: DownloadProfile,
+    ): HttpResponse<java.io.InputStream> {
         var current = initialUri
 
         repeat(MAX_REDIRECTS + 1) { hop ->
             validateRemoteUri(current.toString())
             val request =
-                HttpRequest
-                    .newBuilder()
-                    .uri(current)
-                    .timeout(Duration.ofSeconds(mailVaultProperties.assetReadTimeoutSeconds))
-                    .GET()
-                    .build()
+                buildImageRequest(
+                    uri = current,
+                    profile = profile,
+                )
 
             val response = httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream())
             val statusCode = response.statusCode()
+            logHttpAttempt(
+                messageId = messageId,
+                uri = current,
+                profile = profile,
+                hop = hop,
+                statusCode = statusCode,
+                headers = response.headers(),
+            )
             if (statusCode !in REDIRECT_STATUS_CODES) {
                 return response
             }
@@ -354,6 +390,51 @@ class AssetFreezeService(
         }
 
         throw IllegalArgumentException("too many redirects")
+    }
+
+    private fun buildImageRequest(
+        uri: URI,
+        profile: DownloadProfile,
+    ): HttpRequest {
+        val builder =
+            HttpRequest
+                .newBuilder()
+                .uri(uri)
+                .timeout(Duration.ofSeconds(mailVaultProperties.assetReadTimeoutSeconds))
+                .header("User-Agent", profile.userAgent)
+                .header("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+                .header("Accept-Language", "en-US,en;q=0.9,pt-BR;q=0.8")
+                .header("Cache-Control", "no-cache")
+                .header("Pragma", "no-cache")
+                .GET()
+
+        val scheme = uri.scheme?.lowercase()
+        val host = uri.host
+        if ((scheme == "http" || scheme == "https") && !host.isNullOrBlank()) {
+            builder.header("Referer", "$scheme://$host/")
+        }
+
+        return builder.build()
+    }
+
+    private fun logHttpAttempt(
+        messageId: String,
+        uri: URI,
+        profile: DownloadProfile,
+        hop: Int,
+        statusCode: Int,
+        headers: HttpHeaders,
+    ) {
+        val contentType = headers.firstValue("Content-Type").orElse("-")
+        logger.info(
+            "Freeze fetch messageId={} host={} profile={} hop={} status={} contentType={}",
+            messageId,
+            uri.host ?: "desconhecido",
+            profile.name,
+            hop,
+            statusCode,
+            contentType,
+        )
     }
 
     private fun persistSkipped(
@@ -548,9 +629,27 @@ class AssetFreezeService(
         val reason: String,
     )
 
+    private data class DownloadProfile(
+        val name: String,
+        val userAgent: String,
+    )
+
     private companion object {
         const val MAX_REDIRECTS = 5
         val REDIRECT_STATUS_CODES = setOf(301, 302, 303, 307, 308)
+        val DOWNLOAD_PROFILES =
+            listOf(
+                DownloadProfile(
+                    name = "browser-default",
+                    userAgent =
+                        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 " +
+                            "(KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                ),
+                DownloadProfile(
+                    name = "mail-client-fallback",
+                    userAgent = "Mozilla/5.0 Thunderbird/128.0",
+                ),
+            )
         val IMG_SRC_REGEX = Regex("""(?i)<img\b[^>]*?\s+src\s*=\s*(["'])(.*?)\1""")
         val URL_REGEX = Regex("""(?i)https?://\S+""")
         val WHITESPACE_REGEX = Regex("\\s+")
