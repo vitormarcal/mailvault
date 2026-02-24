@@ -19,6 +19,7 @@ class MessageRepository(
         hasAttachments: Boolean?,
         hasHtml: Boolean?,
         hasFrozenImages: Boolean?,
+        freezeIgnored: Boolean?,
     ): MessagesPage {
         val sanitizedQuery =
             query
@@ -76,6 +77,10 @@ class MessageRepository(
                     "NOT EXISTS (SELECT 1 FROM assets s WHERE s.message_id = m.id AND s.status = 'DOWNLOADED')"
                 },
             )
+        }
+        if (freezeIgnored != null) {
+            whereParts.add("m.freeze_ignored = ?")
+            whereParams.add(if (freezeIgnored) 1 else 0)
         }
 
         val fromClause =

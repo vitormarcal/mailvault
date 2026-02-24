@@ -40,6 +40,7 @@ class MessagesController(
         @RequestParam(required = false) hasAttachments: Boolean?,
         @RequestParam(required = false) hasHtml: Boolean?,
         @RequestParam(required = false) hasFrozenImages: Boolean?,
+        @RequestParam(required = false) freezeIgnored: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "50") size: Int,
     ): MessagesListResponse =
@@ -51,6 +52,7 @@ class MessagesController(
             hasAttachments = hasAttachments,
             hasHtml = hasHtml,
             hasFrozenImages = hasFrozenImages,
+            freezeIgnored = freezeIgnored,
         )
 
     @GetMapping("/{id}")
@@ -90,6 +92,7 @@ class MessagesController(
         @RequestParam(required = false) hasAttachments: Boolean?,
         @RequestParam(required = false) hasHtml: Boolean?,
         @RequestParam(required = false) hasFrozenImages: Boolean?,
+        @RequestParam(required = false) freezeIgnored: Boolean?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "40") size: Int,
     ): FreezePendingResponse =
@@ -101,6 +104,7 @@ class MessagesController(
             hasAttachments = hasAttachments,
             hasHtml = hasHtml,
             hasFrozenImages = hasFrozenImages,
+            freezeIgnored = freezeIgnored,
         )
 
     @PutMapping("/{id}/freeze-ignored")

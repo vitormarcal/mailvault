@@ -29,7 +29,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
   - Exception: health endpoint `GET /api/health` is public (no auth).
 - Historical inbox (list and search): `GET /`
 - Administrative page: `GET /admin`
-- List/search API: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
+- List/search API: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&freezeIgnored=&page=&size=`
 - Usage statistics: `GET /api/stats`
 - Change password: `PUT /api/auth/password`
 - Maintenance cleanup: `POST /api/maintenance/cleanup`
@@ -44,7 +44,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Attachments list: `GET /api/messages/{id}/attachments`
 - Attachment download: `GET /api/attachments/{attachmentId}/download`
 - Remote image freeze: `POST /api/messages/{id}/freeze-assets`
-- Freeze pending for current list query/page: `POST /api/messages/freeze-pending?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&page=&size=`
+- Freeze pending for current list query/page: `POST /api/messages/freeze-pending?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&freezeIgnored=&page=&size=`
 - Toggle freeze ignore per message: `PUT /api/messages/{id}/freeze-ignored?ignored=true|false`
 - Serve frozen assets: `GET /assets/{messageId}/{filename}`
 
@@ -117,10 +117,11 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 - `hasAttachments`: `true/false` for existence in `attachments`
 - `hasHtml`: `true/false` for non-empty `message_bodies.html_raw`
 - `hasFrozenImages`: `true/false` for existence of `assets` with `status = DOWNLOADED`
+- `freezeIgnored`: `true/false` for `messages.freeze_ignored`
 - Ordering:
   - with `query`: relevance `bm25(messages_fts)` then date desc
   - without `query`: date desc
-- Home (`/`) exposes all these filters in the UI (year + attachments/html/frozen images), with URL state and active filter chips.
+- Home (`/`) exposes all these filters in the UI (year + attachments/html/frozen images + freeze ignored), with URL state and active filter chips.
 
 ## Minimal observability (`GET /api/stats`)
 

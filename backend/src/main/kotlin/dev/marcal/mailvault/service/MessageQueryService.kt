@@ -23,6 +23,7 @@ class MessageQueryService(
         hasAttachments: Boolean?,
         hasHtml: Boolean?,
         hasFrozenImages: Boolean?,
+        freezeIgnored: Boolean?,
     ): MessagesListResponse {
         if (page < 0) {
             throw ValidationException("page must be >= 0")
@@ -43,6 +44,7 @@ class MessageQueryService(
                 hasAttachments = hasAttachments,
                 hasHtml = hasHtml,
                 hasFrozenImages = hasFrozenImages,
+                freezeIgnored = freezeIgnored,
             )
         return MessagesListResponse(
             page = page,

@@ -21,6 +21,7 @@ class FreezePendingService(
         hasAttachments: Boolean?,
         hasHtml: Boolean?,
         hasFrozenImages: Boolean?,
+        freezeIgnored: Boolean?,
     ): FreezePendingResponse {
         if (page < 0) {
             throw ValidationException("page must be >= 0")
@@ -41,6 +42,7 @@ class FreezePendingService(
                 hasAttachments = hasAttachments,
                 hasHtml = hasHtml,
                 hasFrozenImages = hasFrozenImages,
+                freezeIgnored = freezeIgnored,
             )
         val candidates =
             pageData.items.filter {

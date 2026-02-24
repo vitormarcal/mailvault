@@ -306,12 +306,26 @@ class MessageRepositoryTest {
                 hasAttachments = true,
                 hasHtml = true,
                 hasFrozenImages = true,
+                freezeIgnored = false,
                 page = 0,
                 size = 50,
             )
 
         assertEquals(1, filtered.total)
         assertEquals("b", filtered.items.first().id)
+    }
+
+    @Test
+    fun `list filters by freeze ignored flag`() {
+        jdbcTemplate.update("UPDATE messages SET freeze_ignored = 1 WHERE id = ?", "b")
+
+        val ignored = list(query = null, freezeIgnored = true, page = 0, size = 50)
+        val notIgnored = list(query = null, freezeIgnored = false, page = 0, size = 50)
+
+        assertEquals(1, ignored.total)
+        assertEquals("b", ignored.items.first().id)
+        assertEquals(2, notIgnored.total)
+        assertEquals(setOf("a", "c"), notIgnored.items.map { it.id }.toSet())
     }
 
     @Test
@@ -444,5 +458,6 @@ class MessageRepositoryTest {
         hasAttachments: Boolean? = null,
         hasHtml: Boolean? = null,
         hasFrozenImages: Boolean? = null,
-    ) = repository.list(query, page, size, year, hasAttachments, hasHtml, hasFrozenImages)
+        freezeIgnored: Boolean? = null,
+    ) = repository.list(query, page, size, year, hasAttachments, hasHtml, hasFrozenImages, freezeIgnored)
 }

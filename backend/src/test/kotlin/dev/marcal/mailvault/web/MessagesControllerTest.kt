@@ -134,6 +134,7 @@ class MessagesControllerTest {
                     hasAttachments = null,
                     hasHtml = null,
                     hasFrozenImages = null,
+                    freezeIgnored = null,
                     page = -1,
                     size = 10,
                 )
@@ -151,6 +152,7 @@ class MessagesControllerTest {
                     hasAttachments = null,
                     hasHtml = null,
                     hasFrozenImages = null,
+                    freezeIgnored = null,
                     page = 0,
                     size = 0,
                 )

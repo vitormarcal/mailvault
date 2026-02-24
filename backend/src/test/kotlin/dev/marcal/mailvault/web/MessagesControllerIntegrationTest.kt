@@ -306,6 +306,21 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET messages filters by freeze ignored`() {
+        jdbcTemplate.update("UPDATE messages SET freeze_ignored = 1 WHERE id = ?", "id-2")
+
+        val ignored = get("/api/messages?freezeIgnored=true&page=0&size=50")
+        val notIgnored = get("/api/messages?freezeIgnored=false&page=0&size=50")
+
+        assertEquals(200, ignored.statusCode())
+        assertEquals(200, notIgnored.statusCode())
+        assertEquals(true, ignored.body().contains("\"total\":1"))
+        assertEquals(true, ignored.body().contains("\"id\":\"id-2\""))
+        assertEquals(true, notIgnored.body().contains("\"total\":2"))
+        assertEquals(false, notIgnored.body().contains("\"id\":\"id-2\""))
+    }
+
+    @Test
     fun `GET messages builds snippet from html_raw when plain is missing`() {
         jdbcTemplate.update(
             "INSERT INTO message_bodies(message_id, html_raw) VALUES (?, ?)",

@@ -159,7 +159,7 @@
 
     .filters-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 10px;
       align-items: end;
     }
@@ -521,6 +521,14 @@
               <option value="false">Without frozen images</option>
             </select>
           </div>
+          <div class="filter-field">
+            <label id="freezeIgnoredFilterLabel" for="freezeIgnoredFilter">Freeze ignored</label>
+            <select id="freezeIgnoredFilter">
+              <option value="">All</option>
+              <option value="true">Ignored</option>
+              <option value="false">Not ignored</option>
+            </select>
+          </div>
         </div>
         <div class="filter-actions">
           <div id="activeFilters" class="chips"></div>
@@ -564,6 +572,7 @@
     const hasAttachmentsFilter = document.getElementById('hasAttachmentsFilter');
     const hasHtmlFilter = document.getElementById('hasHtmlFilter');
     const hasFrozenImagesFilter = document.getElementById('hasFrozenImagesFilter');
+    const freezeIgnoredFilter = document.getElementById('freezeIgnoredFilter');
     const activeFilters = document.getElementById('activeFilters');
     const clearBtn = document.getElementById('clearBtn');
     const adminLink = document.getElementById('adminLink');
@@ -600,6 +609,7 @@
       hasAttachments: null,
       hasHtml: null,
       hasFrozenImages: null,
+      freezeIgnored: null,
       itemsCount: 0,
       items: [],
       loading: false,
@@ -637,6 +647,10 @@
         hasFrozenImagesAny: 'All',
         hasFrozenImagesTrue: 'With frozen images',
         hasFrozenImagesFalse: 'Without frozen images',
+        freezeIgnoredFilterLabel: 'Freeze ignored',
+        freezeIgnoredAny: 'All',
+        freezeIgnoredTrue: 'Ignored',
+        freezeIgnoredFalse: 'Not ignored',
         indexBtn: 'Index (incremental)',
         reindexBtn: 'Reindex (full)',
         freezePendingBtn: 'Freeze pending',
@@ -678,6 +692,7 @@
         chipAttachments: 'Attachments: {value}',
         chipHtml: 'HTML: {value}',
         chipFrozenImages: 'Frozen images: {value}',
+        chipFreezeIgnored: 'Freeze ignored: {value}',
         removeFilterAria: 'Remove filter',
         opInProgress: '{action} in progress...',
         opFailed: 'Failed to {action}.',
@@ -737,6 +752,10 @@
         hasFrozenImagesAny: 'Todos',
         hasFrozenImagesTrue: 'Com imagens congeladas',
         hasFrozenImagesFalse: 'Sem imagens congeladas',
+        freezeIgnoredFilterLabel: 'Freeze ignorado',
+        freezeIgnoredAny: 'Todos',
+        freezeIgnoredTrue: 'Ignorado',
+        freezeIgnoredFalse: 'Nao ignorado',
         indexBtn: 'Indexar (incremental)',
         reindexBtn: 'Reindexar (completo)',
         freezePendingBtn: 'Congelar pendentes',
@@ -778,6 +797,7 @@
         chipAttachments: 'Anexos: {value}',
         chipHtml: 'HTML: {value}',
         chipFrozenImages: 'Imagens congeladas: {value}',
+        chipFreezeIgnored: 'Freeze ignorado: {value}',
         removeFilterAria: 'Remover filtro',
         opInProgress: '{action} em andamento...',
         opFailed: 'Falha ao {action}.',
@@ -896,6 +916,10 @@
       hasFrozenImagesFilter.options[0].textContent = t('hasFrozenImagesAny');
       hasFrozenImagesFilter.options[1].textContent = t('hasFrozenImagesTrue');
       hasFrozenImagesFilter.options[2].textContent = t('hasFrozenImagesFalse');
+      document.getElementById('freezeIgnoredFilterLabel').textContent = t('freezeIgnoredFilterLabel');
+      freezeIgnoredFilter.options[0].textContent = t('freezeIgnoredAny');
+      freezeIgnoredFilter.options[1].textContent = t('freezeIgnoredTrue');
+      freezeIgnoredFilter.options[2].textContent = t('freezeIgnoredFalse');
       indexBtn.textContent = t('indexBtn');
       reindexBtn.textContent = t('reindexBtn');
       freezePendingBtn.textContent = t('freezePendingBtn');
@@ -1001,6 +1025,9 @@
       }
       if (state.hasFrozenImages !== null) {
         params.set('hasFrozenImages', String(state.hasFrozenImages));
+      }
+      if (state.freezeIgnored !== null) {
+        params.set('freezeIgnored', String(state.freezeIgnored));
       }
       if (state.page > 0) {
         params.set('page', String(state.page));
@@ -1124,6 +1151,9 @@
       if (state.hasFrozenImages !== null) {
         params.set('hasFrozenImages', String(state.hasFrozenImages));
       }
+      if (state.freezeIgnored !== null) {
+        params.set('freezeIgnored', String(state.freezeIgnored));
+      }
 
       try {
         const response = await apiFetch(`/api/messages?${params.toString()}`);
@@ -1168,7 +1198,8 @@
         state.year !== null ||
         state.hasAttachments !== null ||
         state.hasHtml !== null ||
-        state.hasFrozenImages !== null,
+        state.hasFrozenImages !== null ||
+        state.freezeIgnored !== null,
       );
     }
 
@@ -1188,6 +1219,9 @@
       }
       if (state.hasFrozenImages !== null) {
         chips.push({ key: 'hasFrozenImages', label: t('chipFrozenImages', { value: state.hasFrozenImages ? t('chipYes') : t('chipNo') }) });
+      }
+      if (state.freezeIgnored !== null) {
+        chips.push({ key: 'freezeIgnored', label: t('chipFreezeIgnored', { value: state.freezeIgnored ? t('chipYes') : t('chipNo') }) });
       }
 
       if (!chips.length) {
@@ -1220,6 +1254,9 @@
       if (key === 'hasFrozenImages') {
         patch.hasFrozenImages = null;
       }
+      if (key === 'freezeIgnored') {
+        patch.freezeIgnored = null;
+      }
       syncFormFromState({ ...state, ...patch });
       applyAndLoad(patch);
     }
@@ -1230,6 +1267,7 @@
       hasAttachmentsFilter.value = nextState.hasAttachments === null ? '' : String(nextState.hasAttachments);
       hasHtmlFilter.value = nextState.hasHtml === null ? '' : String(nextState.hasHtml);
       hasFrozenImagesFilter.value = nextState.hasFrozenImages === null ? '' : String(nextState.hasFrozenImages);
+      freezeIgnoredFilter.value = nextState.freezeIgnored === null ? '' : String(nextState.freezeIgnored);
     }
 
     function formatNumber(value) {
@@ -1412,6 +1450,9 @@
         if (state.hasFrozenImages !== null) {
           params.set('hasFrozenImages', String(state.hasFrozenImages));
         }
+        if (state.freezeIgnored !== null) {
+          params.set('freezeIgnored', String(state.freezeIgnored));
+        }
 
         setOpsStatus('info', t('freezePendingProgress', { current: 1, total: 1 }));
         const response = await apiFetch(`/api/messages/freeze-pending?${params.toString()}`, { method: 'POST' });
@@ -1452,6 +1493,7 @@
         hasAttachments: parseBooleanParam(hasAttachmentsFilter.value),
         hasHtml: parseBooleanParam(hasHtmlFilter.value),
         hasFrozenImages: parseBooleanParam(hasFrozenImagesFilter.value),
+        freezeIgnored: parseBooleanParam(freezeIgnoredFilter.value),
         page: 0,
       });
     });
@@ -1464,6 +1506,7 @@
         hasAttachments: null,
         hasHtml: null,
         hasFrozenImages: null,
+        freezeIgnored: null,
       });
       applyAndLoad({
         query: '',
@@ -1471,6 +1514,7 @@
         hasAttachments: null,
         hasHtml: null,
         hasFrozenImages: null,
+        freezeIgnored: null,
         page: 0,
       });
       queryInput.focus();
@@ -1584,6 +1628,7 @@
       state.hasAttachments = currentBooleanFilterFromUrl('hasAttachments');
       state.hasHtml = currentBooleanFilterFromUrl('hasHtml');
       state.hasFrozenImages = currentBooleanFilterFromUrl('hasFrozenImages');
+      state.freezeIgnored = currentBooleanFilterFromUrl('freezeIgnored');
       state.page = currentPageFromUrl();
       syncFormFromState();
       renderActiveFilters();
@@ -1598,6 +1643,7 @@
       state.hasAttachments = currentBooleanFilterFromUrl('hasAttachments');
       state.hasHtml = currentBooleanFilterFromUrl('hasHtml');
       state.hasFrozenImages = currentBooleanFilterFromUrl('hasFrozenImages');
+      state.freezeIgnored = currentBooleanFilterFromUrl('freezeIgnored');
       state.page = currentPageFromUrl();
       syncFormFromState();
       renderActiveFilters();
