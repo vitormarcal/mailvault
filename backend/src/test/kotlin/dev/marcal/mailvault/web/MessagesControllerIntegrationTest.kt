@@ -458,7 +458,7 @@ class MessagesControllerIntegrationTest {
         assertEquals(200, response.statusCode())
         assertEquals(true, response.body().contains("Caixa Historica"))
         assertEquals(true, response.body().contains("Status"))
-        assertEquals(true, response.body().contains("Manutencao"))
+        assertEquals(true, response.body().contains("id=\"adminLink\""))
     }
 
     @Test
