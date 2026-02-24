@@ -14,4 +14,18 @@ data class MailVaultProperties(
     val assetAllowedPorts: Set<Int> = setOf(80, 443),
     val freezeOnIndex: Boolean = false,
     val freezeOnIndexConcurrency: Int = 2,
+    val trackingBlockEnabled: Boolean = true,
+    val trackingUrlKeywords: Set<String> =
+        setOf(
+            "track",
+            "tracking",
+            "pixel",
+            "beacon",
+            "open",
+            "openrate",
+            "mailopen",
+            "spy",
+            "spacer",
+        ),
+    val trackingBlockedDomains: Set<String> = emptySet(),
 )

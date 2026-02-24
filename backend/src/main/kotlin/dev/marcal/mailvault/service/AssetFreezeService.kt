@@ -61,9 +61,9 @@ class AssetFreezeService(
                     return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
                 }
 
-            val urls = extractRemoteImageUrls(htmlRaw)
-            totalFound = urls.size
-            if (urls.isEmpty()) {
+            val candidates = extractRemoteImageCandidates(htmlRaw)
+            totalFound = candidates.size
+            if (candidates.isEmpty()) {
                 logger.info("Freeze skipped messageId={} reason=no remote images", messageId)
                 messageRepository.setFreezeIgnoredAndLastReason(
                     id = messageId,
@@ -77,21 +77,22 @@ class AssetFreezeService(
             val failures = mutableListOf<FreezeFailureEntry>()
             val skipReasons = mutableMapOf<String, Int>()
 
-            val limited = urls.take(mailVaultProperties.maxAssetsPerMessage)
-            val overflowCount = urls.size - limited.size
+            val limited = candidates.take(mailVaultProperties.maxAssetsPerMessage)
+            val overflowCount = candidates.size - limited.size
             if (overflowCount > 0) {
                 skipped += overflowCount
                 incrementReason(skipReasons, "max assets per message reached", overflowCount)
                 logger.info(
                     "Freeze skipped messageId={} reason=max assets per message reached totalFound={} maxAssetsPerMessage={} skippedOverflow={}",
                     messageId,
-                    urls.size,
+                    candidates.size,
                     mailVaultProperties.maxAssetsPerMessage,
                     overflowCount,
                 )
             }
 
-            for (url in limited) {
+            for (candidate in limited) {
+                val url = candidate.url
                 if (assetRepository.findDownloadedByMessageAndOriginalUrl(messageId, url) != null) {
                     skipped++
                     incrementReason(skipReasons, "already downloaded")
@@ -112,6 +113,20 @@ class AssetFreezeService(
                     )
                     persistSkipped(messageId, url, "total max bytes per message reached")
                     skipped++
+                    continue
+                }
+
+                if (candidate.trackingReasons.isNotEmpty()) {
+                    val reason = "tracking candidate blocked: ${candidate.trackingReasons.joinToString(", ")}"
+                    persistSkipped(messageId, url, reason)
+                    skipped++
+                    incrementReason(skipReasons, "tracking candidate blocked")
+                    logger.info(
+                        "Freeze skipped messageId={} host={} reason={}",
+                        messageId,
+                        hostFromUrl(url),
+                        summarizeReason(reason),
+                    )
                     continue
                 }
 
@@ -217,14 +232,28 @@ class AssetFreezeService(
         }
     }
 
-    private fun extractRemoteImageUrls(html: String): List<String> =
-        IMG_SRC_REGEX
-            .findAll(html)
-            .mapNotNull { match ->
-                val raw = match.groups[2]?.value?.trim() ?: return@mapNotNull null
-                normalizeRemoteUrl(raw)
-            }.distinct()
-            .toList()
+    private fun extractRemoteImageCandidates(html: String): List<RemoteImageCandidate> {
+        val byUrl = linkedMapOf<String, MutableSet<String>>()
+        IMG_TAG_REGEX.findAll(html).forEach { tagMatch ->
+            val tag = tagMatch.value
+            val rawSrc = extractAttribute(tag, "src")?.trim() ?: return@forEach
+            val normalizedUrl = normalizeRemoteUrl(rawSrc) ?: return@forEach
+            val reasons = byUrl.getOrPut(normalizedUrl) { mutableSetOf() }
+
+            if (mailVaultProperties.trackingBlockEnabled) {
+                if (isTrackingByKeywordOrShape(normalizedUrl)) {
+                    reasons += "url keyword pattern"
+                }
+                if (isLikelyOneByOne(tag, normalizedUrl)) {
+                    reasons += "1x1 image pattern"
+                }
+                if (isBlockedTrackingDomain(normalizedUrl)) {
+                    reasons += "blocked tracking domain"
+                }
+            }
+        }
+        return byUrl.entries.map { RemoteImageCandidate(url = it.key, trackingReasons = it.value.toSet()) }
+    }
 
     private fun normalizeRemoteUrl(raw: String): String? {
         val uri = runCatching { URI(raw) }.getOrNull() ?: return null
@@ -245,6 +274,112 @@ class AssetFreezeService(
             )
         return normalized.toString()
     }
+
+    private fun extractAttribute(
+        tag: String,
+        name: String,
+    ): String? =
+        IMG_ATTR_REGEX.findAll(tag).firstNotNullOfOrNull { match ->
+            val attrName = match.groups[1]?.value ?: return@firstNotNullOfOrNull null
+            if (!attrName.equals(name, ignoreCase = true)) {
+                return@firstNotNullOfOrNull null
+            }
+            match.groups[2]?.value ?: match.groups[3]?.value ?: match.groups[4]?.value
+        }
+
+    private fun isTrackingByKeywordOrShape(url: String): Boolean {
+        val value = url.lowercase()
+        if (ONE_BY_ONE_TOKEN_REGEX.containsMatchIn(value)) {
+            return true
+        }
+        return mailVaultProperties.trackingUrlKeywords.any { keyword ->
+            keyword.isNotBlank() && value.contains(keyword.trim().lowercase())
+        }
+    }
+
+    private fun isBlockedTrackingDomain(url: String): Boolean {
+        val host = runCatching { URI(url).host?.lowercase() }.getOrNull() ?: return false
+        return mailVaultProperties.trackingBlockedDomains.any { blocked ->
+            val normalized = blocked.trim().lowercase()
+            normalized.isNotBlank() && (host == normalized || host.endsWith(".$normalized"))
+        }
+    }
+
+    private fun isLikelyOneByOne(
+        tag: String,
+        url: String,
+    ): Boolean {
+        if (ONE_BY_ONE_TOKEN_REGEX.containsMatchIn(url.lowercase())) {
+            return true
+        }
+        if (isOneByOneQueryParams(url)) {
+            return true
+        }
+
+        val widthAttr = parsePixelNumber(extractAttribute(tag, "width"))
+        val heightAttr = parsePixelNumber(extractAttribute(tag, "height"))
+        if (widthAttr != null && heightAttr != null && widthAttr <= 1 && heightAttr <= 1) {
+            return true
+        }
+
+        val style = extractAttribute(tag, "style")?.lowercase() ?: return false
+        val styleWidth =
+            STYLE_WIDTH_REGEX
+                .find(style)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
+        val styleHeight =
+            STYLE_HEIGHT_REGEX
+                .find(style)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
+        return styleWidth != null && styleHeight != null && styleWidth <= 1 && styleHeight <= 1
+    }
+
+    private fun parsePixelNumber(value: String?): Int? {
+        if (value.isNullOrBlank()) {
+            return null
+        }
+        val normalized = value.trim().lowercase().removeSuffix("px")
+        return DIGITS_REGEX.find(normalized)?.value?.toIntOrNull()
+    }
+
+    private fun isOneByOneQueryParams(url: String): Boolean {
+        val uri = runCatching { URI(url) }.getOrNull() ?: return false
+        val rawQuery = uri.rawQuery ?: return false
+        if (ONE_BY_ONE_TOKEN_REGEX.containsMatchIn(rawQuery)) {
+            return true
+        }
+        val queryValues = parseQueryValues(rawQuery)
+        val width = queryValues.firstNumericByKey(QUERY_WIDTH_KEYS)
+        val height = queryValues.firstNumericByKey(QUERY_HEIGHT_KEYS)
+        if (width != null && height != null && width <= 1 && height <= 1) {
+            return true
+        }
+        return queryValues.any { (key, value) ->
+            key in QUERY_SIZE_KEYS && ONE_BY_ONE_TOKEN_REGEX.containsMatchIn(value)
+        }
+    }
+
+    private fun parseQueryValues(rawQuery: String): List<Pair<String, String>> =
+        rawQuery.split("&").mapNotNull { segment ->
+            val key = segment.substringBefore('=').trim().lowercase()
+            if (key.isBlank()) {
+                return@mapNotNull null
+            }
+            val value = segment.substringAfter('=', "").trim().lowercase()
+            key to value
+        }
+
+    private fun List<Pair<String, String>>.firstNumericByKey(keys: Set<String>): Int? =
+        firstNotNullOfOrNull { (key, value) ->
+            if (key !in keys) {
+                return@firstNotNullOfOrNull null
+            }
+            DIGITS_REGEX.find(value)?.value?.toIntOrNull()
+        }
 
     private fun downloadAsset(
         messageId: String,
@@ -634,6 +769,11 @@ class AssetFreezeService(
         val userAgent: String,
     )
 
+    private data class RemoteImageCandidate(
+        val url: String,
+        val trackingReasons: Set<String>,
+    )
+
     private companion object {
         const val MAX_REDIRECTS = 5
         val REDIRECT_STATUS_CODES = setOf(301, 302, 303, 307, 308)
@@ -650,7 +790,15 @@ class AssetFreezeService(
                     userAgent = "Mozilla/5.0 Thunderbird/128.0",
                 ),
             )
-        val IMG_SRC_REGEX = Regex("""(?i)<img\b[^>]*?\s+src\s*=\s*(["'])(.*?)\1""")
+        val IMG_TAG_REGEX = Regex("""(?i)<img\b[^>]*>""")
+        val IMG_ATTR_REGEX = Regex("""(?i)\b([a-z][a-z0-9:_-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))""")
+        val ONE_BY_ONE_TOKEN_REGEX = Regex("""(?i)\b1\s*(x|\*)\s*1\b""")
+        val STYLE_WIDTH_REGEX = Regex("""(?i)\bwidth\s*:\s*([0-9]{1,4})\s*px\b""")
+        val STYLE_HEIGHT_REGEX = Regex("""(?i)\bheight\s*:\s*([0-9]{1,4})\s*px\b""")
+        val DIGITS_REGEX = Regex("""\d+""")
+        val QUERY_WIDTH_KEYS = setOf("w", "width")
+        val QUERY_HEIGHT_KEYS = setOf("h", "height")
+        val QUERY_SIZE_KEYS = setOf("size", "dim", "dims", "dimension", "dimensions")
         val URL_REGEX = Regex("""(?i)https?://\S+""")
         val WHITESPACE_REGEX = Regex("\\s+")
     }

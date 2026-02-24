@@ -81,10 +81,14 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
    - `MAILVAULT_ASSET_ALLOWED_PORTS` (default `80,443`)
    - `MAILVAULT_FREEZE_ON_INDEX` (default `false`)
    - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY` (default `2`)
+   - `MAILVAULT_TRACKING_BLOCK_ENABLED` (default `true`)
+   - `MAILVAULT_TRACKING_URL_KEYWORDS` (default includes `track`, `pixel`, `open`, `beacon`, etc.)
+   - `MAILVAULT_TRACKING_BLOCKED_DOMAINS` (default empty; comma-separated)
 4. Open `http://localhost:8080/` and complete initial setup (create username/password and choose language).
 5. After setup, authenticate on `/login` and use the UI normally.
 6. Click an item to open `http://localhost:8080/messages/{id}` and read `text/plain`/HTML.
 7. In detail, use **Freeze images** to download remote images with limits and SSRF protection.
+   - During freeze, likely tracking candidates (including 1x1 URL/attribute patterns) are skipped before HTTP download.
 8. In detail, use **Previous/Next** or shortcuts `k`/`j`; use `g` to go back to list while preserving filters.
 9. Open `http://localhost:8080/admin` to change password, change UI language, and run index/maintenance/reset operations.
 

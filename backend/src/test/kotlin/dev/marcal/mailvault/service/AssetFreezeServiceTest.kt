@@ -198,6 +198,98 @@ class AssetFreezeServiceTest {
         assertEquals(2, fakeClient.calls)
     }
 
+    @Test
+    fun `blocks 1x1 tracking candidates before any http call`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m-2",
+            "/tmp/m-2.eml",
+            1L,
+            1L,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies(message_id, html_raw)
+            VALUES (?, ?)
+            """.trimIndent(),
+            "m-2",
+            """<img src="https://example.com/image?id=abc&w=1&h=1" width="1" height="1" />""",
+        )
+
+        val fakeClient = FakeHttpClient(mutableListOf())
+        service =
+            AssetFreezeService(
+                messageHtmlRepository = MessageHtmlRepository(jdbcTemplate),
+                assetRepository = AssetRepository(jdbcTemplate),
+                messageRepository = MessageRepository(jdbcTemplate),
+                mailVaultProperties = MailVaultProperties(storageDir = tempDir.resolve("storage").toString()),
+                htmlRenderService =
+                    HtmlRenderService(
+                        MessageHtmlRepository(jdbcTemplate),
+                        AssetRepository(jdbcTemplate),
+                        HtmlSanitizerService(),
+                    ),
+                httpClient = fakeClient,
+            )
+
+        val result = service.freeze("m-2")
+
+        assertEquals(1, result.totalFound)
+        assertEquals(0, result.downloaded)
+        assertEquals(0, result.failed)
+        assertEquals(1, result.skipped)
+        assertEquals(0, fakeClient.calls)
+    }
+
+    @Test
+    fun `blocks tracking keyword candidates before any http call`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m-3",
+            "/tmp/m-3.eml",
+            1L,
+            1L,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies(message_id, html_raw)
+            VALUES (?, ?)
+            """.trimIndent(),
+            "m-3",
+            """<img src="https://metrics.example.com/open-tracking/pixel.png?message_id=10" />""",
+        )
+
+        val fakeClient = FakeHttpClient(mutableListOf())
+        service =
+            AssetFreezeService(
+                messageHtmlRepository = MessageHtmlRepository(jdbcTemplate),
+                assetRepository = AssetRepository(jdbcTemplate),
+                messageRepository = MessageRepository(jdbcTemplate),
+                mailVaultProperties = MailVaultProperties(storageDir = tempDir.resolve("storage").toString()),
+                htmlRenderService =
+                    HtmlRenderService(
+                        MessageHtmlRepository(jdbcTemplate),
+                        AssetRepository(jdbcTemplate),
+                        HtmlSanitizerService(),
+                    ),
+                httpClient = fakeClient,
+            )
+
+        val result = service.freeze("m-3")
+
+        assertEquals(1, result.totalFound)
+        assertEquals(0, result.downloaded)
+        assertEquals(0, result.failed)
+        assertEquals(1, result.skipped)
+        assertEquals(0, fakeClient.calls)
+    }
+
     private data class PlannedResponse(
         val status: Int,
         val headers: Map<String, List<String>>,
