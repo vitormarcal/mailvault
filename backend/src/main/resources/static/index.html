@@ -267,12 +267,12 @@
     }
 
     .ops-status {
-      color: var(--muted);
-      font-size: .92rem;
-      min-height: 20px;
-      border-radius: 8px;
-      padding: 4px 8px;
+      width: min(460px, 100%);
+      border-radius: 12px;
+      padding: 8px 10px;
       border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.6);
+      transition: background-color .18s ease, border-color .18s ease;
     }
 
     .ops-status.ok {
@@ -291,6 +291,60 @@
       color: #1e4c75;
       background: #ebf3fb;
       border-color: #b8d2ea;
+    }
+
+    .ops-status-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: .92rem;
+    }
+
+    .ops-status-message {
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .ops-status-phase {
+      font-size: .72rem;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      padding: 2px 8px;
+      opacity: .9;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+    }
+
+    .ops-status-progress {
+      margin-top: 6px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .ops-status-progress-track {
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.7);
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .ops-status-progress-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(23, 109, 91, 0.75), rgba(31, 94, 148, 0.78));
+      transition: width .25s ease;
+    }
+
+    .ops-status-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: .78rem;
+      opacity: .9;
     }
 
     .kbd {
@@ -540,7 +594,7 @@
           <button id="indexBtn" type="button" class="btn-primary">Index (incremental)</button>
           <button id="freezePendingBtn" type="button" class="btn-ghost">Freeze pending</button>
         </div>
-        <span id="indexStatus" class="ops-status"></span>
+        <div id="indexStatus" class="ops-status"></div>
       </div>
 
       <div class="meta">
@@ -689,6 +743,7 @@
         removeFilterAria: 'Remove filter',
         opInProgress: '{action} in progress...',
         opQueued: '{action} accepted. Job {jobId} is running...',
+        opQueuedReused: '{action} already running. Watching job {jobId}.',
         opProgress: '{action} in progress ({processed}/{total})...',
         opFreezing: 'Freezing remote images...',
         opFreezingProgress: 'Freezing remote images ({completed}/{total})...',
@@ -697,6 +752,10 @@
         opNetworkFailed: 'Network failure while trying to {action}.',
         opDone: '{action} finished: inserted={inserted}, updated={updated}, skipped={skipped}',
         actionIndexing: 'index',
+        phaseIndexing: 'Indexing',
+        phaseFreezing: 'Freezing',
+        statusStep: 'step',
+        statusJob: 'job',
         freezePendingNone: 'No pending freeze messages on this page.',
         freezePendingConfirm: 'Freeze remote images for {count} pending message(s) on current page?',
         freezePendingProgress: 'Freezing pending... {current}/{total}',
@@ -779,6 +838,7 @@
         removeFilterAria: 'Remover filtro',
         opInProgress: '{action} em andamento...',
         opQueued: '{action} aceito. Job {jobId} em execucao...',
+        opQueuedReused: '{action} ja em execucao. Acompanhando job {jobId}.',
         opProgress: '{action} em andamento ({processed}/{total})...',
         opFreezing: 'Congelando imagens remotas...',
         opFreezingProgress: 'Congelando imagens remotas ({completed}/{total})...',
@@ -787,6 +847,10 @@
         opNetworkFailed: 'Falha de rede ao {action}.',
         opDone: '{action} concluida: inserted={inserted}, updated={updated}, skipped={skipped}',
         actionIndexing: 'indexar',
+        phaseIndexing: 'Indexando',
+        phaseFreezing: 'Congelando',
+        statusStep: 'etapa',
+        statusJob: 'job',
         freezePendingNone: 'Nenhuma mensagem pendente de freeze nesta pagina.',
         freezePendingConfirm: 'Congelar imagens em {count} mensagem(ns) pendente(s) da pagina atual?',
         freezePendingProgress: 'Congelando pendentes... {current}/{total}',
@@ -1274,14 +1338,48 @@
       freezePendingBtn.disabled = running;
     }
 
-    function setOpsStatus(kind, message) {
+    function phaseLabel(phase) {
+      if (phase === 'INDEXING') {
+        return t('phaseIndexing');
+      }
+      if (phase === 'FREEZING') {
+        return t('phaseFreezing');
+      }
+      return '';
+    }
+
+    function setOpsStatus(kind, message, options = {}) {
       indexStatus.className = `ops-status ${kind}`;
-      indexStatus.textContent = message;
+      const phase = phaseLabel(options.phase);
+      const percentRaw = Number(options.percent);
+      const hasPercent = Number.isFinite(percentRaw);
+      const percent = hasPercent ? Math.max(0, Math.min(100, Math.round(percentRaw))) : null;
+      const progressPrimary = options.progressPrimary || '';
+      const progressSecondary = options.progressSecondary || '';
+      indexStatus.innerHTML = `
+        <div class="ops-status-head">
+          <span class="ops-status-message">${escapeHtml(message || '')}</span>
+          ${phase ? `<span class="ops-status-phase">${escapeHtml(phase)}</span>` : ''}
+        </div>
+        ${hasPercent ? `
+          <div class="ops-status-progress">
+            <div class="ops-status-progress-track">
+              <div class="ops-status-progress-fill" style="width: ${percent}%"></div>
+            </div>
+            <div class="ops-status-progress-meta">
+              <span>${escapeHtml(progressPrimary)}</span>
+              <span>${escapeHtml(progressSecondary || `${percent}%`)}</span>
+            </div>
+          </div>
+        ` : ''}
+      `;
     }
 
     async function runIndex(actionLabel) {
       setIndexRunning(true);
-      setOpsStatus('info', t('opInProgress', { action: actionLabel }));
+      setOpsStatus('info', t('opInProgress', { action: actionLabel }), {
+        phase: 'INDEXING',
+      });
       try {
         const startResponse = await apiFetch('/api/index', { method: 'POST' });
         if (!startResponse.ok) {
@@ -1294,23 +1392,35 @@
           setOpsStatus('error', t('opFailed', { action: actionLabel }));
           return;
         }
-        setOpsStatus('info', t('opQueued', { action: actionLabel, jobId }));
+        setOpsStatus(
+          'info',
+          t(started.alreadyRunning ? 'opQueuedReused' : 'opQueued', { action: actionLabel, jobId }),
+          { phase: 'INDEXING' },
+        );
         const finalStatus = await waitForIndexJob(jobId, (runningStatus) => {
           if (runningStatus.phase === 'FREEZING') {
             if (Number.isFinite(runningStatus.freezeTotal) && Number.isFinite(runningStatus.freezeCompleted) && runningStatus.freezeTotal > 0) {
+              const percent = (Number(runningStatus.freezeCompleted) / Number(runningStatus.freezeTotal)) * 100;
               setOpsStatus(
                 'info',
                 t('opFreezingProgress', {
                   completed: runningStatus.freezeCompleted,
                   total: runningStatus.freezeTotal,
                 }),
+                {
+                  phase: 'FREEZING',
+                  percent,
+                  progressPrimary: `${t('statusStep')}: ${runningStatus.freezeCompleted}/${runningStatus.freezeTotal}`,
+                  progressSecondary: `${t('statusJob')}: ${jobId}`,
+                },
               );
               return;
             }
-            setOpsStatus('info', t('opFreezing'));
+            setOpsStatus('info', t('opFreezing'), { phase: 'FREEZING' });
             return;
           }
           if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
+            const percent = (Number(runningStatus.processedFiles) / Number(runningStatus.totalFiles)) * 100;
             setOpsStatus(
               'info',
               t('opProgress', {
@@ -1318,6 +1428,12 @@
                 processed: runningStatus.processedFiles,
                 total: runningStatus.totalFiles,
               }),
+              {
+                phase: 'INDEXING',
+                percent,
+                progressPrimary: `${t('statusStep')}: ${runningStatus.processedFiles}/${runningStatus.totalFiles}`,
+                progressSecondary: `${t('statusJob')}: ${jobId}`,
+              },
             );
           }
         });

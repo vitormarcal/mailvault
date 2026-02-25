@@ -82,6 +82,7 @@ const I18N = {
     loadDetailsFailed: 'Could not load message details.',
     reindexRunning: 'Reindexing email store...',
     reindexQueued: 'Reindex accepted. Job {jobId} is running...',
+    reindexQueuedReused: 'Reindex already running. Watching job {jobId}.',
     reindexProgress: 'Reindexing... ({processed}/{total})',
     reindexFreezing: 'Freezing remote images...',
     reindexFreezingProgress: 'Freezing remote images ({completed}/{total})',
@@ -101,6 +102,10 @@ const I18N = {
     copyFailed: 'Failed to copy path.',
     sizeUnknown: '-',
     pathUnknown: '-',
+    phaseIndexing: 'Indexing',
+    phaseFreezing: 'Freezing',
+    statusStep: 'step',
+    statusJob: 'job',
   },
   'pt-BR': {
     pageTitle: 'MailVault - Mensagem',
@@ -142,6 +147,7 @@ const I18N = {
     loadDetailsFailed: 'Nao foi possivel carregar os dados da mensagem.',
     reindexRunning: 'Reindexando base de emails...',
     reindexQueued: 'Reindexacao aceita. Job {jobId} em execucao...',
+    reindexQueuedReused: 'Reindexacao ja em execucao. Acompanhando job {jobId}.',
     reindexProgress: 'Reindexando... ({processed}/{total})',
     reindexFreezing: 'Congelando imagens remotas...',
     reindexFreezingProgress: 'Congelando imagens remotas ({completed}/{total})',
@@ -161,6 +167,10 @@ const I18N = {
     copyFailed: 'Falha ao copiar caminho.',
     sizeUnknown: '-',
     pathUnknown: '-',
+    phaseIndexing: 'Indexando',
+    phaseFreezing: 'Congelando',
+    statusStep: 'etapa',
+    statusJob: 'job',
   },
 };
 
@@ -185,6 +195,14 @@ function t(key, vars = {}) {
 
 function currentLocale() {
   return currentState.language === 'pt-BR' ? 'pt-BR' : 'en-US';
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
 }
 
 function apiFetch(input, init = {}) {
@@ -250,14 +268,46 @@ function currentId() {
   return decodeURIComponent(parts[parts.length - 1] || '');
 }
 
-function setStatus(kind, message) {
+function phaseLabel(phase) {
+  if (phase === 'INDEXING') {
+    return t('phaseIndexing');
+  }
+  if (phase === 'FREEZING') {
+    return t('phaseFreezing');
+  }
+  return '';
+}
+
+function setStatus(kind, message, options = {}) {
   statusEl.className = `status show ${kind}`;
-  statusEl.textContent = message;
+  const phase = phaseLabel(options.phase);
+  const percentRaw = Number(options.percent);
+  const hasPercent = Number.isFinite(percentRaw);
+  const percent = hasPercent ? Math.max(0, Math.min(100, Math.round(percentRaw))) : null;
+  const progressPrimary = options.progressPrimary || '';
+  const progressSecondary = options.progressSecondary || '';
+  statusEl.innerHTML = `
+    <div class="status-head">
+      <span class="status-message">${escapeHtml(message || '')}</span>
+      ${phase ? `<span class="status-phase">${escapeHtml(phase)}</span>` : ''}
+    </div>
+    ${hasPercent ? `
+      <div class="status-progress">
+        <div class="status-progress-track">
+          <div class="status-progress-fill" style="width: ${percent}%"></div>
+        </div>
+        <div class="status-progress-meta">
+          <span>${escapeHtml(progressPrimary)}</span>
+          <span>${escapeHtml(progressSecondary || `${percent}%`)}</span>
+        </div>
+      </div>
+    ` : ''}
+  `;
 }
 
 function clearStatus() {
   statusEl.className = 'status';
-  statusEl.textContent = '';
+  statusEl.innerHTML = '';
 }
 
 function setLoadingButtons(isLoading) {
@@ -503,7 +553,7 @@ nextMsgBtn.addEventListener('click', () => gotoMessageById(currentState.nextId))
 
 reindexBtn.addEventListener('click', async () => {
   setLoadingButtons(true);
-  setStatus('info', t('reindexRunning'));
+  setStatus('info', t('reindexRunning'), { phase: 'INDEXING' });
 
   try {
     const startResponse = await apiFetch('/api/index', { method: 'POST' });
@@ -517,24 +567,42 @@ reindexBtn.addEventListener('click', async () => {
       setStatus('error', t('reindexFailed'));
       return;
     }
-    setStatus('info', t('reindexQueued', { jobId }));
+    setStatus('info', t(started.alreadyRunning ? 'reindexQueuedReused' : 'reindexQueued', { jobId }), { phase: 'INDEXING' });
     const data = await waitForIndexJob(jobId, (runningStatus) => {
       if (runningStatus.phase === 'FREEZING') {
         if (Number.isFinite(runningStatus.freezeTotal) && Number.isFinite(runningStatus.freezeCompleted) && runningStatus.freezeTotal > 0) {
-          setStatus('info', t('reindexFreezingProgress', {
-            completed: runningStatus.freezeCompleted,
-            total: runningStatus.freezeTotal,
-          }));
+          setStatus(
+            'info',
+            t('reindexFreezingProgress', {
+              completed: runningStatus.freezeCompleted,
+              total: runningStatus.freezeTotal,
+            }),
+            {
+              phase: 'FREEZING',
+              percent: (Number(runningStatus.freezeCompleted) / Number(runningStatus.freezeTotal)) * 100,
+              progressPrimary: `${t('statusStep')}: ${runningStatus.freezeCompleted}/${runningStatus.freezeTotal}`,
+              progressSecondary: `${t('statusJob')}: ${jobId}`,
+            },
+          );
           return;
         }
-        setStatus('info', t('reindexFreezing'));
+        setStatus('info', t('reindexFreezing'), { phase: 'FREEZING' });
         return;
       }
       if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
-        setStatus('info', t('reindexProgress', {
-          processed: runningStatus.processedFiles,
-          total: runningStatus.totalFiles,
-        }));
+        setStatus(
+          'info',
+          t('reindexProgress', {
+            processed: runningStatus.processedFiles,
+            total: runningStatus.totalFiles,
+          }),
+          {
+            phase: 'INDEXING',
+            percent: (Number(runningStatus.processedFiles) / Number(runningStatus.totalFiles)) * 100,
+            progressPrimary: `${t('statusStep')}: ${runningStatus.processedFiles}/${runningStatus.totalFiles}`,
+            progressSecondary: `${t('statusJob')}: ${jobId}`,
+          },
+        );
       }
     });
     if (data.status !== 'SUCCEEDED' || !data.result) {

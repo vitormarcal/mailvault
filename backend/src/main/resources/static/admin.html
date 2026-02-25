@@ -187,6 +187,60 @@
       border-color: #b8d2ea;
     }
 
+    .status-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: .92rem;
+      line-height: 1.3;
+    }
+
+    .status-message {
+      font-weight: 700;
+    }
+
+    .status-phase {
+      font-size: .72rem;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      padding: 2px 8px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      opacity: .9;
+    }
+
+    .status-progress {
+      margin-top: 6px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .status-progress-track {
+      height: 7px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .status-progress-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(23, 109, 91, 0.75), rgba(31, 94, 148, 0.78));
+      transition: width .25s ease;
+    }
+
+    .status-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: .78rem;
+      opacity: .9;
+    }
+
     @media (max-width: 760px) {
       .wrap { width: min(980px, 95vw); }
       .grid { grid-template-columns: 1fr; }
@@ -291,6 +345,7 @@
         resetLabel: 'Reset indexed data (destructive)',
         opInProgress: '{action} in progress...',
         opQueued: '{action} accepted. Job {jobId} is running...',
+        opQueuedReused: '{action} already running. Watching job {jobId}.',
         opProgress: '{action} in progress ({processed}/{total})...',
         opFreezing: 'Freezing remote images...',
         opFreezingProgress: 'Freezing remote images ({completed}/{total})...',
@@ -300,6 +355,10 @@
         opNetworkFailed: 'Network failure while running {action}.',
         actionIndexing: 'Indexing',
         actionReindexing: 'Reindexing',
+        phaseIndexing: 'Indexing',
+        phaseFreezing: 'Freezing',
+        statusStep: 'step',
+        statusJob: 'job',
         reindexConfirm: 'Run full reindex now?',
         maintenanceConfirm: 'Run cleanup and vacuum now?',
         maintenanceRunning: 'Maintenance in progress...',
@@ -347,6 +406,7 @@
         resetLabel: 'Zerar dados indexados (destrutivo)',
         opInProgress: '{action} em andamento...',
         opQueued: '{action} aceito. Job {jobId} em execucao...',
+        opQueuedReused: '{action} ja em execucao. Acompanhando job {jobId}.',
         opProgress: '{action} em andamento ({processed}/{total})...',
         opFreezing: 'Congelando imagens remotas...',
         opFreezingProgress: 'Congelando imagens remotas ({completed}/{total})...',
@@ -356,6 +416,10 @@
         opNetworkFailed: 'Falha de rede ao executar {action}.',
         actionIndexing: 'Indexacao',
         actionReindexing: 'Reindexacao',
+        phaseIndexing: 'Indexando',
+        phaseFreezing: 'Congelando',
+        statusStep: 'etapa',
+        statusJob: 'job',
         reindexConfirm: 'Executar reindexacao completa agora?',
         maintenanceConfirm: 'Executar cleanup e vacuum agora?',
         maintenanceRunning: 'Manutencao em andamento...',
@@ -425,9 +489,54 @@
       return fetch(input, { credentials: 'same-origin', ...init });
     }
 
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;');
+    }
+
     function setStatus(el, kind, message) {
       el.className = `status ${kind}`;
       el.textContent = message;
+    }
+
+    function phaseLabel(phase) {
+      if (phase === 'INDEXING') {
+        return t('phaseIndexing');
+      }
+      if (phase === 'FREEZING') {
+        return t('phaseFreezing');
+      }
+      return '';
+    }
+
+    function setOperationStatus(kind, message, options = {}) {
+      operationsStatus.className = `status ${kind}`;
+      const phase = phaseLabel(options.phase);
+      const percentRaw = Number(options.percent);
+      const hasPercent = Number.isFinite(percentRaw);
+      const percent = hasPercent ? Math.max(0, Math.min(100, Math.round(percentRaw))) : null;
+      const progressPrimary = options.progressPrimary || '';
+      const progressSecondary = options.progressSecondary || '';
+      operationsStatus.innerHTML = `
+        <div class="status-head">
+          <span class="status-message">${escapeHtml(message || '')}</span>
+          ${phase ? `<span class="status-phase">${escapeHtml(phase)}</span>` : ''}
+        </div>
+        ${hasPercent ? `
+          <div class="status-progress">
+            <div class="status-progress-track">
+              <div class="status-progress-fill" style="width: ${percent}%"></div>
+            </div>
+            <div class="status-progress-meta">
+              <span>${escapeHtml(progressPrimary)}</span>
+              <span>${escapeHtml(progressSecondary || `${percent}%`)}</span>
+            </div>
+          </div>
+        ` : ''}
+      `;
     }
 
     function applyStaticTexts() {
@@ -574,58 +683,70 @@
 
     async function runIndex(actionLabel) {
       setRunning(true);
-      setStatus(operationsStatus, 'info', t('opInProgress', { action: actionLabel }));
+      setOperationStatus('info', t('opInProgress', { action: actionLabel }), { phase: 'INDEXING' });
       try {
         const startResponse = await apiFetch('/api/index', { method: 'POST' });
         if (!startResponse.ok) {
-          setStatus(operationsStatus, 'error', t('opFailed', { action: actionLabel }));
+          setOperationStatus('error', t('opFailed', { action: actionLabel }));
           return;
         }
         const started = await startResponse.json();
         const jobId = started.jobId;
         if (!jobId) {
-          setStatus(operationsStatus, 'error', t('opFailed', { action: actionLabel }));
+          setOperationStatus('error', t('opFailed', { action: actionLabel }));
           return;
         }
-        setStatus(operationsStatus, 'info', t('opQueued', { action: actionLabel, jobId }));
+        setOperationStatus(
+          'info',
+          t(started.alreadyRunning ? 'opQueuedReused' : 'opQueued', { action: actionLabel, jobId }),
+          { phase: 'INDEXING' },
+        );
         const data = await waitForIndexJob(jobId, (runningStatus) => {
           if (runningStatus.phase === 'FREEZING') {
             if (Number.isFinite(runningStatus.freezeTotal) && Number.isFinite(runningStatus.freezeCompleted) && runningStatus.freezeTotal > 0) {
-              setStatus(
-                operationsStatus,
+              setOperationStatus(
                 'info',
                 t('opFreezingProgress', {
                   completed: runningStatus.freezeCompleted,
                   total: runningStatus.freezeTotal,
                 }),
+                {
+                  phase: 'FREEZING',
+                  percent: (Number(runningStatus.freezeCompleted) / Number(runningStatus.freezeTotal)) * 100,
+                  progressPrimary: `${t('statusStep')}: ${runningStatus.freezeCompleted}/${runningStatus.freezeTotal}`,
+                  progressSecondary: `${t('statusJob')}: ${jobId}`,
+                },
               );
               return;
             }
-            setStatus(operationsStatus, 'info', t('opFreezing'));
+            setOperationStatus('info', t('opFreezing'), { phase: 'FREEZING' });
             return;
           }
           if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
-            setStatus(
-              operationsStatus,
+            setOperationStatus(
               'info',
               t('opProgress', {
                 action: actionLabel,
                 processed: runningStatus.processedFiles,
                 total: runningStatus.totalFiles,
               }),
+              {
+                phase: 'INDEXING',
+                percent: (Number(runningStatus.processedFiles) / Number(runningStatus.totalFiles)) * 100,
+                progressPrimary: `${t('statusStep')}: ${runningStatus.processedFiles}/${runningStatus.totalFiles}`,
+                progressSecondary: `${t('statusJob')}: ${jobId}`,
+              },
             );
           }
         });
         if (data.status !== 'SUCCEEDED' || !data.result) {
-          setStatus(
-            operationsStatus,
+          setOperationStatus(
             'error',
             t('opFailedWithReason', { action: actionLabel, reason: data.error || t('opFailed', { action: actionLabel }) }),
           );
           return;
         }
-        setStatus(
-          operationsStatus,
+        setOperationStatus(
           'ok',
           t('opDone', {
             action: actionLabel,
@@ -635,7 +756,7 @@
           }),
         );
       } catch (_) {
-        setStatus(operationsStatus, 'error', t('opNetworkFailed', { action: actionLabel }));
+        setOperationStatus('error', t('opNetworkFailed', { action: actionLabel }));
       } finally {
         setRunning(false);
       }
@@ -661,23 +782,22 @@
 
     async function runMaintenance() {
       setRunning(true);
-      setStatus(operationsStatus, 'info', t('maintenanceRunning'));
+      setOperationStatus('info', t('maintenanceRunning'));
       try {
         const cleanupRes = await apiFetch('/api/maintenance/cleanup', { method: 'POST' });
         if (!cleanupRes.ok) {
-          setStatus(operationsStatus, 'error', t('maintenanceCleanupFailed'));
+          setOperationStatus('error', t('maintenanceCleanupFailed'));
           return;
         }
         const cleanup = await cleanupRes.json();
 
         const vacuumRes = await apiFetch('/api/maintenance/vacuum', { method: 'POST' });
         if (!vacuumRes.ok) {
-          setStatus(operationsStatus, 'error', t('maintenanceVacuumFailed'));
+          setOperationStatus('error', t('maintenanceVacuumFailed'));
           return;
         }
         const vacuum = await vacuumRes.json();
-        setStatus(
-          operationsStatus,
+        setOperationStatus(
           'ok',
           t('maintenanceDone', {
             removedFiles: cleanup.removedAttachmentFiles + cleanup.removedAssetFiles,
@@ -686,7 +806,7 @@
           }),
         );
       } catch (_) {
-        setStatus(operationsStatus, 'error', t('maintenanceNetworkFailed'));
+        setOperationStatus('error', t('maintenanceNetworkFailed'));
       } finally {
         setRunning(false);
       }
@@ -695,27 +815,26 @@
     async function runResetIndexedData() {
       const confirmed = window.confirm(t('resetConfirm1'));
       if (!confirmed) {
-        setStatus(operationsStatus, 'info', t('resetCancelled'));
+        setOperationStatus('info', t('resetCancelled'));
         return;
       }
       const token = t('resetToken');
       const typed = window.prompt(t('resetPrompt', { token }), '');
       if ((typed || '').trim() !== token) {
-        setStatus(operationsStatus, 'info', t('resetCancelled'));
+        setOperationStatus('info', t('resetCancelled'));
         return;
       }
 
       setRunning(true);
-      setStatus(operationsStatus, 'info', t('resetRunning'));
+      setOperationStatus('info', t('resetRunning'));
       try {
         const response = await apiFetch('/api/maintenance/reset-indexed-data', { method: 'POST' });
         if (!response.ok) {
-          setStatus(operationsStatus, 'error', t('resetFailed'));
+          setOperationStatus('error', t('resetFailed'));
           return;
         }
         const data = await response.json();
-        setStatus(
-          operationsStatus,
+        setOperationStatus(
           'ok',
           t('resetDone', {
             messages: data.removedMessages,
@@ -728,7 +847,7 @@
           }),
         );
       } catch (_) {
-        setStatus(operationsStatus, 'error', t('resetNetworkFailed'));
+        setOperationStatus('error', t('resetNetworkFailed'));
       } finally {
         setRunning(false);
       }

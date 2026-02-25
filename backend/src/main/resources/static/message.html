@@ -211,7 +211,7 @@
 
     .status {
       margin-top: 12px;
-      min-height: 24px;
+      min-height: 26px;
       border-radius: 10px;
       padding: 9px 10px;
       border: 1px solid transparent;
@@ -223,6 +223,59 @@
     .status.info { background: #ebf3fb; color: #1e4c75; border-color: #b8d2ea; }
     .status.ok { background: #e9f6ef; color: #1f613f; border-color: #b7ddc6; }
     .status.error { background: #fdeeee; color: #772828; border-color: #edc6c6; }
+
+    .status-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      line-height: 1.3;
+    }
+
+    .status-message {
+      font-weight: 700;
+    }
+
+    .status-phase {
+      font-size: .72rem;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      padding: 2px 8px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      opacity: .9;
+    }
+
+    .status-progress {
+      margin-top: 6px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .status-progress-track {
+      height: 7px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.7);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .status-progress-fill {
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, rgba(47, 122, 92, 0.75), rgba(31, 94, 148, 0.78));
+      transition: width .25s ease;
+    }
+
+    .status-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: .78rem;
+      opacity: .9;
+    }
 
     .side {
       padding: 14px;
@@ -370,7 +423,7 @@
             <p id="emptyBodyText" class="placeholder">This message has no text/plain or html body.</p>
           </div>
 
-          <p id="status" class="status" role="status" aria-live="polite"></p>
+          <div id="status" class="status" role="status" aria-live="polite"></div>
         </section>
       </article>
 
