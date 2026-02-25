@@ -156,3 +156,7 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
   - removes stored files under `storage/attachments` and `storage/assets`
   - preserves `app_meta` entries (including auth credentials and UI settings)
   - runs `VACUUM` at the end
+
+## Knowledge base
+
+- Remote image fetch and provider anti-bot `403`: [`docs/remote-image-fetch-knowledge-base.md`](docs/remote-image-fetch-knowledge-base.md)

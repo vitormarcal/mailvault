@@ -531,6 +531,14 @@ class AssetFreezeService(
         uri: URI,
         profile: DownloadProfile,
     ): HttpRequest {
+        val scheme = uri.scheme?.lowercase()
+        val host = uri.host
+        val origin =
+            if ((scheme == "http" || scheme == "https") && !host.isNullOrBlank()) {
+                "$scheme://$host"
+            } else {
+                null
+            }
         val builder =
             HttpRequest
                 .newBuilder()
@@ -539,14 +547,22 @@ class AssetFreezeService(
                 .header("User-Agent", profile.userAgent)
                 .header("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
                 .header("Accept-Language", "en-US,en;q=0.9,pt-BR;q=0.8")
+                .header("Accept-Encoding", "gzip, deflate, br")
+                .header("Sec-CH-UA", "\"Chromium\";v=\"128\", \"Not;A=Brand\";v=\"24\", \"Google Chrome\";v=\"128\"")
+                .header("Sec-CH-UA-Mobile", "?0")
+                .header("Sec-CH-UA-Platform", "\"Linux\"")
+                .header("Sec-Fetch-Dest", "image")
+                .header("Sec-Fetch-Mode", "no-cors")
+                .header("Sec-Fetch-Site", "same-origin")
+                .header("DNT", "1")
+                .header("Upgrade-Insecure-Requests", "1")
                 .header("Cache-Control", "no-cache")
                 .header("Pragma", "no-cache")
                 .GET()
 
-        val scheme = uri.scheme?.lowercase()
-        val host = uri.host
-        if ((scheme == "http" || scheme == "https") && !host.isNullOrBlank()) {
-            builder.header("Referer", "$scheme://$host/")
+        if (origin != null) {
+            builder.header("Origin", origin)
+            builder.header("Referer", "$origin/")
         }
 
         return builder.build()

@@ -121,6 +121,16 @@ Load via @ConfigurationProperties.
 - If this step reveals issues, fix them automatically before finishing the task
 - Only finish when formatting is applied and related issues are resolved
 
+17) Documentation-first when appropriate
+- Before implementing or debugging, check existing project documentation when relevant (README, docs/, migration notes, runbooks)
+- Prefer reusing documented decisions/patterns over creating parallel approaches
+- If docs and code diverge, align code with the approved direction or update docs explicitly
+
+18) Knowledge retention (mandatory)
+- When discovering non-obvious behavior, incident learnings, provider quirks, or operational decisions that can be lost, create or update a document under `docs/`
+- Write concise, reusable guidance (problem, symptoms, root cause or hypothesis, decision, and validation path)
+- If this new knowledge affects usage/configuration/operations, also add a reference in README
+
 Now confirm understanding of these rules and wait for the next feature prompt.
 
 Additional mandatory rule for any new MailVault feature:
