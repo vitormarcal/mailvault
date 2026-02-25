@@ -7,7 +7,7 @@ Harden authentication and authorization flow, ensuring only necessary routes are
 
 ## Stages
 - [x] Stage 1: Create branch and initialize progress tracking document.
-- [ ] Stage 2: Enable and enforce CSRF for session auth, harden session/cookie defaults, and adapt frontend requests.
+- [x] Stage 2: Enable and enforce CSRF for session auth, harden session/cookie defaults, and adapt frontend requests.
 - [ ] Stage 3: Protect initial bootstrap with installation token gate.
 - [ ] Stage 4: Add/adjust security tests for public/protected route matrix and new controls.
 - [ ] Stage 5: Update README/docs and finalize hardening notes.
@@ -15,3 +15,5 @@ Harden authentication and authorization flow, ensuring only necessary routes are
 ## Notes
 - This document is the continuity source. If context is compacted/reset, read this file first.
 - Commit after each stage completes successfully.
+- Stage 2 completed with passing tests:
+  - `./gradlew test --tests "*MessagesControllerIntegrationTest" --tests "*SecurityConfigTest"`

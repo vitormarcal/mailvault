@@ -12,6 +12,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler
 import org.springframework.security.web.util.matcher.RequestMatcher
 
 @Configuration
@@ -22,8 +24,10 @@ class SecurityConfig {
         setupBootstrapRequestMatcher: RequestMatcher,
     ): SecurityFilterChain =
         http
-            .csrf { it.disable() }
-            .authorizeHttpRequests {
+            .csrf {
+                it.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                it.csrfTokenRequestHandler(CsrfTokenRequestAttributeHandler())
+            }.authorizeHttpRequests {
                 it
                     .requestMatchers(HttpMethod.GET, "/api/health")
                     .permitAll()
@@ -41,7 +45,8 @@ class SecurityConfig {
             }.headers {
                 it.contentTypeOptions(Customizer.withDefaults())
                 it.frameOptions { options -> options.deny() }
-            }.build()
+            }.addFilterAfter(CsrfCookieFilter(), org.springframework.security.web.csrf.CsrfFilter::class.java)
+            .build()
 
     @Bean
     fun setupBootstrapRequestMatcher(authBootstrapService: AuthBootstrapService): RequestMatcher =

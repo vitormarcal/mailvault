@@ -109,6 +109,17 @@
       statusEl.textContent = message;
     }
 
+    function readCookie(name) {
+      const encodedName = `${encodeURIComponent(name)}=`;
+      const cookies = document.cookie ? document.cookie.split('; ') : [];
+      for (const cookie of cookies) {
+        if (cookie.startsWith(encodedName)) {
+          return decodeURIComponent(cookie.substring(encodedName.length));
+        }
+      }
+      return '';
+    }
+
     async function loadStatus() {
       const response = await fetch('/api/setup/status');
       if (!response.ok) {
@@ -132,9 +143,15 @@
       };
 
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        const csrfToken = readCookie('XSRF-TOKEN');
+        if (csrfToken) {
+          headers['X-XSRF-TOKEN'] = csrfToken;
+        }
         const response = await fetch('/api/setup/bootstrap', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          headers,
           body: JSON.stringify(payload),
         });
 

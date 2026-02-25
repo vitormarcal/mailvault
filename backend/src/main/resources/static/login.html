@@ -82,6 +82,8 @@
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required />
 
+      <input type="hidden" id="csrfToken" name="_csrf" />
+
       <button type="submit">Login</button>
     </form>
 
@@ -89,6 +91,22 @@
   </main>
 
   <script>
+    function readCookie(name) {
+      const encodedName = `${encodeURIComponent(name)}=`;
+      const cookies = document.cookie ? document.cookie.split('; ') : [];
+      for (const cookie of cookies) {
+        if (cookie.startsWith(encodedName)) {
+          return decodeURIComponent(cookie.substring(encodedName.length));
+        }
+      }
+      return '';
+    }
+
+    const csrfToken = readCookie('XSRF-TOKEN');
+    if (csrfToken) {
+      document.getElementById('csrfToken').value = csrfToken;
+    }
+
     const params = new URLSearchParams(window.location.search);
     if (params.get('error')) {
       document.getElementById('error').textContent = 'Invalid username or password.';
