@@ -27,4 +27,5 @@ data class MailVaultProperties(
             "spacer",
         ),
     val trackingBlockedDomains: Set<String> = emptySet(),
+    val setupBootstrapToken: String? = null,
 )

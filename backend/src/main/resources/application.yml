@@ -29,3 +29,4 @@ mailvault:
   assetReadTimeoutSeconds: ${MAILVAULT_ASSET_READ_TIMEOUT_SECONDS:10}
   assetAllowedPorts: ${MAILVAULT_ASSET_ALLOWED_PORTS:80,443}
   freezeOnIndexConcurrency: ${MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY:2}
+  setupBootstrapToken: ${MAILVAULT_SETUP_BOOTSTRAP_TOKEN:}
