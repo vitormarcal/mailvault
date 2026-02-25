@@ -15,6 +15,7 @@ const tabPlainEl = document.getElementById('tabPlain');
 
 const attachmentsEl = document.getElementById('attachments');
 const statusEl = document.getElementById('status');
+const statusBadgesEl = document.getElementById('statusBadges');
 const statusImagesEl = document.getElementById('statusImages');
 const statusFreezeReasonEl = document.getElementById('statusFreezeReason');
 const statusAttachmentsEl = document.getElementById('statusAttachments');
@@ -63,6 +64,13 @@ const I18N = {
     plainText: 'Plain text',
     emptyBody: 'This message has no text/plain or html body.',
     statusTitle: 'Email status',
+    badgeHtml: 'HTML',
+    badgeAttachments: 'Attachments: {count}',
+    badgeFrozen: 'Frozen',
+    badgeFailure: 'Failed: {count}',
+    badgeSecuritySkipped: 'Security skipped: {count}',
+    badgeFreezeIgnored: 'Freeze ignored',
+    badgeFreezeNote: 'Freeze note',
     statusImages: 'Images: frozen {frozen}, failed {failed}, security blocked {securityBlocked}',
     statusFreezeReason: 'Freeze reason: {reason}',
     statusAttachments: 'Attachments: {count}',
@@ -128,6 +136,13 @@ const I18N = {
     plainText: 'Texto puro',
     emptyBody: 'Esta mensagem nao possui corpo em text/plain ou html disponivel.',
     statusTitle: 'Status do email',
+    badgeHtml: 'HTML',
+    badgeAttachments: 'Anexos: {count}',
+    badgeFrozen: 'Congelado',
+    badgeFailure: 'Falha: {count}',
+    badgeSecuritySkipped: 'Seguranca bloqueou: {count}',
+    badgeFreezeIgnored: 'Freeze ignorado',
+    badgeFreezeNote: 'Nota do freeze',
     statusImages: 'Imagens: congeladas {frozen}, falhas {failed}, bloqueadas por seguranca {securityBlocked}',
     statusFreezeReason: 'Motivo do freeze: {reason}',
     statusAttachments: 'Anexos: {count}',
@@ -428,6 +443,40 @@ async function loadRenderedHtml(id) {
   return data.html || '';
 }
 
+function renderStatusBadges(data, hasHtml) {
+  const badges = [];
+  const attachmentsCount = Number(data.attachmentsCount || 0);
+  const frozenAssetsCount = Number(data.frozenAssetsCount || 0);
+  const assetsFailedCount = Number(data.assetsFailedCount || 0);
+  const securitySkippedCount = Number(data.securitySkippedCount || 0);
+  const freezeIgnored = Boolean(data.freezeIgnored);
+  const freezeLastReason = (data.freezeLastReason || '').trim();
+
+  if (hasHtml) {
+    badges.push(`<span class="mini-badge">${escapeHtml(t('badgeHtml'))}</span>`);
+  }
+  if (attachmentsCount > 0) {
+    badges.push(`<span class="mini-badge">${escapeHtml(t('badgeAttachments', { count: attachmentsCount }))}</span>`);
+  }
+  if (frozenAssetsCount > 0) {
+    badges.push(`<span class="mini-badge warn">${escapeHtml(t('badgeFrozen'))}</span>`);
+  }
+  if (assetsFailedCount > 0) {
+    badges.push(`<span class="mini-badge danger">${escapeHtml(t('badgeFailure', { count: assetsFailedCount }))}</span>`);
+  }
+  if (securitySkippedCount > 0) {
+    badges.push(`<span class="mini-badge danger">${escapeHtml(t('badgeSecuritySkipped', { count: securitySkippedCount }))}</span>`);
+  }
+  if (freezeIgnored) {
+    badges.push(`<span class="mini-badge muted">${escapeHtml(t('badgeFreezeIgnored'))}</span>`);
+  }
+  if (freezeLastReason) {
+    badges.push(`<span class="mini-badge muted" title="${escapeHtml(freezeLastReason)}">${escapeHtml(t('badgeFreezeNote'))}</span>`);
+  }
+
+  statusBadgesEl.innerHTML = badges.join('');
+}
+
 async function loadAttachments(id) {
   attachmentsEl.innerHTML = `<li>${t('loadingAttachments')}</li>`;
   const response = await apiFetch(`/api/messages/${encodeURIComponent(id)}/attachments`);
@@ -484,6 +533,7 @@ async function loadMessage() {
   const id = currentId();
   currentState.messageId = id;
   currentState.freezeIgnored = false;
+  statusBadgesEl.innerHTML = '';
   updateBackLink();
 
   subjectEl.textContent = t('loadingMessage');
@@ -506,6 +556,7 @@ async function loadMessage() {
     statusAttachmentsEl.textContent = t('statusAttachments', { count: '-' });
     statusSizeEl.textContent = t('statusSize', { size: t('sizeUnknown') });
     statusFilePathEl.textContent = t('pathUnknown');
+    statusBadgesEl.innerHTML = '';
     setStatus('error', t('loadDetailsFailed'));
     updateNeighborButtons();
     return;
@@ -535,6 +586,7 @@ async function loadMessage() {
 
   currentState.hasHtml = Boolean(renderedHtml && renderedHtml.trim().length > 0);
   currentState.hasPlain = Boolean(data.textPlain && data.textPlain.trim().length > 0);
+  renderStatusBadges(data, currentState.hasHtml);
 
   if (currentState.hasHtml) {
     applyTab('html');

@@ -334,6 +334,45 @@
       border: 1px solid #e1cdab;
     }
 
+    .status-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 12px 0;
+    }
+
+    .mini-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      border: 1px solid #c9ba9f;
+      background: #f8efe0;
+      color: #5f4f35;
+      font-size: .74rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      letter-spacing: .02em;
+      white-space: nowrap;
+    }
+
+    .mini-badge.warn {
+      background: #f6ebd8;
+      border-color: #d6bf93;
+      color: #6e4a1d;
+    }
+
+    .mini-badge.danger {
+      background: #fbe8e8;
+      border-color: #e0b3b3;
+      color: #7b2a2a;
+    }
+
+    .mini-badge.muted {
+      background: #f2ece2;
+      border-color: #d8ccbc;
+      color: #605548;
+    }
+
     .tip {
       margin: 0;
       padding: 12px;
@@ -430,6 +469,7 @@
       <aside class="card side">
         <section class="side-block">
           <h2 id="statusEmailTitle" class="side-title">Email status</h2>
+          <div id="statusBadges" class="status-badges"></div>
           <div class="status-list">
             <div id="statusImages">Images: frozen -, failed -</div>
             <div id="statusFreezeReason">Freeze reason: -</div>
