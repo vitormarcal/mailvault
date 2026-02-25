@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.web
 
 import dev.marcal.mailvault.config.MailVaultProperties
+import dev.marcal.mailvault.repository.AppMetaRepository
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.IndexWriteRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
@@ -12,6 +13,7 @@ import dev.marcal.mailvault.service.HtmlSanitizerService
 import dev.marcal.mailvault.service.IndexResult
 import dev.marcal.mailvault.service.IndexerService
 import dev.marcal.mailvault.service.MessageParseService
+import dev.marcal.mailvault.service.UiFreezeOnIndexService
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -135,6 +137,7 @@ class IndexControllerTest {
                         properties,
                         htmlRenderService,
                     ),
+                    UiFreezeOnIndexService(AppMetaRepository(jdbcTemplate)),
                     properties,
                 ),
             )
@@ -169,6 +172,7 @@ class IndexControllerTest {
                             HtmlSanitizerService(),
                         ),
                     ),
+                    UiFreezeOnIndexService(AppMetaRepository(jdbcTemplate)),
                     MailVaultProperties(
                         rootEmailsDir = tempDir.resolve("missing").toString(),
                         storageDir = tempDir.resolve("storage").toString(),

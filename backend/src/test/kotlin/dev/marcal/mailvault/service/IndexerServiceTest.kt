@@ -1,6 +1,7 @@
 package dev.marcal.mailvault.service
 
 import dev.marcal.mailvault.config.MailVaultProperties
+import dev.marcal.mailvault.repository.AppMetaRepository
 import dev.marcal.mailvault.repository.AssetRepository
 import dev.marcal.mailvault.repository.IndexWriteRepository
 import dev.marcal.mailvault.repository.MessageHtmlRepository
@@ -405,10 +406,10 @@ class IndexerServiceTest {
                 MailVaultProperties(
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
-                    freezeOnIndex = true,
                     freezeOnIndexConcurrency = 2,
                 ),
             )
+        enableFreezeOnIndex()
 
         val eml = rootDir.resolve("remote-html.eml")
         Files.writeString(
@@ -444,10 +445,10 @@ class IndexerServiceTest {
                 MailVaultProperties(
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
-                    freezeOnIndex = true,
                     freezeOnIndexConcurrency = 2,
                 ),
             )
+        enableFreezeOnIndex()
 
         val eml = rootDir.resolve("remote-html-2.eml")
         Files.writeString(
@@ -500,10 +501,10 @@ class IndexerServiceTest {
                 MailVaultProperties(
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
-                    freezeOnIndex = true,
                     freezeOnIndexConcurrency = 2,
                 ),
             )
+        enableFreezeOnIndex()
 
         Files.writeString(
             rootDir.resolve("freeze-all-1.eml"),
@@ -568,10 +569,10 @@ class IndexerServiceTest {
                 MailVaultProperties(
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
-                    freezeOnIndex = true,
                     freezeOnIndexConcurrency = 2,
                 ),
             )
+        enableFreezeOnIndex()
 
         val second = service.index()
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 1), second)
@@ -610,10 +611,10 @@ class IndexerServiceTest {
                 MailVaultProperties(
                     rootEmailsDir = rootDir.toString(),
                     storageDir = storageDir.toString(),
-                    freezeOnIndex = true,
                     freezeOnIndexConcurrency = 2,
                 ),
             )
+        enableFreezeOnIndex()
 
         val second = service.index()
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 1), second)
@@ -636,6 +637,7 @@ class IndexerServiceTest {
         val messageHtmlRepository = MessageHtmlRepository(jdbcTemplate)
         val messageRepository = MessageRepository(jdbcTemplate)
         val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
+        val uiFreezeOnIndexService = UiFreezeOnIndexService(AppMetaRepository(jdbcTemplate))
         val assetFreezeService =
             AssetFreezeService(messageHtmlRepository, assetRepository, messageRepository, properties, htmlRenderService)
         return IndexerService(
@@ -644,7 +646,18 @@ class IndexerServiceTest {
             AttachmentStorageService(),
             assetRepository,
             assetFreezeService,
+            uiFreezeOnIndexService,
             properties,
+        )
+    }
+
+    private fun enableFreezeOnIndex() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO app_meta(key, value)
+            VALUES ('ui.freezeOnIndex', 'true')
+            ON CONFLICT(key) DO UPDATE SET value = excluded.value
+            """.trimIndent(),
         )
     }
 }

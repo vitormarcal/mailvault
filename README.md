@@ -31,6 +31,8 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Administrative page: `GET /admin`
 - List/search API: `GET /api/messages?query=&year=&hasAttachments=&hasHtml=&hasFrozenImages=&freezeIgnored=&page=&size=`
 - Usage statistics: `GET /api/stats`
+- UI language preference: `GET /api/ui/language` and `PUT /api/ui/language`
+- Auto-freeze preference: `GET /api/ui/freeze-on-index` and `PUT /api/ui/freeze-on-index`
 - Change password: `PUT /api/auth/password`
 - Maintenance cleanup: `POST /api/maintenance/cleanup`
 - SQLite compaction: `POST /api/maintenance/vacuum`
@@ -79,7 +81,6 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
    - `MAILVAULT_ASSET_CONNECT_TIMEOUT_SECONDS` (default `5`)
    - `MAILVAULT_ASSET_READ_TIMEOUT_SECONDS` (default `10`)
    - `MAILVAULT_ASSET_ALLOWED_PORTS` (default `80,443`)
-   - `MAILVAULT_FREEZE_ON_INDEX` (default `false`)
    - `MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY` (default `2`)
    - `MAILVAULT_TRACKING_BLOCK_ENABLED` (default `true`)
    - `MAILVAULT_TRACKING_URL_KEYWORDS` (default includes `track`, `pixel`, `open`, `beacon`, etc.)
@@ -90,11 +91,12 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
 7. In detail, use **Freeze images** to download remote images with limits and SSRF protection.
    - During freeze, likely tracking candidates (including 1x1 URL/attribute patterns) are skipped before HTTP download.
 8. In detail, use **Previous/Next** or shortcuts `k`/`j`; use `g` to go back to list while preserving filters.
-9. Open `http://localhost:8080/admin` to change password, change UI language, and run index/maintenance/reset operations.
+9. Open `http://localhost:8080/admin` to change password, change UI language, configure auto-freeze on index, and run index/maintenance/reset operations.
 
 ## Automatic freeze on index
 
-- With `MAILVAULT_FREEZE_ON_INDEX=true`, new/updated messages may trigger remote-image freeze automatically at the end of indexing.
+- Auto-freeze on index is configured in `GET /admin` and persists in `app_meta` (`ui.freezeOnIndex`), defaulting to `false` when unset.
+- When enabled, new/updated messages may trigger remote-image freeze automatically at the end of indexing.
 - The process is best-effort: network/SSRF failures do not fail indexing.
 - Messages marked with `freezeIgnored=true` are skipped by auto-freeze and by the UI action **Freeze pending**.
 - Limits:

@@ -618,6 +618,29 @@ class MessagesControllerIntegrationTest {
     }
 
     @Test
+    fun `GET ui freeze on index returns default false when preference is missing`() {
+        jdbcTemplate.update("DELETE FROM app_meta WHERE key = 'ui.freezeOnIndex'")
+
+        val response = get("/api/ui/freeze-on-index")
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("\"enabled\":false"))
+    }
+
+    @Test
+    fun `PUT ui freeze on index persists selected value`() {
+        val response = putJson("/api/ui/freeze-on-index", """{"enabled":true}""")
+        assertEquals(200, response.statusCode())
+        assertEquals(true, response.body().contains("\"enabled\":true"))
+
+        val stored =
+            jdbcTemplate.queryForObject(
+                "SELECT value FROM app_meta WHERE key = 'ui.freezeOnIndex'",
+                String::class.java,
+            )
+        assertEquals("true", stored)
+    }
+
+    @Test
     fun `GET messages id route serves minimal message UI`() {
         val response = get("/messages/id-1")
         assertEquals(200, response.statusCode())

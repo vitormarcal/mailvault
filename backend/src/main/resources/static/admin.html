@@ -216,6 +216,20 @@
     </section>
 
     <section class="panel">
+      <h2 id="freezeTitle">Auto-freeze on index</h2>
+      <div class="grid">
+        <label for="freezeOnIndexSelect" id="freezeOnIndexLabel">Enable automatic freeze after index
+          <select id="freezeOnIndexSelect">
+            <option value="false">Disabled</option>
+            <option value="true">Enabled</option>
+          </select>
+        </label>
+        <button id="saveFreezeOnIndexBtn" class="btn-primary" type="button">Save auto-freeze setting</button>
+      </div>
+      <div id="freezeOnIndexStatus" class="status"></div>
+    </section>
+
+    <section class="panel">
       <h2 id="passwordTitle">Change password</h2>
       <div class="grid">
         <label for="currentPassword" id="currentPasswordLabel">Current password
@@ -255,6 +269,11 @@
         saveLanguage: 'Save language',
         languageSaved: 'Language saved.',
         languageSaveFailed: 'Could not save language.',
+        freezeTitle: 'Auto-freeze on index',
+        freezeOnIndexLabel: 'Enable automatic freeze after index',
+        saveFreezeOnIndex: 'Save auto-freeze setting',
+        freezeOnIndexSaved: 'Auto-freeze setting saved.',
+        freezeOnIndexSaveFailed: 'Could not save auto-freeze setting.',
         passwordTitle: 'Change password',
         currentPasswordLabel: 'Current password',
         newPasswordLabel: 'New password',
@@ -301,6 +320,11 @@
         saveLanguage: 'Salvar idioma',
         languageSaved: 'Idioma salvo.',
         languageSaveFailed: 'Nao foi possivel salvar o idioma.',
+        freezeTitle: 'Freeze automatico na indexacao',
+        freezeOnIndexLabel: 'Ativar freeze automatico apos indexar',
+        saveFreezeOnIndex: 'Salvar configuracao de freeze automatico',
+        freezeOnIndexSaved: 'Configuracao de freeze automatico salva.',
+        freezeOnIndexSaveFailed: 'Nao foi possivel salvar configuracao de freeze automatico.',
         passwordTitle: 'Alterar senha',
         currentPasswordLabel: 'Senha atual',
         newPasswordLabel: 'Nova senha',
@@ -350,6 +374,12 @@
     const saveLanguageBtn = document.getElementById('saveLanguageBtn');
     const languageStatus = document.getElementById('languageStatus');
 
+    const freezeTitle = document.getElementById('freezeTitle');
+    const freezeOnIndexLabel = document.getElementById('freezeOnIndexLabel');
+    const freezeOnIndexSelect = document.getElementById('freezeOnIndexSelect');
+    const saveFreezeOnIndexBtn = document.getElementById('saveFreezeOnIndexBtn');
+    const freezeOnIndexStatus = document.getElementById('freezeOnIndexStatus');
+
     const passwordTitle = document.getElementById('passwordTitle');
     const currentPasswordLabel = document.getElementById('currentPasswordLabel');
     const newPasswordLabel = document.getElementById('newPasswordLabel');
@@ -369,6 +399,7 @@
 
     let state = {
       language: 'en',
+      freezeOnIndexEnabled: false,
       running: false,
     };
 
@@ -397,6 +428,9 @@
       languageTitle.textContent = t('languageTitle');
       languageLabel.childNodes[0].textContent = t('languageLabel');
       saveLanguageBtn.textContent = t('saveLanguage');
+      freezeTitle.textContent = t('freezeTitle');
+      freezeOnIndexLabel.childNodes[0].textContent = t('freezeOnIndexLabel');
+      saveFreezeOnIndexBtn.textContent = t('saveFreezeOnIndex');
 
       passwordTitle.textContent = t('passwordTitle');
       currentPasswordLabel.childNodes[0].textContent = t('currentPasswordLabel');
@@ -418,6 +452,7 @@
       maintenanceBtn.disabled = running;
       resetIndexedDataBtn.disabled = running;
       saveLanguageBtn.disabled = running;
+      saveFreezeOnIndexBtn.disabled = running;
       changePasswordBtn.disabled = running;
     }
 
@@ -452,6 +487,41 @@
         setStatus(languageStatus, 'ok', t('languageSaved'));
       } catch (_) {
         setStatus(languageStatus, 'error', t('languageSaveFailed'));
+      }
+    }
+
+    async function loadFreezeOnIndexPreference() {
+      try {
+        const response = await apiFetch('/api/ui/freeze-on-index');
+        if (!response.ok) {
+          state.freezeOnIndexEnabled = false;
+          return;
+        }
+        const data = await response.json();
+        state.freezeOnIndexEnabled = data.enabled === true;
+      } catch (_) {
+        state.freezeOnIndexEnabled = false;
+      }
+    }
+
+    async function saveFreezeOnIndexPreference() {
+      const enabled = freezeOnIndexSelect.value === 'true';
+      try {
+        const response = await apiFetch('/api/ui/freeze-on-index', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        });
+        if (!response.ok) {
+          setStatus(freezeOnIndexStatus, 'error', t('freezeOnIndexSaveFailed'));
+          return;
+        }
+        const data = await response.json();
+        state.freezeOnIndexEnabled = data.enabled === true;
+        freezeOnIndexSelect.value = state.freezeOnIndexEnabled ? 'true' : 'false';
+        setStatus(freezeOnIndexStatus, 'ok', t('freezeOnIndexSaved'));
+      } catch (_) {
+        setStatus(freezeOnIndexStatus, 'error', t('freezeOnIndexSaveFailed'));
       }
     }
 
@@ -596,6 +666,10 @@
       saveLanguagePreference();
     });
 
+    saveFreezeOnIndexBtn.addEventListener('click', () => {
+      saveFreezeOnIndexPreference();
+    });
+
     changePasswordBtn.addEventListener('click', () => {
       changePassword();
     });
@@ -624,7 +698,9 @@
 
     async function initPage() {
       await loadLanguagePreference();
+      await loadFreezeOnIndexPreference();
       languageSelect.value = state.language;
+      freezeOnIndexSelect.value = state.freezeOnIndexEnabled ? 'true' : 'false';
       applyStaticTexts();
     }
 

@@ -30,6 +30,7 @@ class IndexerService(
     private val attachmentStorageService: AttachmentStorageService,
     private val assetRepository: AssetRepository,
     private val assetFreezeService: AssetFreezeService,
+    private val uiFreezeOnIndexService: UiFreezeOnIndexService,
     private val mailVaultProperties: MailVaultProperties,
 ) {
     private val logger = LoggerFactory.getLogger(IndexerService::class.java)
@@ -40,10 +41,11 @@ class IndexerService(
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
             "Invalid rootDir: ${mailVaultProperties.rootEmailsDir}"
         }
+        val freezeOnIndexEnabled = uiFreezeOnIndexService.isEnabled()
         logger.info(
             "Index start rootDir={} freezeOnIndex={} freezeConcurrency={}",
             rootPath,
-            mailVaultProperties.freezeOnIndex,
+            freezeOnIndexEnabled,
             mailVaultProperties.freezeOnIndexConcurrency,
         )
 
@@ -81,7 +83,7 @@ class IndexerService(
                             existing.hasBodyContent &&
                             existing.hasDateEpoch
                         ) {
-                            if (mailVaultProperties.freezeOnIndex && !existing.freezeIgnored) {
+                            if (freezeOnIndexEnabled && !existing.freezeIgnored) {
                                 freezeCandidates += existing.id
                             }
                             skipped++
@@ -130,7 +132,7 @@ class IndexerService(
                             }
 
                             if (
-                                mailVaultProperties.freezeOnIndex &&
+                                freezeOnIndexEnabled &&
                                 !(existing?.freezeIgnored ?: false) &&
                                 shouldScheduleFreeze(messageId, parsed.htmlRaw)
                             ) {
@@ -152,7 +154,7 @@ class IndexerService(
                     )
                 }
 
-            runAutoFreezeIfEnabled(freezeCandidates)
+            runAutoFreezeIfEnabled(freezeOnIndexEnabled, freezeCandidates)
 
             val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
             indexWriteRepository.putMeta("lastIndexAt", OffsetDateTime.now().toString())
@@ -199,9 +201,12 @@ class IndexerService(
         return true
     }
 
-    private fun runAutoFreezeIfEnabled(candidates: List<String>) {
-        if (!mailVaultProperties.freezeOnIndex || candidates.isEmpty()) {
-            if (mailVaultProperties.freezeOnIndex) {
+    private fun runAutoFreezeIfEnabled(
+        freezeOnIndexEnabled: Boolean,
+        candidates: List<String>,
+    ) {
+        if (!freezeOnIndexEnabled || candidates.isEmpty()) {
+            if (freezeOnIndexEnabled) {
                 logger.info("Auto-freeze skipped candidates=0 reason=no candidates")
             }
             return

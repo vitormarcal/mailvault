@@ -12,7 +12,6 @@ data class MailVaultProperties(
     val assetConnectTimeoutSeconds: Long = 5,
     val assetReadTimeoutSeconds: Long = 10,
     val assetAllowedPorts: Set<Int> = setOf(80, 443),
-    val freezeOnIndex: Boolean = false,
     val freezeOnIndexConcurrency: Int = 2,
     val trackingBlockEnabled: Boolean = true,
     val trackingUrlKeywords: Set<String> =
