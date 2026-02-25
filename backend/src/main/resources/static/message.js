@@ -556,7 +556,7 @@ reindexBtn.addEventListener('click', async () => {
   setStatus('info', t('reindexRunning'), { phase: 'INDEXING' });
 
   try {
-    const startResponse = await apiFetch('/api/index', { method: 'POST' });
+    const startResponse = await apiFetch('/api/reindex', { method: 'POST' });
     if (!startResponse.ok) {
       setStatus('error', t('reindexFailed'));
       return;

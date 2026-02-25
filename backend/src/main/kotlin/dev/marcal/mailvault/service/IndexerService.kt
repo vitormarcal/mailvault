@@ -36,6 +36,11 @@ enum class IndexProgressPhase {
     FREEZING,
 }
 
+enum class IndexMode {
+    INCREMENTAL,
+    FULL,
+}
+
 @Service
 class IndexerService(
     private val indexWriteRepository: IndexWriteRepository,
@@ -48,9 +53,16 @@ class IndexerService(
 ) {
     private val logger = LoggerFactory.getLogger(IndexerService::class.java)
 
-    fun index(): IndexResult = index(null)
+    fun index(): IndexResult = index(IndexMode.INCREMENTAL, null)
 
-    fun index(progressListener: ((IndexProgress) -> Unit)?): IndexResult {
+    fun index(progressListener: ((IndexProgress) -> Unit)?): IndexResult = index(IndexMode.INCREMENTAL, progressListener)
+
+    fun reindex(progressListener: ((IndexProgress) -> Unit)?): IndexResult = index(IndexMode.FULL, progressListener)
+
+    fun index(
+        mode: IndexMode,
+        progressListener: ((IndexProgress) -> Unit)?,
+    ): IndexResult {
         val startedAtNs = System.nanoTime()
         val rootPath = Path.of(mailVaultProperties.rootEmailsDir).toAbsolutePath().normalize()
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
@@ -68,8 +80,9 @@ class IndexerService(
         )
         val freezeOnIndexEnabled = uiFreezeOnIndexService.isEnabled()
         logger.info(
-            "Index start rootDir={} freezeOnIndex={} freezeConcurrency={}",
+            "Index start rootDir={} mode={} freezeOnIndex={} freezeConcurrency={}",
             rootPath,
+            mode,
             freezeOnIndexEnabled,
             mailVaultProperties.freezeOnIndexConcurrency,
         )
@@ -103,16 +116,14 @@ class IndexerService(
                             val size = Files.size(filePath)
 
                             val existing = indexWriteRepository.findByFilePath(normalizedPath)
-                            if (
-                                existing != null &&
-                                existing.fileMtimeEpoch == mtime &&
-                                existing.fileSize == size &&
-                                existing.hasBodyContent &&
-                                existing.hasDateEpoch
-                            ) {
-                                if (freezeOnIndexEnabled && !existing.freezeIgnored) {
-                                    freezeCandidates += existing.id
-                                }
+                            val shouldSkipInIncrementalMode =
+                                mode == IndexMode.INCREMENTAL &&
+                                    existing != null &&
+                                    existing.fileMtimeEpoch == mtime &&
+                                    existing.fileSize == size &&
+                                    existing.hasBodyContent &&
+                                    existing.hasDateEpoch
+                            if (shouldSkipInIncrementalMode) {
                                 skipped++
                                 return@forEach
                             }
@@ -161,7 +172,11 @@ class IndexerService(
                                 if (
                                     freezeOnIndexEnabled &&
                                     !(existing?.freezeIgnored ?: false) &&
-                                    shouldScheduleFreeze(messageId, parsed.htmlRaw)
+                                    shouldScheduleFreeze(
+                                        messageId = messageId,
+                                        htmlRaw = parsed.htmlRaw,
+                                        skipIfAlreadyDownloaded = mode == IndexMode.INCREMENTAL,
+                                    )
                                 ) {
                                     freezeCandidates += messageId
                                 }
@@ -236,11 +251,12 @@ class IndexerService(
     private fun shouldScheduleFreeze(
         messageId: String,
         htmlRaw: String?,
+        skipIfAlreadyDownloaded: Boolean,
     ): Boolean {
         if (htmlRaw.isNullOrBlank() || !REMOTE_IMG_SRC_REGEX.containsMatchIn(htmlRaw)) {
             return false
         }
-        if (assetRepository.hasDownloadedByMessageId(messageId)) {
+        if (skipIfAlreadyDownloaded && assetRepository.hasDownloadedByMessageId(messageId)) {
             return false
         }
         return true

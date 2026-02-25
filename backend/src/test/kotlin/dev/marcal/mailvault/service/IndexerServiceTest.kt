@@ -543,7 +543,7 @@ class IndexerServiceTest {
     }
 
     @Test
-    fun `freeze on index also runs for unchanged already indexed message`() {
+    fun `freeze on index does not run for unchanged already indexed message in incremental mode`() {
         val eml = rootDir.resolve("already-indexed.eml")
         Files.writeString(
             eml,
@@ -576,6 +576,49 @@ class IndexerServiceTest {
 
         val second = service.index()
         assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 1), second)
+
+        val skippedAssets =
+            jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM assets WHERE status = 'SKIPPED'",
+                Int::class.java,
+            )
+        assertEquals(0, skippedAssets)
+    }
+
+    @Test
+    fun `freeze on reindex runs for unchanged already indexed message in full mode`() {
+        val eml = rootDir.resolve("already-indexed-full.eml")
+        Files.writeString(
+            eml,
+            """
+            From: Freeze <freeze@x.com>
+            Date: Sat, 21 Feb 2026 20:00:00 -0300
+            Subject: Existing full
+            Message-ID: <freeze-existing-full@x>
+            MIME-Version: 1.0
+            Content-Type: text/html; charset=UTF-8
+
+            <html><body><img src="http://localhost/private-existing-full.png"></body></html>
+            """.trimIndent(),
+        )
+
+        val first = service.index()
+        assertEquals(IndexResult(inserted = 1, updated = 0, skipped = 0), first)
+        val before = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM assets", Int::class.java)
+        assertEquals(0, before)
+
+        service =
+            createIndexerService(
+                MailVaultProperties(
+                    rootEmailsDir = rootDir.toString(),
+                    storageDir = storageDir.toString(),
+                    freezeOnIndexConcurrency = 2,
+                ),
+            )
+        enableFreezeOnIndex()
+
+        val second = service.reindex(null)
+        assertEquals(IndexResult(inserted = 0, updated = 1, skipped = 0), second)
 
         val skippedAssets =
             jdbcTemplate.queryForObject(

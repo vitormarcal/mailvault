@@ -19,7 +19,19 @@ class IndexController(
     @PostMapping("/index")
     @ResponseStatus(HttpStatus.ACCEPTED)
     fun startIndex(): IndexJobStartResponse {
-        val snapshot = indexJobService.start()
+        val snapshot = indexJobService.startIncremental()
+        return IndexJobStartResponse(
+            jobId = snapshot.jobId,
+            status = snapshot.status.name,
+            startedAt = snapshot.startedAt.toString(),
+            alreadyRunning = snapshot.alreadyRunning,
+        )
+    }
+
+    @PostMapping("/reindex")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    fun startReindex(): IndexJobStartResponse {
+        val snapshot = indexJobService.startFull()
         return IndexJobStartResponse(
             jobId = snapshot.jobId,
             status = snapshot.status.name,

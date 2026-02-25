@@ -39,10 +39,11 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Destructive reset of indexed data + vacuum: `POST /api/maintenance/reset-indexed-data`
 - Message detail: `GET /messages/{id}`
 - Detail navigation: `GET /api/messages/{id}/prev` and `GET /api/messages/{id}/next`
-- Start async indexing job: `POST /api/index` (returns `202` + `jobId`)
+- Start async incremental index job: `POST /api/index` (returns `202` + `jobId`)
+- Start async full reindex job: `POST /api/reindex` (returns `202` + `jobId`)
 - Check indexing job status: `GET /api/index/jobs/{jobId}`
   - status payload includes phase and partial progress: `phase` (`INDEXING` or `FREEZING`), `processedFiles`, `totalFiles`, `progressPercent`, `freezeCompleted`, `freezeTotal`
-- Manual reindex from detail: **Reindex** button (starts async index and polls status)
+- Manual reindex from detail: **Reindex** button (starts async full reindex and polls status)
 - Sanitized HTML rendering: `GET /api/messages/{id}/render`
 - Safe external navigation (links): `GET /go?url=...`
 - Inline CID: `GET /api/messages/{id}/cid/{cid}`

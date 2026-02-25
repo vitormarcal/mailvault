@@ -681,11 +681,11 @@
       }
     }
 
-    async function runIndex(actionLabel) {
+    async function runIndex(actionLabel, endpoint) {
       setRunning(true);
       setOperationStatus('info', t('opInProgress', { action: actionLabel }), { phase: 'INDEXING' });
       try {
-        const startResponse = await apiFetch('/api/index', { method: 'POST' });
+        const startResponse = await apiFetch(endpoint, { method: 'POST' });
         if (!startResponse.ok) {
           setOperationStatus('error', t('opFailed', { action: actionLabel }));
           return;
@@ -866,14 +866,14 @@
     });
 
     indexBtn.addEventListener('click', () => {
-      runIndex(t('actionIndexing'));
+      runIndex(t('actionIndexing'), '/api/index');
     });
 
     reindexBtn.addEventListener('click', () => {
       if (!window.confirm(t('reindexConfirm'))) {
         return;
       }
-      runIndex(t('actionReindexing'));
+      runIndex(t('actionReindexing'), '/api/reindex');
     });
 
     maintenanceBtn.addEventListener('click', () => {

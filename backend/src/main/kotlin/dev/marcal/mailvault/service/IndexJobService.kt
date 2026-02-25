@@ -39,7 +39,11 @@ class IndexJobService(
     private val jobs = linkedMapOf<String, InternalJob>()
     private var runningJobId: String? = null
 
-    fun start(): IndexJobSnapshot {
+    fun startIncremental(): IndexJobSnapshot = start(IndexMode.INCREMENTAL)
+
+    fun startFull(): IndexJobSnapshot = start(IndexMode.FULL)
+
+    private fun start(mode: IndexMode): IndexJobSnapshot {
         synchronized(lock) {
             val currentJobId = runningJobId
             if (currentJobId != null) {
@@ -54,6 +58,7 @@ class IndexJobService(
                     jobId = jobId,
                     status = IndexJobStatus.RUNNING,
                     phase = IndexProgressPhase.INDEXING,
+                    mode = mode,
                     startedAt = now,
                     finishedAt = null,
                     result = null,
@@ -65,7 +70,7 @@ class IndexJobService(
                 )
             jobs[jobId] = job
             runningJobId = jobId
-            logger.info("Index job accepted jobId={}", jobId)
+            logger.info("Index job accepted jobId={} mode={}", jobId, mode)
             executor.submit { runJob(jobId) }
             return job.toSnapshot(alreadyRunning = false)
         }
@@ -85,8 +90,9 @@ class IndexJobService(
 
     private fun runJob(jobId: String) {
         try {
+            val mode = synchronized(lock) { jobs[jobId]?.mode } ?: IndexMode.INCREMENTAL
             val result =
-                indexerService.index { progress ->
+                indexerService.index(mode) { progress ->
                     synchronized(lock) {
                         val job = jobs[jobId] ?: return@synchronized
                         job.phase = progress.phase
@@ -107,8 +113,9 @@ class IndexJobService(
                 }
                 pruneCompletedJobs()
                 logger.info(
-                    "Index job succeeded jobId={} inserted={} updated={} skipped={}",
+                    "Index job succeeded jobId={} mode={} inserted={} updated={} skipped={}",
                     jobId,
+                    job.mode,
                     result.inserted,
                     result.updated,
                     result.skipped,
@@ -149,6 +156,7 @@ class IndexJobService(
         val jobId: String,
         var status: IndexJobStatus,
         var phase: IndexProgressPhase,
+        val mode: IndexMode,
         val startedAt: OffsetDateTime,
         var finishedAt: OffsetDateTime?,
         var result: IndexResult?,

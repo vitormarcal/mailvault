@@ -165,6 +165,23 @@ class IndexControllerTest {
     }
 
     @Test
+    fun `starts async full reindex job and eventually returns counters`() {
+        val started = controller.startReindex()
+        assertNotNull(started.jobId)
+        assertEquals("RUNNING", started.status)
+
+        val result = waitForTerminal(started.jobId)
+        assertEquals("SUCCEEDED", result.status)
+        assertEquals(0, result.totalFiles)
+        assertEquals(0, result.processedFiles)
+        assertEquals(null, result.progressPercent)
+        val counters = assertNotNull(result.result)
+        assertEquals(0, counters.inserted)
+        assertEquals(0, counters.updated)
+        assertEquals(0, counters.skipped)
+    }
+
+    @Test
     fun `invalid configured root dir fails job status without blocking start`() {
         controller =
             IndexController(
