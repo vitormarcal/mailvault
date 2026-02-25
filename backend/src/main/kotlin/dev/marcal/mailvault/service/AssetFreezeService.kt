@@ -57,8 +57,12 @@ class AssetFreezeService(
             val htmlRaw =
                 html?.htmlRaw?.takeIf { it.isNotBlank() } ?: run {
                     logger.info("Freeze skipped messageId={} reason=no html", messageId)
-                    messageRepository.setFreezeLastReason(messageId, "Skipped: message has no HTML body")
-                    return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
+                    messageRepository.setFreezeIgnoredAndLastReason(
+                        id = messageId,
+                        ignored = true,
+                        reason = "Skipped: message has no HTML body (auto-ignored)",
+                    )
+                    return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 1)
                 }
 
             val candidates = extractRemoteImageCandidates(htmlRaw)
@@ -70,7 +74,7 @@ class AssetFreezeService(
                     ignored = true,
                     reason = "Skipped: no remote images found (auto-ignored)",
                 )
-                return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 0)
+                return AssetFreezeResponse(totalFound = 0, downloaded = 0, failed = 0, skipped = 1)
             }
 
             var totalBytes: Long = 0

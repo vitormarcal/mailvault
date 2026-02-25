@@ -812,7 +812,7 @@ class MessagesControllerIntegrationTest {
         assertEquals(true, body.contains("\"totalFound\":0"))
         assertEquals(true, body.contains("\"downloaded\":0"))
         assertEquals(true, body.contains("\"failed\":0"))
-        assertEquals(true, body.contains("\"skipped\":0"))
+        assertEquals(true, body.contains("\"skipped\":1"))
 
         val detail = get("/api/messages/id-1")
         assertEquals(200, detail.statusCode())

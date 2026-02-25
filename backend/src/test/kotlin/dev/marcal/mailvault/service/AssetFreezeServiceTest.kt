@@ -30,6 +30,7 @@ import javax.net.ssl.SSLParameters
 import javax.net.ssl.SSLSession
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class AssetFreezeServiceTest {
     @TempDir
@@ -288,6 +289,152 @@ class AssetFreezeServiceTest {
         assertEquals(0, result.failed)
         assertEquals(1, result.skipped)
         assertEquals(0, fakeClient.calls)
+    }
+
+    @Test
+    fun `marks freeze as skipped and ignored when message has no html body`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m-4",
+            "/tmp/m-4.eml",
+            1L,
+            1L,
+        )
+
+        val result = service.freeze("m-4")
+
+        assertEquals(0, result.totalFound)
+        assertEquals(0, result.downloaded)
+        assertEquals(0, result.failed)
+        assertEquals(1, result.skipped)
+        val freezeIgnored =
+            jdbcTemplate.queryForObject(
+                "SELECT freeze_ignored FROM messages WHERE id = ?",
+                Int::class.java,
+                "m-4",
+            )
+        assertEquals(1, freezeIgnored)
+        val reason =
+            jdbcTemplate.queryForObject(
+                "SELECT freeze_last_reason FROM messages WHERE id = ?",
+                String::class.java,
+                "m-4",
+            )
+        assertTrue(reason?.contains("message has no HTML body") == true)
+    }
+
+    @Test
+    fun `marks freeze as skipped and ignored when html has no remote images`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m-5",
+            "/tmp/m-5.eml",
+            1L,
+            1L,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies(message_id, html_raw)
+            VALUES (?, ?)
+            """.trimIndent(),
+            "m-5",
+            """<div><p>No image here</p></div>""",
+        )
+
+        val result = service.freeze("m-5")
+
+        assertEquals(0, result.totalFound)
+        assertEquals(0, result.downloaded)
+        assertEquals(0, result.failed)
+        assertEquals(1, result.skipped)
+        val freezeIgnored =
+            jdbcTemplate.queryForObject(
+                "SELECT freeze_ignored FROM messages WHERE id = ?",
+                Int::class.java,
+                "m-5",
+            )
+        assertEquals(1, freezeIgnored)
+        val reason =
+            jdbcTemplate.queryForObject(
+                "SELECT freeze_last_reason FROM messages WHERE id = ?",
+                String::class.java,
+                "m-5",
+            )
+        assertTrue(reason?.contains("no remote images found") == true)
+    }
+
+    @Test
+    fun `marks non-image response as skipped with explanatory note`() {
+        jdbcTemplate.update(
+            """
+            INSERT INTO messages(id, file_path, file_mtime_epoch, file_size)
+            VALUES (?, ?, ?, ?)
+            """.trimIndent(),
+            "m-6",
+            "/tmp/m-6.eml",
+            1L,
+            1L,
+        )
+        jdbcTemplate.update(
+            """
+            INSERT INTO message_bodies(message_id, html_raw)
+            VALUES (?, ?)
+            """.trimIndent(),
+            "m-6",
+            """<img src="https://example.com/not-image" />""",
+        )
+
+        val fakeClient =
+            FakeHttpClient(
+                mutableListOf(
+                    PlannedResponse(
+                        status = 200,
+                        headers = mapOf("Content-Type" to listOf("text/html; charset=UTF-8")),
+                        body = "<html>not-an-image</html>".toByteArray(StandardCharsets.UTF_8),
+                    ),
+                ),
+            )
+        service =
+            AssetFreezeService(
+                messageHtmlRepository = MessageHtmlRepository(jdbcTemplate),
+                assetRepository = AssetRepository(jdbcTemplate),
+                messageRepository = MessageRepository(jdbcTemplate),
+                mailVaultProperties = MailVaultProperties(storageDir = tempDir.resolve("storage").toString()),
+                htmlRenderService =
+                    HtmlRenderService(
+                        MessageHtmlRepository(jdbcTemplate),
+                        AssetRepository(jdbcTemplate),
+                        HtmlSanitizerService(),
+                    ),
+                httpClient = fakeClient,
+            )
+
+        val result = service.freeze("m-6")
+
+        assertEquals(1, result.totalFound)
+        assertEquals(0, result.downloaded)
+        assertEquals(0, result.failed)
+        assertEquals(1, result.skipped)
+        val storedError =
+            jdbcTemplate.queryForObject(
+                "SELECT error FROM assets WHERE message_id = ?",
+                String::class.java,
+                "m-6",
+            )
+        assertTrue(storedError?.contains("content-type is not image") == true)
+        val reason =
+            jdbcTemplate.queryForObject(
+                "SELECT freeze_last_reason FROM messages WHERE id = ?",
+                String::class.java,
+                "m-6",
+            )
+        assertTrue(reason?.contains("content-type is not image") == true)
     }
 
     private data class PlannedResponse(
