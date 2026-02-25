@@ -23,6 +23,11 @@ data class IndexResult(
     val skipped: Int,
 )
 
+data class IndexProgress(
+    val totalFiles: Int,
+    val processedFiles: Int,
+)
+
 @Service
 class IndexerService(
     private val indexWriteRepository: IndexWriteRepository,
@@ -35,12 +40,16 @@ class IndexerService(
 ) {
     private val logger = LoggerFactory.getLogger(IndexerService::class.java)
 
-    fun index(): IndexResult {
+    fun index(): IndexResult = index(null)
+
+    fun index(progressListener: ((IndexProgress) -> Unit)?): IndexResult {
         val startedAtNs = System.nanoTime()
         val rootPath = Path.of(mailVaultProperties.rootEmailsDir).toAbsolutePath().normalize()
         require(Files.exists(rootPath) && Files.isDirectory(rootPath)) {
             "Invalid rootDir: ${mailVaultProperties.rootEmailsDir}"
         }
+        val totalFiles = countEmlFiles(rootPath)
+        progressListener?.invoke(IndexProgress(totalFiles = totalFiles, processedFiles = 0))
         val freezeOnIndexEnabled = uiFreezeOnIndexService.isEnabled()
         logger.info(
             "Index start rootDir={} freezeOnIndex={} freezeConcurrency={}",
@@ -52,6 +61,7 @@ class IndexerService(
         var inserted = 0
         var updated = 0
         var skipped = 0
+        var processed = 0
         val freezeCandidates = mutableListOf<String>()
         val startedDirectories = mutableSetOf<Path>()
         val indexedEmlCountByDirectory = mutableMapOf<Path, Int>()
@@ -64,82 +74,92 @@ class IndexerService(
                     .filter { Files.isRegularFile(it) }
                     .filter { it.fileName.toString().endsWith(".eml", ignoreCase = true) }
                     .forEach { filePath ->
-                        val directoryPath = (filePath.parent ?: rootPath).toAbsolutePath().normalize()
-                        if (startedDirectories.add(directoryPath)) {
-                            logger.info("Indexing directory path={}", directoryPath)
-                        }
-                        indexedEmlCountByDirectory[directoryPath] =
-                            (indexedEmlCountByDirectory[directoryPath] ?: 0) + 1
-
-                        val normalizedPath = filePath.toAbsolutePath().normalize().toString()
-                        val mtime = Files.getLastModifiedTime(filePath).toMillis()
-                        val size = Files.size(filePath)
-
-                        val existing = indexWriteRepository.findByFilePath(normalizedPath)
-                        if (
-                            existing != null &&
-                            existing.fileMtimeEpoch == mtime &&
-                            existing.fileSize == size &&
-                            existing.hasBodyContent &&
-                            existing.hasDateEpoch
-                        ) {
-                            if (freezeOnIndexEnabled && !existing.freezeIgnored) {
-                                freezeCandidates += existing.id
-                            }
-                            skipped++
-                            return@forEach
-                        }
-
                         try {
-                            val parsed = messageParseService.parse(filePath)
-                            val messageId = sha256Hex("${parsed.messageId ?: ""}|$normalizedPath")
-
-                            indexWriteRepository.upsertMessage(
-                                MessageUpsert(
-                                    id = messageId,
-                                    filePath = normalizedPath,
-                                    fileMtimeEpoch = mtime,
-                                    fileSize = size,
-                                    dateRaw = parsed.dateRaw,
-                                    dateEpoch = parsed.dateEpoch,
-                                    subject = parsed.subject,
-                                    subjectDisplay = parsed.subjectDisplay,
-                                    fromRaw = parsed.fromRaw,
-                                    fromDisplay = parsed.fromDisplay,
-                                    fromEmail = parsed.fromEmail,
-                                    fromName = parsed.fromName,
-                                    messageId = parsed.messageId,
-                                ),
-                            )
-
-                            indexWriteRepository.upsertMessageBody(
-                                MessageBodyUpsert(
-                                    messageId = messageId,
-                                    textPlain = parsed.textPlain,
-                                    htmlRaw = parsed.htmlRaw,
-                                    htmlText = parsed.htmlText,
-                                    htmlSanitized = null,
-                                ),
-                            )
-
-                            val attachmentRecords = persistAttachments(messageId, parsed.attachments)
-                            indexWriteRepository.replaceAttachments(messageId, attachmentRecords)
-
-                            if (existing == null) {
-                                inserted++
-                            } else {
-                                updated++
+                            val directoryPath = (filePath.parent ?: rootPath).toAbsolutePath().normalize()
+                            if (startedDirectories.add(directoryPath)) {
+                                logger.info("Indexing directory path={}", directoryPath)
                             }
+                            indexedEmlCountByDirectory[directoryPath] =
+                                (indexedEmlCountByDirectory[directoryPath] ?: 0) + 1
 
+                            val normalizedPath = filePath.toAbsolutePath().normalize().toString()
+                            val mtime = Files.getLastModifiedTime(filePath).toMillis()
+                            val size = Files.size(filePath)
+
+                            val existing = indexWriteRepository.findByFilePath(normalizedPath)
                             if (
-                                freezeOnIndexEnabled &&
-                                !(existing?.freezeIgnored ?: false) &&
-                                shouldScheduleFreeze(messageId, parsed.htmlRaw)
+                                existing != null &&
+                                existing.fileMtimeEpoch == mtime &&
+                                existing.fileSize == size &&
+                                existing.hasBodyContent &&
+                                existing.hasDateEpoch
                             ) {
-                                freezeCandidates += messageId
+                                if (freezeOnIndexEnabled && !existing.freezeIgnored) {
+                                    freezeCandidates += existing.id
+                                }
+                                skipped++
+                                return@forEach
                             }
-                        } catch (e: Exception) {
-                            logger.error("Failed to index file {}", filePath, e)
+
+                            try {
+                                val parsed = messageParseService.parse(filePath)
+                                val messageId = sha256Hex("${parsed.messageId ?: ""}|$normalizedPath")
+
+                                indexWriteRepository.upsertMessage(
+                                    MessageUpsert(
+                                        id = messageId,
+                                        filePath = normalizedPath,
+                                        fileMtimeEpoch = mtime,
+                                        fileSize = size,
+                                        dateRaw = parsed.dateRaw,
+                                        dateEpoch = parsed.dateEpoch,
+                                        subject = parsed.subject,
+                                        subjectDisplay = parsed.subjectDisplay,
+                                        fromRaw = parsed.fromRaw,
+                                        fromDisplay = parsed.fromDisplay,
+                                        fromEmail = parsed.fromEmail,
+                                        fromName = parsed.fromName,
+                                        messageId = parsed.messageId,
+                                    ),
+                                )
+
+                                indexWriteRepository.upsertMessageBody(
+                                    MessageBodyUpsert(
+                                        messageId = messageId,
+                                        textPlain = parsed.textPlain,
+                                        htmlRaw = parsed.htmlRaw,
+                                        htmlText = parsed.htmlText,
+                                        htmlSanitized = null,
+                                    ),
+                                )
+
+                                val attachmentRecords = persistAttachments(messageId, parsed.attachments)
+                                indexWriteRepository.replaceAttachments(messageId, attachmentRecords)
+
+                                if (existing == null) {
+                                    inserted++
+                                } else {
+                                    updated++
+                                }
+
+                                if (
+                                    freezeOnIndexEnabled &&
+                                    !(existing?.freezeIgnored ?: false) &&
+                                    shouldScheduleFreeze(messageId, parsed.htmlRaw)
+                                ) {
+                                    freezeCandidates += messageId
+                                }
+                            } catch (e: Exception) {
+                                logger.error("Failed to index file {}", filePath, e)
+                            }
+                        } finally {
+                            processed++
+                            progressListener?.invoke(
+                                IndexProgress(
+                                    totalFiles = totalFiles,
+                                    processedFiles = processed,
+                                ),
+                            )
                         }
                     }
             }
@@ -302,6 +322,16 @@ class IndexerService(
             .normalize()
             .resolve("attachments")
             .resolve(messageId)
+
+    private fun countEmlFiles(rootPath: Path): Int =
+        Files
+            .walk(rootPath)
+            .use { stream ->
+                stream
+                    .asSequence()
+                    .filter { Files.isRegularFile(it) }
+                    .count { it.fileName.toString().endsWith(".eml", ignoreCase = true) }
+            }.toInt()
 
     private fun sha256Hex(value: String): String {
         val digest = MessageDigest.getInstance("SHA-256")

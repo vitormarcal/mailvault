@@ -14,6 +14,9 @@ data class IndexJobStatusResponse(
     val status: String,
     val startedAt: String,
     val finishedAt: String?,
+    val totalFiles: Int?,
+    val processedFiles: Int?,
+    val progressPercent: Int?,
     val result: IndexResult?,
     val error: String?,
 )

@@ -155,6 +155,9 @@ class IndexControllerTest {
 
         val result = waitForTerminal(started.jobId)
         assertEquals("SUCCEEDED", result.status)
+        assertEquals(0, result.totalFiles)
+        assertEquals(0, result.processedFiles)
+        assertEquals(null, result.progressPercent)
         val counters = assertNotNull(result.result)
         assertEquals(0, counters.inserted)
         assertEquals(0, counters.updated)

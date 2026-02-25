@@ -33,11 +33,20 @@ class IndexController(
         @PathVariable jobId: String,
     ): IndexJobStatusResponse {
         val snapshot = indexJobService.get(jobId)
+        val progressPercent =
+            if (snapshot.totalFiles != null && snapshot.totalFiles > 0 && snapshot.processedFiles != null) {
+                ((snapshot.processedFiles.toDouble() / snapshot.totalFiles.toDouble()) * 100.0).toInt().coerceIn(0, 100)
+            } else {
+                null
+            }
         return IndexJobStatusResponse(
             jobId = snapshot.jobId,
             status = snapshot.status.name,
             startedAt = snapshot.startedAt.toString(),
             finishedAt = snapshot.finishedAt?.toString(),
+            totalFiles = snapshot.totalFiles,
+            processedFiles = snapshot.processedFiles,
+            progressPercent = progressPercent,
             result = snapshot.result,
             error = snapshot.error,
         )

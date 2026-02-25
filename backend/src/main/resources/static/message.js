@@ -82,6 +82,7 @@ const I18N = {
     loadDetailsFailed: 'Could not load message details.',
     reindexRunning: 'Reindexing email store...',
     reindexQueued: 'Reindex accepted. Job {jobId} is running...',
+    reindexProgress: 'Reindexing... ({processed}/{total})',
     reindexFailed: 'Reindex failed.',
     reindexFailedWithReason: 'Reindex failed: {reason}',
     reindexNetworkFailed: 'Network failure while reindexing.',
@@ -139,6 +140,7 @@ const I18N = {
     loadDetailsFailed: 'Nao foi possivel carregar os dados da mensagem.',
     reindexRunning: 'Reindexando base de emails...',
     reindexQueued: 'Reindexacao aceita. Job {jobId} em execucao...',
+    reindexProgress: 'Reindexando... ({processed}/{total})',
     reindexFailed: 'Falha ao reindexar.',
     reindexFailedWithReason: 'Falha ao reindexar: {reason}',
     reindexNetworkFailed: 'Falha de rede ao reindexar.',
@@ -512,7 +514,14 @@ reindexBtn.addEventListener('click', async () => {
       return;
     }
     setStatus('info', t('reindexQueued', { jobId }));
-    const data = await waitForIndexJob(jobId);
+    const data = await waitForIndexJob(jobId, (runningStatus) => {
+      if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
+        setStatus('info', t('reindexProgress', {
+          processed: runningStatus.processedFiles,
+          total: runningStatus.totalFiles,
+        }));
+      }
+    });
     if (data.status !== 'SUCCEEDED' || !data.result) {
       setStatus('error', t('reindexFailedWithReason', { reason: data.error || t('reindexFailed') }));
       return;
@@ -530,7 +539,7 @@ reindexBtn.addEventListener('click', async () => {
   }
 });
 
-async function waitForIndexJob(jobId) {
+async function waitForIndexJob(jobId, onRunning) {
   for (let attempt = 0; attempt < INDEX_JOB_POLL_ATTEMPTS; attempt += 1) {
     const response = await apiFetch(`/api/index/jobs/${encodeURIComponent(jobId)}`);
     if (!response.ok) {
@@ -539,6 +548,9 @@ async function waitForIndexJob(jobId) {
     const data = await response.json();
     if (data.status !== 'RUNNING') {
       return data;
+    }
+    if (typeof onRunning === 'function') {
+      onRunning(data);
     }
     await new Promise((resolve) => window.setTimeout(resolve, INDEX_JOB_POLL_INTERVAL_MS));
   }

@@ -22,6 +22,8 @@ data class IndexJobSnapshot(
     val result: IndexResult?,
     val error: String?,
     val alreadyRunning: Boolean,
+    val totalFiles: Int?,
+    val processedFiles: Int?,
 )
 
 @Service
@@ -52,6 +54,8 @@ class IndexJobService(
                     finishedAt = null,
                     result = null,
                     error = null,
+                    totalFiles = null,
+                    processedFiles = null,
                 )
             jobs[jobId] = job
             runningJobId = jobId
@@ -75,7 +79,14 @@ class IndexJobService(
 
     private fun runJob(jobId: String) {
         try {
-            val result = indexerService.index()
+            val result =
+                indexerService.index { progress ->
+                    synchronized(lock) {
+                        val job = jobs[jobId] ?: return@synchronized
+                        job.totalFiles = progress.totalFiles
+                        job.processedFiles = progress.processedFiles
+                    }
+                }
             synchronized(lock) {
                 val job = jobs[jobId] ?: return
                 job.status = IndexJobStatus.SUCCEEDED
@@ -132,6 +143,8 @@ class IndexJobService(
         var finishedAt: OffsetDateTime?,
         var result: IndexResult?,
         var error: String?,
+        var totalFiles: Int?,
+        var processedFiles: Int?,
     ) {
         fun toSnapshot(alreadyRunning: Boolean): IndexJobSnapshot =
             IndexJobSnapshot(
@@ -142,6 +155,8 @@ class IndexJobService(
                 result = result,
                 error = error,
                 alreadyRunning = alreadyRunning,
+                totalFiles = totalFiles,
+                processedFiles = processedFiles,
             )
     }
 

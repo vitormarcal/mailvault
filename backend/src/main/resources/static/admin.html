@@ -291,6 +291,7 @@
         resetLabel: 'Reset indexed data (destructive)',
         opInProgress: '{action} in progress...',
         opQueued: '{action} accepted. Job {jobId} is running...',
+        opProgress: '{action} in progress ({processed}/{total})...',
         opDone: '{action} complete: inserted={inserted}, updated={updated}, skipped={skipped}',
         opFailed: '{action} failed.',
         opFailedWithReason: '{action} failed: {reason}',
@@ -344,6 +345,7 @@
         resetLabel: 'Zerar dados indexados (destrutivo)',
         opInProgress: '{action} em andamento...',
         opQueued: '{action} aceito. Job {jobId} em execucao...',
+        opProgress: '{action} em andamento ({processed}/{total})...',
         opDone: '{action} concluido: inserted={inserted}, updated={updated}, skipped={skipped}',
         opFailed: '{action} falhou.',
         opFailedWithReason: '{action} falhou: {reason}',
@@ -582,7 +584,19 @@
           return;
         }
         setStatus(operationsStatus, 'info', t('opQueued', { action: actionLabel, jobId }));
-        const data = await waitForIndexJob(jobId);
+        const data = await waitForIndexJob(jobId, (runningStatus) => {
+          if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
+            setStatus(
+              operationsStatus,
+              'info',
+              t('opProgress', {
+                action: actionLabel,
+                processed: runningStatus.processedFiles,
+                total: runningStatus.totalFiles,
+              }),
+            );
+          }
+        });
         if (data.status !== 'SUCCEEDED' || !data.result) {
           setStatus(
             operationsStatus,
@@ -608,7 +622,7 @@
       }
     }
 
-    async function waitForIndexJob(jobId) {
+    async function waitForIndexJob(jobId, onRunning) {
       for (let attempt = 0; attempt < INDEX_JOB_POLL_ATTEMPTS; attempt += 1) {
         const response = await apiFetch(`/api/index/jobs/${encodeURIComponent(jobId)}`);
         if (!response.ok) {
@@ -617,6 +631,9 @@
         const data = await response.json();
         if (data.status !== 'RUNNING') {
           return data;
+        }
+        if (typeof onRunning === 'function') {
+          onRunning(data);
         }
         await new Promise((resolve) => window.setTimeout(resolve, INDEX_JOB_POLL_INTERVAL_MS));
       }

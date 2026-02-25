@@ -689,6 +689,7 @@
         removeFilterAria: 'Remove filter',
         opInProgress: '{action} in progress...',
         opQueued: '{action} accepted. Job {jobId} is running...',
+        opProgress: '{action} in progress ({processed}/{total})...',
         opFailed: 'Failed to {action}.',
         opFailedWithReason: 'Failed to {action}: {reason}',
         opNetworkFailed: 'Network failure while trying to {action}.',
@@ -776,6 +777,7 @@
         removeFilterAria: 'Remover filtro',
         opInProgress: '{action} em andamento...',
         opQueued: '{action} aceito. Job {jobId} em execucao...',
+        opProgress: '{action} em andamento ({processed}/{total})...',
         opFailed: 'Falha ao {action}.',
         opFailedWithReason: 'Falha ao {action}: {reason}',
         opNetworkFailed: 'Falha de rede ao {action}.',
@@ -1289,7 +1291,18 @@
           return;
         }
         setOpsStatus('info', t('opQueued', { action: actionLabel, jobId }));
-        const finalStatus = await waitForIndexJob(jobId);
+        const finalStatus = await waitForIndexJob(jobId, (runningStatus) => {
+          if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
+            setOpsStatus(
+              'info',
+              t('opProgress', {
+                action: actionLabel,
+                processed: runningStatus.processedFiles,
+                total: runningStatus.totalFiles,
+              }),
+            );
+          }
+        });
         if (finalStatus.status !== 'SUCCEEDED' || !finalStatus.result) {
           const reason = finalStatus.error || t('opFailed', { action: actionLabel });
           setOpsStatus('error', t('opFailedWithReason', { action: actionLabel, reason }));
@@ -1310,7 +1323,7 @@
       }
     }
 
-    async function waitForIndexJob(jobId) {
+    async function waitForIndexJob(jobId, onRunning) {
       for (let attempt = 0; attempt < INDEX_JOB_POLL_ATTEMPTS; attempt += 1) {
         const response = await apiFetch(`/api/index/jobs/${encodeURIComponent(jobId)}`);
         if (!response.ok) {
@@ -1319,6 +1332,9 @@
         const data = await response.json();
         if (data.status !== 'RUNNING') {
           return data;
+        }
+        if (typeof onRunning === 'function') {
+          onRunning(data);
         }
         await new Promise((resolve) => window.setTimeout(resolve, INDEX_JOB_POLL_INTERVAL_MS));
       }

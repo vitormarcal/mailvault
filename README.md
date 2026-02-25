@@ -41,6 +41,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Detail navigation: `GET /api/messages/{id}/prev` and `GET /api/messages/{id}/next`
 - Start async indexing job: `POST /api/index` (returns `202` + `jobId`)
 - Check indexing job status: `GET /api/index/jobs/{jobId}`
+  - status payload includes partial progress: `processedFiles`, `totalFiles`, `progressPercent`
 - Manual reindex from detail: **Reindex** button (starts async index and polls status)
 - Sanitized HTML rendering: `GET /api/messages/{id}/render`
 - Safe external navigation (links): `GET /go?url=...`
