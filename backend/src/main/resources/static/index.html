@@ -690,6 +690,8 @@
         opInProgress: '{action} in progress...',
         opQueued: '{action} accepted. Job {jobId} is running...',
         opProgress: '{action} in progress ({processed}/{total})...',
+        opFreezing: 'Freezing remote images...',
+        opFreezingProgress: 'Freezing remote images ({completed}/{total})...',
         opFailed: 'Failed to {action}.',
         opFailedWithReason: 'Failed to {action}: {reason}',
         opNetworkFailed: 'Network failure while trying to {action}.',
@@ -778,6 +780,8 @@
         opInProgress: '{action} em andamento...',
         opQueued: '{action} aceito. Job {jobId} em execucao...',
         opProgress: '{action} em andamento ({processed}/{total})...',
+        opFreezing: 'Congelando imagens remotas...',
+        opFreezingProgress: 'Congelando imagens remotas ({completed}/{total})...',
         opFailed: 'Falha ao {action}.',
         opFailedWithReason: 'Falha ao {action}: {reason}',
         opNetworkFailed: 'Falha de rede ao {action}.',
@@ -1292,6 +1296,20 @@
         }
         setOpsStatus('info', t('opQueued', { action: actionLabel, jobId }));
         const finalStatus = await waitForIndexJob(jobId, (runningStatus) => {
+          if (runningStatus.phase === 'FREEZING') {
+            if (Number.isFinite(runningStatus.freezeTotal) && Number.isFinite(runningStatus.freezeCompleted) && runningStatus.freezeTotal > 0) {
+              setOpsStatus(
+                'info',
+                t('opFreezingProgress', {
+                  completed: runningStatus.freezeCompleted,
+                  total: runningStatus.freezeTotal,
+                }),
+              );
+              return;
+            }
+            setOpsStatus('info', t('opFreezing'));
+            return;
+          }
           if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
             setOpsStatus(
               'info',

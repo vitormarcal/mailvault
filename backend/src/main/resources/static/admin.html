@@ -292,6 +292,8 @@
         opInProgress: '{action} in progress...',
         opQueued: '{action} accepted. Job {jobId} is running...',
         opProgress: '{action} in progress ({processed}/{total})...',
+        opFreezing: 'Freezing remote images...',
+        opFreezingProgress: 'Freezing remote images ({completed}/{total})...',
         opDone: '{action} complete: inserted={inserted}, updated={updated}, skipped={skipped}',
         opFailed: '{action} failed.',
         opFailedWithReason: '{action} failed: {reason}',
@@ -346,6 +348,8 @@
         opInProgress: '{action} em andamento...',
         opQueued: '{action} aceito. Job {jobId} em execucao...',
         opProgress: '{action} em andamento ({processed}/{total})...',
+        opFreezing: 'Congelando imagens remotas...',
+        opFreezingProgress: 'Congelando imagens remotas ({completed}/{total})...',
         opDone: '{action} concluido: inserted={inserted}, updated={updated}, skipped={skipped}',
         opFailed: '{action} falhou.',
         opFailedWithReason: '{action} falhou: {reason}',
@@ -585,6 +589,21 @@
         }
         setStatus(operationsStatus, 'info', t('opQueued', { action: actionLabel, jobId }));
         const data = await waitForIndexJob(jobId, (runningStatus) => {
+          if (runningStatus.phase === 'FREEZING') {
+            if (Number.isFinite(runningStatus.freezeTotal) && Number.isFinite(runningStatus.freezeCompleted) && runningStatus.freezeTotal > 0) {
+              setStatus(
+                operationsStatus,
+                'info',
+                t('opFreezingProgress', {
+                  completed: runningStatus.freezeCompleted,
+                  total: runningStatus.freezeTotal,
+                }),
+              );
+              return;
+            }
+            setStatus(operationsStatus, 'info', t('opFreezing'));
+            return;
+          }
           if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
             setStatus(
               operationsStatus,

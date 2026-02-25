@@ -17,6 +17,7 @@ enum class IndexJobStatus {
 data class IndexJobSnapshot(
     val jobId: String,
     val status: IndexJobStatus,
+    val phase: IndexProgressPhase,
     val startedAt: OffsetDateTime,
     val finishedAt: OffsetDateTime?,
     val result: IndexResult?,
@@ -24,6 +25,8 @@ data class IndexJobSnapshot(
     val alreadyRunning: Boolean,
     val totalFiles: Int?,
     val processedFiles: Int?,
+    val freezeTotal: Int?,
+    val freezeCompleted: Int?,
 )
 
 @Service
@@ -50,12 +53,15 @@ class IndexJobService(
                 InternalJob(
                     jobId = jobId,
                     status = IndexJobStatus.RUNNING,
+                    phase = IndexProgressPhase.INDEXING,
                     startedAt = now,
                     finishedAt = null,
                     result = null,
                     error = null,
                     totalFiles = null,
                     processedFiles = null,
+                    freezeTotal = null,
+                    freezeCompleted = null,
                 )
             jobs[jobId] = job
             runningJobId = jobId
@@ -83,8 +89,11 @@ class IndexJobService(
                 indexerService.index { progress ->
                     synchronized(lock) {
                         val job = jobs[jobId] ?: return@synchronized
+                        job.phase = progress.phase
                         job.totalFiles = progress.totalFiles
                         job.processedFiles = progress.processedFiles
+                        job.freezeTotal = progress.freezeTotal
+                        job.freezeCompleted = progress.freezeCompleted
                     }
                 }
             synchronized(lock) {
@@ -139,17 +148,21 @@ class IndexJobService(
     private data class InternalJob(
         val jobId: String,
         var status: IndexJobStatus,
+        var phase: IndexProgressPhase,
         val startedAt: OffsetDateTime,
         var finishedAt: OffsetDateTime?,
         var result: IndexResult?,
         var error: String?,
         var totalFiles: Int?,
         var processedFiles: Int?,
+        var freezeTotal: Int?,
+        var freezeCompleted: Int?,
     ) {
         fun toSnapshot(alreadyRunning: Boolean): IndexJobSnapshot =
             IndexJobSnapshot(
                 jobId = jobId,
                 status = status,
+                phase = phase,
                 startedAt = startedAt,
                 finishedAt = finishedAt,
                 result = result,
@@ -157,6 +170,8 @@ class IndexJobService(
                 alreadyRunning = alreadyRunning,
                 totalFiles = totalFiles,
                 processedFiles = processedFiles,
+                freezeTotal = freezeTotal,
+                freezeCompleted = freezeCompleted,
             )
     }
 

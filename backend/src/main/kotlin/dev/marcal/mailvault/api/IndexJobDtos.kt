@@ -12,11 +12,14 @@ data class IndexJobStartResponse(
 data class IndexJobStatusResponse(
     val jobId: String,
     val status: String,
+    val phase: String,
     val startedAt: String,
     val finishedAt: String?,
     val totalFiles: Int?,
     val processedFiles: Int?,
     val progressPercent: Int?,
+    val freezeTotal: Int?,
+    val freezeCompleted: Int?,
     val result: IndexResult?,
     val error: String?,
 )

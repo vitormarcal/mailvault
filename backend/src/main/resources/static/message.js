@@ -83,6 +83,8 @@ const I18N = {
     reindexRunning: 'Reindexing email store...',
     reindexQueued: 'Reindex accepted. Job {jobId} is running...',
     reindexProgress: 'Reindexing... ({processed}/{total})',
+    reindexFreezing: 'Freezing remote images...',
+    reindexFreezingProgress: 'Freezing remote images ({completed}/{total})',
     reindexFailed: 'Reindex failed.',
     reindexFailedWithReason: 'Reindex failed: {reason}',
     reindexNetworkFailed: 'Network failure while reindexing.',
@@ -141,6 +143,8 @@ const I18N = {
     reindexRunning: 'Reindexando base de emails...',
     reindexQueued: 'Reindexacao aceita. Job {jobId} em execucao...',
     reindexProgress: 'Reindexando... ({processed}/{total})',
+    reindexFreezing: 'Congelando imagens remotas...',
+    reindexFreezingProgress: 'Congelando imagens remotas ({completed}/{total})',
     reindexFailed: 'Falha ao reindexar.',
     reindexFailedWithReason: 'Falha ao reindexar: {reason}',
     reindexNetworkFailed: 'Falha de rede ao reindexar.',
@@ -515,6 +519,17 @@ reindexBtn.addEventListener('click', async () => {
     }
     setStatus('info', t('reindexQueued', { jobId }));
     const data = await waitForIndexJob(jobId, (runningStatus) => {
+      if (runningStatus.phase === 'FREEZING') {
+        if (Number.isFinite(runningStatus.freezeTotal) && Number.isFinite(runningStatus.freezeCompleted) && runningStatus.freezeTotal > 0) {
+          setStatus('info', t('reindexFreezingProgress', {
+            completed: runningStatus.freezeCompleted,
+            total: runningStatus.freezeTotal,
+          }));
+          return;
+        }
+        setStatus('info', t('reindexFreezing'));
+        return;
+      }
       if (Number.isFinite(runningStatus.totalFiles) && Number.isFinite(runningStatus.processedFiles) && runningStatus.totalFiles > 0) {
         setStatus('info', t('reindexProgress', {
           processed: runningStatus.processedFiles,

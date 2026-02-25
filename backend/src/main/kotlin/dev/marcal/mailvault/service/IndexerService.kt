@@ -24,9 +24,17 @@ data class IndexResult(
 )
 
 data class IndexProgress(
-    val totalFiles: Int,
-    val processedFiles: Int,
+    val phase: IndexProgressPhase,
+    val totalFiles: Int?,
+    val processedFiles: Int?,
+    val freezeTotal: Int?,
+    val freezeCompleted: Int?,
 )
+
+enum class IndexProgressPhase {
+    INDEXING,
+    FREEZING,
+}
 
 @Service
 class IndexerService(
@@ -49,7 +57,15 @@ class IndexerService(
             "Invalid rootDir: ${mailVaultProperties.rootEmailsDir}"
         }
         val totalFiles = countEmlFiles(rootPath)
-        progressListener?.invoke(IndexProgress(totalFiles = totalFiles, processedFiles = 0))
+        progressListener?.invoke(
+            IndexProgress(
+                phase = IndexProgressPhase.INDEXING,
+                totalFiles = totalFiles,
+                processedFiles = 0,
+                freezeTotal = null,
+                freezeCompleted = null,
+            ),
+        )
         val freezeOnIndexEnabled = uiFreezeOnIndexService.isEnabled()
         logger.info(
             "Index start rootDir={} freezeOnIndex={} freezeConcurrency={}",
@@ -156,8 +172,11 @@ class IndexerService(
                             processed++
                             progressListener?.invoke(
                                 IndexProgress(
+                                    phase = IndexProgressPhase.INDEXING,
                                     totalFiles = totalFiles,
                                     processedFiles = processed,
+                                    freezeTotal = null,
+                                    freezeCompleted = null,
                                 ),
                             )
                         }
@@ -174,7 +193,13 @@ class IndexerService(
                     )
                 }
 
-            runAutoFreezeIfEnabled(freezeOnIndexEnabled, freezeCandidates)
+            runAutoFreezeIfEnabled(
+                freezeOnIndexEnabled = freezeOnIndexEnabled,
+                candidates = freezeCandidates,
+                progressListener = progressListener,
+                totalFiles = totalFiles,
+                processedFiles = processed,
+            )
 
             val durationMs = (System.nanoTime() - startedAtNs) / 1_000_000
             indexWriteRepository.putMeta("lastIndexAt", OffsetDateTime.now().toString())
@@ -224,10 +249,22 @@ class IndexerService(
     private fun runAutoFreezeIfEnabled(
         freezeOnIndexEnabled: Boolean,
         candidates: List<String>,
+        progressListener: ((IndexProgress) -> Unit)?,
+        totalFiles: Int,
+        processedFiles: Int,
     ) {
         if (!freezeOnIndexEnabled || candidates.isEmpty()) {
             if (freezeOnIndexEnabled) {
                 logger.info("Auto-freeze skipped candidates=0 reason=no candidates")
+                progressListener?.invoke(
+                    IndexProgress(
+                        phase = IndexProgressPhase.FREEZING,
+                        totalFiles = totalFiles,
+                        processedFiles = processedFiles,
+                        freezeTotal = 0,
+                        freezeCompleted = 0,
+                    ),
+                )
             }
             return
         }
@@ -235,6 +272,15 @@ class IndexerService(
         val targets = candidates.distinct()
         if (targets.isEmpty()) {
             logger.info("Auto-freeze skipped candidates=0 reason=dedup empty")
+            progressListener?.invoke(
+                IndexProgress(
+                    phase = IndexProgressPhase.FREEZING,
+                    totalFiles = totalFiles,
+                    processedFiles = processedFiles,
+                    freezeTotal = 0,
+                    freezeCompleted = 0,
+                ),
+            )
             return
         }
         val autoFreezeStartedAtNs = System.nanoTime()
@@ -242,6 +288,15 @@ class IndexerService(
             "Auto-freeze start candidates={} concurrency={}",
             targets.size,
             mailVaultProperties.freezeOnIndexConcurrency,
+        )
+        progressListener?.invoke(
+            IndexProgress(
+                phase = IndexProgressPhase.FREEZING,
+                totalFiles = totalFiles,
+                processedFiles = processedFiles,
+                freezeTotal = targets.size,
+                freezeCompleted = 0,
+            ),
         )
 
         val concurrency = mailVaultProperties.freezeOnIndexConcurrency.coerceIn(1, 8)
@@ -265,7 +320,16 @@ class IndexerService(
                             taskFailures.incrementAndGet()
                             logger.warn("Auto-freeze failed for messageId={} reason={}", messageId, e.message)
                         } finally {
-                            completed.incrementAndGet()
+                            val completedCount = completed.incrementAndGet()
+                            progressListener?.invoke(
+                                IndexProgress(
+                                    phase = IndexProgressPhase.FREEZING,
+                                    totalFiles = totalFiles,
+                                    processedFiles = processedFiles,
+                                    freezeTotal = targets.size,
+                                    freezeCompleted = completedCount,
+                                ),
+                            )
                         }
                     }
                 }

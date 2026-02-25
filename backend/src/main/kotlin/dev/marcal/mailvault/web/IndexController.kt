@@ -42,11 +42,14 @@ class IndexController(
         return IndexJobStatusResponse(
             jobId = snapshot.jobId,
             status = snapshot.status.name,
+            phase = snapshot.phase.name,
             startedAt = snapshot.startedAt.toString(),
             finishedAt = snapshot.finishedAt?.toString(),
             totalFiles = snapshot.totalFiles,
             processedFiles = snapshot.processedFiles,
             progressPercent = progressPercent,
+            freezeTotal = snapshot.freezeTotal,
+            freezeCompleted = snapshot.freezeCompleted,
             result = snapshot.result,
             error = snapshot.error,
         )
