@@ -39,7 +39,9 @@ docker compose -f docker/docker-compose.dev.yml up --build
 - Destructive reset of indexed data + vacuum: `POST /api/maintenance/reset-indexed-data`
 - Message detail: `GET /messages/{id}`
 - Detail navigation: `GET /api/messages/{id}/prev` and `GET /api/messages/{id}/next`
-- Manual reindex from detail: **Reindex** button (calls `POST /api/index`)
+- Start async indexing job: `POST /api/index` (returns `202` + `jobId`)
+- Check indexing job status: `GET /api/index/jobs/{jobId}`
+- Manual reindex from detail: **Reindex** button (starts async index and polls status)
 - Sanitized HTML rendering: `GET /api/messages/{id}/render`
 - Safe external navigation (links): `GET /go?url=...`
 - Inline CID: `GET /api/messages/{id}/cid/{cid}`

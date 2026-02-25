@@ -594,6 +594,8 @@
     const heroSubtitle = document.getElementById('heroSubtitle');
     const statsTitle = document.getElementById('statsTitle');
     const searchHint = document.getElementById('searchHint');
+    const INDEX_JOB_POLL_INTERVAL_MS = 1000;
+    const INDEX_JOB_POLL_ATTEMPTS = 300;
 
     let state = {
       page: 0,
@@ -686,7 +688,9 @@
         chipFreezeIgnored: 'Freeze ignored: {value}',
         removeFilterAria: 'Remove filter',
         opInProgress: '{action} in progress...',
+        opQueued: '{action} accepted. Job {jobId} is running...',
         opFailed: 'Failed to {action}.',
+        opFailedWithReason: 'Failed to {action}: {reason}',
         opNetworkFailed: 'Network failure while trying to {action}.',
         opDone: '{action} finished: inserted={inserted}, updated={updated}, skipped={skipped}',
         actionIndexing: 'index',
@@ -771,7 +775,9 @@
         chipFreezeIgnored: 'Freeze ignorado: {value}',
         removeFilterAria: 'Remover filtro',
         opInProgress: '{action} em andamento...',
+        opQueued: '{action} aceito. Job {jobId} em execucao...',
         opFailed: 'Falha ao {action}.',
+        opFailedWithReason: 'Falha ao {action}: {reason}',
         opNetworkFailed: 'Falha de rede ao {action}.',
         opDone: '{action} concluida: inserted={inserted}, updated={updated}, skipped={skipped}',
         actionIndexing: 'indexar',
@@ -1271,17 +1277,29 @@
       setIndexRunning(true);
       setOpsStatus('info', t('opInProgress', { action: actionLabel }));
       try {
-        const response = await apiFetch('/api/index', { method: 'POST' });
-        if (!response.ok) {
+        const startResponse = await apiFetch('/api/index', { method: 'POST' });
+        if (!startResponse.ok) {
           setOpsStatus('error', t('opFailed', { action: actionLabel }));
           return;
         }
-        const data = await response.json();
+        const started = await startResponse.json();
+        const jobId = started.jobId;
+        if (!jobId) {
+          setOpsStatus('error', t('opFailed', { action: actionLabel }));
+          return;
+        }
+        setOpsStatus('info', t('opQueued', { action: actionLabel, jobId }));
+        const finalStatus = await waitForIndexJob(jobId);
+        if (finalStatus.status !== 'SUCCEEDED' || !finalStatus.result) {
+          const reason = finalStatus.error || t('opFailed', { action: actionLabel });
+          setOpsStatus('error', t('opFailedWithReason', { action: actionLabel, reason }));
+          return;
+        }
         setOpsStatus('ok', t('opDone', {
           action: actionLabel,
-          inserted: data.inserted,
-          updated: data.updated,
-          skipped: data.skipped,
+          inserted: finalStatus.result.inserted,
+          updated: finalStatus.result.updated,
+          skipped: finalStatus.result.skipped,
         }));
         applyAndLoad({ page: 0 });
         loadStats();
@@ -1290,6 +1308,21 @@
       } finally {
         setIndexRunning(false);
       }
+    }
+
+    async function waitForIndexJob(jobId) {
+      for (let attempt = 0; attempt < INDEX_JOB_POLL_ATTEMPTS; attempt += 1) {
+        const response = await apiFetch(`/api/index/jobs/${encodeURIComponent(jobId)}`);
+        if (!response.ok) {
+          return { status: 'FAILED', error: `status lookup failed (${response.status})` };
+        }
+        const data = await response.json();
+        if (data.status !== 'RUNNING') {
+          return data;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, INDEX_JOB_POLL_INTERVAL_MS));
+      }
+      return { status: 'FAILED', error: 'status polling timeout' };
     }
 
     async function runFreezePending() {

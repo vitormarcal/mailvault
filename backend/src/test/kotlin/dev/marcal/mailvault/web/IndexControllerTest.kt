@@ -10,10 +10,11 @@ import dev.marcal.mailvault.service.AssetFreezeService
 import dev.marcal.mailvault.service.AttachmentStorageService
 import dev.marcal.mailvault.service.HtmlRenderService
 import dev.marcal.mailvault.service.HtmlSanitizerService
-import dev.marcal.mailvault.service.IndexResult
+import dev.marcal.mailvault.service.IndexJobService
 import dev.marcal.mailvault.service.IndexerService
 import dev.marcal.mailvault.service.MessageParseService
 import dev.marcal.mailvault.service.UiFreezeOnIndexService
+import dev.marcal.mailvault.util.ResourceNotFoundException
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -23,6 +24,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 
 class IndexControllerTest {
     @TempDir
@@ -125,62 +127,93 @@ class IndexControllerTest {
         val htmlRenderService = HtmlRenderService(messageHtmlRepository, assetRepository, HtmlSanitizerService())
         controller =
             IndexController(
-                IndexerService(
-                    IndexWriteRepository(jdbcTemplate),
-                    MessageParseService(),
-                    AttachmentStorageService(),
-                    assetRepository,
-                    AssetFreezeService(
-                        messageHtmlRepository,
+                IndexJobService(
+                    IndexerService(
+                        IndexWriteRepository(jdbcTemplate),
+                        MessageParseService(),
+                        AttachmentStorageService(),
                         assetRepository,
-                        MessageRepository(jdbcTemplate),
+                        AssetFreezeService(
+                            messageHtmlRepository,
+                            assetRepository,
+                            MessageRepository(jdbcTemplate),
+                            properties,
+                            htmlRenderService,
+                        ),
+                        UiFreezeOnIndexService(AppMetaRepository(jdbcTemplate)),
                         properties,
-                        htmlRenderService,
                     ),
-                    UiFreezeOnIndexService(AppMetaRepository(jdbcTemplate)),
-                    properties,
                 ),
             )
     }
 
     @Test
-    fun `returns counters for valid directory`() {
-        val result = controller.index()
-        assertEquals(IndexResult(inserted = 0, updated = 0, skipped = 0), result)
+    fun `starts async job and eventually returns counters`() {
+        val started = controller.startIndex()
+        assertNotNull(started.jobId)
+        assertEquals("RUNNING", started.status)
+
+        val result = waitForTerminal(started.jobId)
+        assertEquals("SUCCEEDED", result.status)
+        val counters = assertNotNull(result.result)
+        assertEquals(0, counters.inserted)
+        assertEquals(0, counters.updated)
+        assertEquals(0, counters.skipped)
     }
 
     @Test
-    fun `maps invalid configured root dir to bad request`() {
+    fun `invalid configured root dir fails job status without blocking start`() {
         controller =
             IndexController(
-                IndexerService(
-                    IndexWriteRepository(jdbcTemplate),
-                    MessageParseService(),
-                    AttachmentStorageService(),
-                    AssetRepository(jdbcTemplate),
-                    AssetFreezeService(
-                        MessageHtmlRepository(jdbcTemplate),
+                IndexJobService(
+                    IndexerService(
+                        IndexWriteRepository(jdbcTemplate),
+                        MessageParseService(),
+                        AttachmentStorageService(),
                         AssetRepository(jdbcTemplate),
-                        MessageRepository(jdbcTemplate),
+                        AssetFreezeService(
+                            MessageHtmlRepository(jdbcTemplate),
+                            AssetRepository(jdbcTemplate),
+                            MessageRepository(jdbcTemplate),
+                            MailVaultProperties(
+                                rootEmailsDir = tempDir.resolve("missing").toString(),
+                                storageDir = tempDir.resolve("storage").toString(),
+                            ),
+                            HtmlRenderService(
+                                MessageHtmlRepository(jdbcTemplate),
+                                AssetRepository(jdbcTemplate),
+                                HtmlSanitizerService(),
+                            ),
+                        ),
+                        UiFreezeOnIndexService(AppMetaRepository(jdbcTemplate)),
                         MailVaultProperties(
                             rootEmailsDir = tempDir.resolve("missing").toString(),
                             storageDir = tempDir.resolve("storage").toString(),
                         ),
-                        HtmlRenderService(
-                            MessageHtmlRepository(jdbcTemplate),
-                            AssetRepository(jdbcTemplate),
-                            HtmlSanitizerService(),
-                        ),
-                    ),
-                    UiFreezeOnIndexService(AppMetaRepository(jdbcTemplate)),
-                    MailVaultProperties(
-                        rootEmailsDir = tempDir.resolve("missing").toString(),
-                        storageDir = tempDir.resolve("storage").toString(),
                     ),
                 ),
             )
 
-        val ex = assertFailsWith<IllegalArgumentException> { controller.index() }
-        assertEquals("Invalid rootDir: ${tempDir.resolve("missing")}", ex.message)
+        val started = controller.startIndex()
+        val result = waitForTerminal(started.jobId)
+
+        assertEquals("FAILED", result.status)
+        assertEquals(true, (result.error ?: "").contains("Invalid rootDir:"))
+    }
+
+    @Test
+    fun `missing job id returns not found`() {
+        assertFailsWith<ResourceNotFoundException> { controller.getIndexJob("missing-id") }
+    }
+
+    private fun waitForTerminal(jobId: String): dev.marcal.mailvault.api.IndexJobStatusResponse {
+        repeat(60) {
+            val status = controller.getIndexJob(jobId)
+            if (status.status != "RUNNING") {
+                return status
+            }
+            Thread.sleep(50)
+        }
+        error("Timed out waiting for job status jobId=$jobId")
     }
 }

@@ -81,7 +81,9 @@ const I18N = {
     securityTip2: 'Use "Freeze images" to download remote resources locally using security rules.',
     loadDetailsFailed: 'Could not load message details.',
     reindexRunning: 'Reindexing email store...',
+    reindexQueued: 'Reindex accepted. Job {jobId} is running...',
     reindexFailed: 'Reindex failed.',
+    reindexFailedWithReason: 'Reindex failed: {reason}',
     reindexNetworkFailed: 'Network failure while reindexing.',
     reindexDone: 'Reindex complete: inserted={inserted}, updated={updated}, skipped={skipped}',
     freezeRunning: 'Downloading remote images...',
@@ -136,7 +138,9 @@ const I18N = {
     securityTip2: 'Use "Congelar imagens" para baixar recursos remotos localmente com as regras de seguranca.',
     loadDetailsFailed: 'Nao foi possivel carregar os dados da mensagem.',
     reindexRunning: 'Reindexando base de emails...',
+    reindexQueued: 'Reindexacao aceita. Job {jobId} em execucao...',
     reindexFailed: 'Falha ao reindexar.',
+    reindexFailedWithReason: 'Falha ao reindexar: {reason}',
     reindexNetworkFailed: 'Falha de rede ao reindexar.',
     reindexDone: 'Reindexacao concluida: inserted={inserted}, updated={updated}, skipped={skipped}',
     freezeRunning: 'Baixando imagens remotas...',
@@ -164,6 +168,8 @@ let currentState = {
   language: 'en',
   freezeIgnored: false,
 };
+const INDEX_JOB_POLL_INTERVAL_MS = 1000;
+const INDEX_JOB_POLL_ATTEMPTS = 300;
 
 function t(key, vars = {}) {
   const bundle = I18N[currentState.language] || I18N.en;
@@ -494,16 +500,27 @@ reindexBtn.addEventListener('click', async () => {
   setStatus('info', t('reindexRunning'));
 
   try {
-    const response = await apiFetch('/api/index', { method: 'POST' });
-    if (!response.ok) {
+    const startResponse = await apiFetch('/api/index', { method: 'POST' });
+    if (!startResponse.ok) {
       setStatus('error', t('reindexFailed'));
       return;
     }
-    const data = await response.json();
+    const started = await startResponse.json();
+    const jobId = started.jobId;
+    if (!jobId) {
+      setStatus('error', t('reindexFailed'));
+      return;
+    }
+    setStatus('info', t('reindexQueued', { jobId }));
+    const data = await waitForIndexJob(jobId);
+    if (data.status !== 'SUCCEEDED' || !data.result) {
+      setStatus('error', t('reindexFailedWithReason', { reason: data.error || t('reindexFailed') }));
+      return;
+    }
     setStatus('ok', t('reindexDone', {
-      inserted: data.inserted,
-      updated: data.updated,
-      skipped: data.skipped,
+      inserted: data.result.inserted,
+      updated: data.result.updated,
+      skipped: data.result.skipped,
     }));
     await loadMessage();
   } catch (_) {
@@ -512,6 +529,21 @@ reindexBtn.addEventListener('click', async () => {
     setLoadingButtons(false);
   }
 });
+
+async function waitForIndexJob(jobId) {
+  for (let attempt = 0; attempt < INDEX_JOB_POLL_ATTEMPTS; attempt += 1) {
+    const response = await apiFetch(`/api/index/jobs/${encodeURIComponent(jobId)}`);
+    if (!response.ok) {
+      return { status: 'FAILED', error: `status lookup failed (${response.status})` };
+    }
+    const data = await response.json();
+    if (data.status !== 'RUNNING') {
+      return data;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, INDEX_JOB_POLL_INTERVAL_MS));
+  }
+  return { status: 'FAILED', error: 'status polling timeout' };
+}
 
 freezeBtn.addEventListener('click', async () => {
   if (currentState.freezeIgnored) {
