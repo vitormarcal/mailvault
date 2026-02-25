@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "dev.marcal"
-version = "1.0.0"
+version = "1.1.0"
 description = "Demo project for Spring Boot"
 
 java {
