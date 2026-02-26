@@ -30,6 +30,9 @@ docker compose -f docker/docker-compose.dev.yml up --build
   - Session security:
     - CSRF is enforced for mutating endpoints (`POST`, `PUT`, etc.) using `XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header.
     - Session cookie defaults: `HttpOnly=true`, `SameSite=Lax`, cookie-only tracking mode.
+  - Login protection:
+    - Failed login attempts are rate-limited with account lockout after consecutive failures.
+    - Lockout thresholds are configurable via environment variables.
   - Exception: health endpoint `GET /api/health` is public (no auth).
 - Historical inbox (list and search): `GET /`
 - Administrative page: `GET /admin`
@@ -94,6 +97,8 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
    - `MAILVAULT_TRACKING_URL_KEYWORDS` (default includes `track`, `pixel`, `open`, `beacon`, etc.)
    - `MAILVAULT_TRACKING_BLOCKED_DOMAINS` (default empty; comma-separated)
    - `MAILVAULT_SETUP_BOOTSTRAP_TOKEN` (default empty; if set, required to create first account)
+   - `MAILVAULT_AUTH_MAX_FAILED_ATTEMPTS` (default `5`)
+   - `MAILVAULT_AUTH_LOCKOUT_SECONDS` (default `900`)
    - `MAILVAULT_SESSION_TIMEOUT` (default `30m`)
    - `MAILVAULT_SESSION_COOKIE_SAME_SITE` (default `Lax`)
    - `MAILVAULT_SESSION_COOKIE_SECURE` (default `false`; set `true` behind HTTPS)

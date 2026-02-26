@@ -21,3 +21,6 @@ Harden authentication and authorization flow, ensuring only necessary routes are
   - `./gradlew test --tests "*SetupControllerSecurityIntegrationTest" --tests "*MessagesControllerIntegrationTest" --tests "*SecurityConfigTest"`
 - Stage 5 completed:
   - README updated with CSRF/session defaults and setup token hardening variable.
+- Final hardening increment completed:
+  - Added login rate-limit + lockout (`MAILVAULT_AUTH_MAX_FAILED_ATTEMPTS`, `MAILVAULT_AUTH_LOCKOUT_SECONDS`).
+  - Added integration test coverage for lockout behavior.

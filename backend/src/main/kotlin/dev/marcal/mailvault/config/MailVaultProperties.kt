@@ -28,4 +28,6 @@ data class MailVaultProperties(
         ),
     val trackingBlockedDomains: Set<String> = emptySet(),
     val setupBootstrapToken: String? = null,
+    val authMaxFailedAttempts: Int = 5,
+    val authLockoutSeconds: Long = 900,
 )
