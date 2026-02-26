@@ -33,6 +33,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
   - Login protection:
     - Failed login attempts are rate-limited with account lockout after consecutive failures.
     - Lockout thresholds are configurable via environment variables.
+    - Lockout state is persisted in `app_meta` and applies globally to the configured account.
   - Exception: health endpoint `GET /api/health` is public (no auth).
 - Historical inbox (list and search): `GET /`
 - Administrative page: `GET /admin`
