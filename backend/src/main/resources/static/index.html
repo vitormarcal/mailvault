@@ -958,8 +958,28 @@
       languageSelect.value = state.language;
     }
 
+    function readCookie(name) {
+      const encodedName = `${encodeURIComponent(name)}=`;
+      const cookies = document.cookie ? document.cookie.split('; ') : [];
+      for (const cookie of cookies) {
+        if (cookie.startsWith(encodedName)) {
+          return decodeURIComponent(cookie.substring(encodedName.length));
+        }
+      }
+      return '';
+    }
+
     function apiFetch(input, init = {}) {
-      return fetch(input, { credentials: 'same-origin', ...init });
+      const method = (init.method || 'GET').toUpperCase();
+      const isUnsafe = !['GET', 'HEAD', 'OPTIONS', 'TRACE'].includes(method);
+      const headers = { ...(init.headers || {}) };
+      if (isUnsafe) {
+        const csrfToken = readCookie('XSRF-TOKEN');
+        if (csrfToken) {
+          headers['X-XSRF-TOKEN'] = csrfToken;
+        }
+      }
+      return fetch(input, { credentials: 'same-origin', ...init, headers });
     }
 
     async function loadLanguagePreference() {

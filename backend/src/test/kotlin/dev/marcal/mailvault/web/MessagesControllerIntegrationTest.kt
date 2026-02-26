@@ -11,6 +11,7 @@ import org.springframework.test.context.DynamicPropertySource
 import java.net.CookieManager
 import java.net.CookiePolicy
 import java.net.URI
+import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -907,20 +908,24 @@ class MessagesControllerIntegrationTest {
     }
 
     private fun post(path: String): HttpResponse<String> {
+        val csrfToken = ensureCsrfToken()
         val request =
             HttpRequest
                 .newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
+                .header("X-XSRF-TOKEN", csrfToken)
                 .POST(HttpRequest.BodyPublishers.noBody())
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     }
 
     private fun put(path: String): HttpResponse<String> {
+        val csrfToken = ensureCsrfToken()
         val request =
             HttpRequest
                 .newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
+                .header("X-XSRF-TOKEN", csrfToken)
                 .PUT(HttpRequest.BodyPublishers.noBody())
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -930,11 +935,13 @@ class MessagesControllerIntegrationTest {
         path: String,
         json: String,
     ): HttpResponse<String> {
+        val csrfToken = ensureCsrfToken("/setup")
         val request =
             HttpRequest
                 .newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
                 .header("Content-Type", "application/json")
+                .header("X-XSRF-TOKEN", csrfToken)
                 .POST(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -944,11 +951,13 @@ class MessagesControllerIntegrationTest {
         path: String,
         json: String,
     ): HttpResponse<String> {
+        val csrfToken = ensureCsrfToken()
         val request =
             HttpRequest
                 .newBuilder()
                 .uri(URI.create("http://localhost:$port$path"))
                 .header("Content-Type", "application/json")
+                .header("X-XSRF-TOKEN", csrfToken)
                 .PUT(HttpRequest.BodyPublishers.ofString(json, StandardCharsets.UTF_8))
                 .build()
         return httpClient.send(request, HttpResponse.BodyHandlers.ofString())
@@ -1010,7 +1019,15 @@ class MessagesControllerIntegrationTest {
     }
 
     private fun login() {
-        val formBody = "username=$AUTH_USER&password=$AUTH_PASSWORD"
+        val csrfToken = ensureCsrfToken("/login")
+        val formBody =
+            "username=${URLEncoder.encode(
+                AUTH_USER,
+                StandardCharsets.UTF_8,
+            )}&password=${URLEncoder.encode(
+                AUTH_PASSWORD,
+                StandardCharsets.UTF_8,
+            )}&_csrf=${URLEncoder.encode(csrfToken, StandardCharsets.UTF_8)}"
         val response =
             httpClient.send(
                 HttpRequest
@@ -1027,6 +1044,22 @@ class MessagesControllerIntegrationTest {
     private fun clearCookies() {
         (httpClient.cookieHandler().orElse(null) as? CookieManager)?.cookieStore?.removeAll()
     }
+
+    private fun ensureCsrfToken(seedPath: String = "/"): String {
+        val existing = findCookieValue("XSRF-TOKEN")
+        if (!existing.isNullOrBlank()) {
+            return existing
+        }
+        getWithoutAuth(seedPath)
+        return findCookieValue("XSRF-TOKEN") ?: error("missing XSRF-TOKEN cookie")
+    }
+
+    private fun findCookieValue(name: String): String? =
+        (httpClient.cookieHandler().orElse(null) as? CookieManager)
+            ?.cookieStore
+            ?.cookies
+            ?.firstOrNull { it.name == name }
+            ?.value
 
     companion object {
         private const val AUTH_USER = "test-user"

@@ -9,6 +9,15 @@ spring:
     url: ${SPRING_FLYWAY_URL:${SPRING_DATASOURCE_URL:jdbc:sqlite:/app/db/mailvault.db}}
     driver-class-name: ${SPRING_FLYWAY_DRIVER_CLASS_NAME:${SPRING_DATASOURCE_DRIVER_CLASS_NAME:org.sqlite.JDBC}}
     locations: ${SPRING_FLYWAY_LOCATIONS:classpath:db/migration}
+server:
+  servlet:
+    session:
+      timeout: ${MAILVAULT_SESSION_TIMEOUT:30m}
+      tracking-modes: cookie
+      cookie:
+        http-only: true
+        same-site: ${MAILVAULT_SESSION_COOKIE_SAME_SITE:Lax}
+        secure: ${MAILVAULT_SESSION_COOKIE_SECURE:false}
 
 mailvault:
   rootEmailsDir: ${MAILVAULT_INDEX_ROOT_DIR:/app/emails}
@@ -20,3 +29,6 @@ mailvault:
   assetReadTimeoutSeconds: ${MAILVAULT_ASSET_READ_TIMEOUT_SECONDS:10}
   assetAllowedPorts: ${MAILVAULT_ASSET_ALLOWED_PORTS:80,443}
   freezeOnIndexConcurrency: ${MAILVAULT_FREEZE_ON_INDEX_CONCURRENCY:2}
+  setupBootstrapToken: ${MAILVAULT_SETUP_BOOTSTRAP_TOKEN:}
+  authMaxFailedAttempts: ${MAILVAULT_AUTH_MAX_FAILED_ATTEMPTS:5}
+  authLockoutSeconds: ${MAILVAULT_AUTH_LOCKOUT_SECONDS:900}

@@ -88,6 +88,9 @@
       <label for="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="new-password" required />
 
+      <label id="installTokenLabel" for="installToken" style="display: none;">Installation token</label>
+      <input id="installToken" name="installToken" type="password" autocomplete="one-time-code" style="display: none;" />
+
       <label for="language">Language</label>
       <select id="language" name="language">
         <option value="en">English</option>
@@ -103,10 +106,24 @@
     const setupForm = document.getElementById('setupForm');
     const submitBtn = document.getElementById('submitBtn');
     const statusEl = document.getElementById('status');
+    const installTokenLabel = document.getElementById('installTokenLabel');
+    const installTokenInput = document.getElementById('installToken');
+    let requiresInstallToken = false;
 
     function setStatus(kind, message) {
       statusEl.className = `status ${kind}`;
       statusEl.textContent = message;
+    }
+
+    function readCookie(name) {
+      const encodedName = `${encodeURIComponent(name)}=`;
+      const cookies = document.cookie ? document.cookie.split('; ') : [];
+      for (const cookie of cookies) {
+        if (cookie.startsWith(encodedName)) {
+          return decodeURIComponent(cookie.substring(encodedName.length));
+        }
+      }
+      return '';
     }
 
     async function loadStatus() {
@@ -115,6 +132,10 @@
         return;
       }
       const data = await response.json();
+      requiresInstallToken = data.requiresInstallToken === true;
+      installTokenLabel.style.display = requiresInstallToken ? 'block' : 'none';
+      installTokenInput.style.display = requiresInstallToken ? 'block' : 'none';
+      installTokenInput.required = requiresInstallToken;
       if (data.configured) {
         window.location.replace('/');
       }
@@ -129,12 +150,24 @@
         username: document.getElementById('username').value,
         password: document.getElementById('password').value,
         language: document.getElementById('language').value,
+        installToken: installTokenInput.value,
       };
+      if (requiresInstallToken && !payload.installToken.trim()) {
+        setStatus('error', 'Installation token is required.');
+        submitBtn.disabled = false;
+        return;
+      }
 
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        const csrfToken = readCookie('XSRF-TOKEN');
+        if (csrfToken) {
+          headers['X-XSRF-TOKEN'] = csrfToken;
+        }
         const response = await fetch('/api/setup/bootstrap', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          headers,
           body: JSON.stringify(payload),
         });
 

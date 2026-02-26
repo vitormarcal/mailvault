@@ -25,7 +25,14 @@ docker compose -f docker/docker-compose.dev.yml up --build
 
 - Authentication:
   - On first startup, `/` opens an initial setup page to create the first account.
+  - Optional hardening: set `MAILVAULT_SETUP_BOOTSTRAP_TOKEN` and provide the same token in setup UI to authorize first-account bootstrap.
   - After setup, `/login` is used to authenticate and all routes/resources require an authenticated session, including `/`, `/messages/{id}`, `/assets/**`, and attachment downloads (`/api/attachments/{attachmentId}/download`).
+  - Session security:
+    - CSRF is enforced for mutating endpoints (`POST`, `PUT`, etc.) using `XSRF-TOKEN` cookie + `X-XSRF-TOKEN` header.
+    - Session cookie defaults: `HttpOnly=true`, `SameSite=Lax`, cookie-only tracking mode.
+  - Login protection:
+    - Failed login attempts are rate-limited with account lockout after consecutive failures.
+    - Lockout thresholds are configurable via environment variables.
   - Exception: health endpoint `GET /api/health` is public (no auth).
 - Historical inbox (list and search): `GET /`
 - Administrative page: `GET /admin`
@@ -89,6 +96,12 @@ In `GET /api/messages/{id}`, in addition to basic metadata, the response also in
    - `MAILVAULT_TRACKING_BLOCK_ENABLED` (default `true`)
    - `MAILVAULT_TRACKING_URL_KEYWORDS` (default includes `track`, `pixel`, `open`, `beacon`, etc.)
    - `MAILVAULT_TRACKING_BLOCKED_DOMAINS` (default empty; comma-separated)
+   - `MAILVAULT_SETUP_BOOTSTRAP_TOKEN` (default empty; if set, required to create first account)
+   - `MAILVAULT_AUTH_MAX_FAILED_ATTEMPTS` (default `5`)
+   - `MAILVAULT_AUTH_LOCKOUT_SECONDS` (default `900`)
+   - `MAILVAULT_SESSION_TIMEOUT` (default `30m`)
+   - `MAILVAULT_SESSION_COOKIE_SAME_SITE` (default `Lax`)
+   - `MAILVAULT_SESSION_COOKIE_SECURE` (default `false`; set `true` behind HTTPS)
 4. Open `http://localhost:8080/` and complete initial setup (create username/password and choose language).
 5. After setup, authenticate on `/login` and use the UI normally.
 6. Click an item to open `http://localhost:8080/messages/{id}` and read `text/plain`/HTML.
